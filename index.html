@@ -626,7 +626,7 @@ const SK = 'bit_pf_v9';
 const UNCATEGORIZED = 'Da classificare';
 const CUSTOM_VALUE = '__CUSTOM__';
 const DEFAULT_CATEGORIES = [
-  'ETF Azionario','ETF Obbligazionario','Azioni singole',
+  'ETF Azionario','ETF Monetario / Fondo Monetario','ETF Obbligazionario','Azioni singole',
   'BTP / Titoli di Stato','Obbligazioni','Oro / Commodities',
   'Crypto / Bitcoin','Liquidità','Polizza assicurativa'
 ];
@@ -905,6 +905,7 @@ function guessCategory(ticker, name='') {
   if (t.startsWith('BTP')||n.includes('BTP')) return 'BTP / Titoli di Stato';
   if (n.includes('BOND')||n.includes('OBBLIG')||n.includes('TREASURY')) return 'Obbligazioni';
   if (n.includes('ETF')||n.includes('UCITS')||n.includes('INDEX FUND')) {
+    if (n.includes('MONETAR')||n.includes('MONEY MARKET')||n.includes('LIQUIDITY')) return 'ETF Monetario / Fondo Monetario';
     if (n.includes('BOND')||n.includes('OBBLIG')||n.includes('TREASURY')) return 'ETF Obbligazionario';
     return 'ETF Azionario';
   }
