@@ -720,11 +720,13 @@ function load() {
     if (raw) {
       const d = JSON.parse(raw);
       if (d.portfolios && Array.isArray(d.portfolios)) {
+        // Formato multi-portafoglio (corrente)
         ALL.portfolios = d.portfolios;
         ALL.activePortfolioId = d.activePortfolioId;
         ALL.settings = Object.assign({ak:'',anthropicKey:''}, d.settings || {});
         ALL.fxRates  = d.fxRates || {};
-        // Migrate from legacy single-portfolio format
+      } else {
+        // Formato legacy — migrazione automatica
         const pf = newPortfolio(d.settings?.portfolioName || 'Portafoglio principale');
         pf.ops = migrateLegacyOps(d.ops || []);
         pf.prices = d.prices || {};
@@ -1594,7 +1596,7 @@ function renderPF() {
         <div>
           <div class="sum-lbl">Investito</div>
           ${sum.eur ? `<div class="sum-tot neutral">${e2(sum.eur.tc)}</div>` : ''}
-          ${sum.usd ? `<div class="sum-tot usd">${sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>` : ''}
+          ${sum.usd ? `<div class="sum-tot usd neutral">${sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>` : ''}
         </div>
       </div>
       <div class="sum-row">
@@ -2243,7 +2245,8 @@ function exportBackup() {
     multiPortfolio: true,
     portfolios: ALL.portfolios.map(pf => ({...pf, dailyChanges:{}})),
     activePortfolioId: ALL.activePortfolioId,
-    settings: ALL.settings
+    settings: ALL.settings,
+    fxRates: ALL.fxRates || {}
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
@@ -2274,6 +2277,7 @@ function importBackup(event) {
         }));
         ALL.activePortfolioId = backup.activePortfolioId || ALL.portfolios[0]?.id;
         ALL.settings = Object.assign({ak:'',anthropicKey:''}, backup.settings || {});
+        ALL.fxRates  = backup.fxRates || {};
       } else {
         // Legacy format
         const state = backup.state || backup;
