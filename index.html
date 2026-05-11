@@ -649,7 +649,8 @@ const MARKETS = [
   { code:'L',    label:'Londra (.L)',                           suffix:'.L',  stooq:'.uk' },
   { code:'SW',   label:'Svizzera (.SW)',                        suffix:'.SW', stooq:'.ch' },
   { code:'AS',   label:'Amsterdam (.AS)',                       suffix:'.AS', stooq:'.nl' },
-  { code:'US',   label:'USA / Nasdaq-NYSE',                    suffix:'',    stooq:'' },
+  { code:'NYSE',  label:'NYSE — Azioni USA (es. AAPL, JPM)',    suffix:'',    stooq:'' },
+  { code:'NASDAQ',label:'NASDAQ — Azioni USA (es. MSFT, NVDA)', suffix:'',    stooq:'' },
   { code:'MANUAL',label:'Manuale / simbolo preciso',           suffix:'',    stooq:'' },
 ];
 // Finnhub exchange map
@@ -901,7 +902,11 @@ function guessCategory(ticker, name='') {
   if (t.includes('BTC')||n.includes('BITCOIN')||n.includes('CRYPTO')) return 'Crypto / Bitcoin';
   if (n.includes('ORO')||n.includes('GOLD')) return 'Oro / Commodities';
   if (t.startsWith('BTP')||n.includes('BTP')) return 'BTP / Titoli di Stato';
-  if (n.includes('BOND')||n.includes('OBBLIG')) return 'Obbligazioni';
+  if (n.includes('BOND')||n.includes('OBBLIG')||n.includes('TREASURY')) return 'Obbligazioni';
+  if (n.includes('ETF')||n.includes('UCITS')||n.includes('INDEX FUND')) {
+    if (n.includes('BOND')||n.includes('OBBLIG')||n.includes('TREASURY')) return 'ETF Obbligazionario';
+    return 'ETF Azionario';
+  }
   return UNCATEGORIZED;
 }
 function allCategories() {
