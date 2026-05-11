@@ -380,7 +380,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .leg-val.loss{color:var(--red);border-color:rgba(255,77,109,.18);background:rgba(255,77,109,.06)}
 .bar-row{margin:10px 0}
 .bar-head{display:flex;justify-content:space-between;gap:8px;margin-bottom:5px;font-size:12px;color:var(--text2)}
-.bar-label{font-family:'JetBrains Mono',monospace;color:#c8d8ff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bar-label{font-family:'Outfit',sans-serif;color:#c8d8ff;font-size:12px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;min-width:0}
 .bar-num{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3);white-space:nowrap}
 .bar-track{height:8px;background:var(--bg);border:1px solid var(--border);border-radius:999px;overflow:hidden;margin-bottom:3px}
 .bar-fill{height:100%;border-radius:999px;background:var(--blue)}
@@ -1946,7 +1946,7 @@ function renderCharts() {
     <div class="chart-title">Investito vs valore attuale</div>
     ${[...rows].sort((a,b)=>b.value-a.value).map(r=>`
       <div class="bar-row">
-        <div class="bar-head"><span class="bar-label">${esc(r.displayTicker)}</span><span class="bar-num">${e2(r.cost)} → ${e2(r.value)}</span></div>
+        <div class="bar-head"><span class="bar-label">${esc(r.name||r.displayTicker)}</span><span class="bar-num">${e2(r.cost)} → ${e2(r.value)}</span></div>
         <div class="bar-track"><div class="bar-fill cost" style="width:${Math.max(2,r.cost/maxV*100)}%"></div></div>
         <div class="bar-track"><div class="bar-fill value" style="width:${Math.max(2,r.value/maxV*100)}%"></div></div>
       </div>`).join('')}
@@ -1955,7 +1955,7 @@ function renderCharts() {
     <div class="chart-title">Gain / Loss per titolo</div>
     ${[...rows].sort((a,b)=>Math.abs(b.gain)-Math.abs(a.gain)).map(r=>`
       <div class="bar-row">
-        <div class="bar-head"><span class="bar-label">${esc(r.displayTicker)}</span><span class="bar-num ${r.gain>=0?'gain':'loss'}">${r.gain>=0?'+':''}${e2(r.gain)} · ${pct(r.pctGain)}</span></div>
+        <div class="bar-head"><span class="bar-label">${esc(r.name||r.displayTicker)}</span><span class="bar-num ${r.gain>=0?'gain':'loss'}">${r.gain>=0?'+':''}${e2(r.gain)} · ${pct(r.pctGain)}</span></div>
         <div class="bar-track"><div class="bar-fill ${r.gain>=0?'gain':'loss'}" style="width:${Math.max(2,Math.abs(r.gain)/maxG*100)}%"></div></div>
       </div>`).join('')}
   </div>
@@ -1963,7 +1963,7 @@ function renderCharts() {
     <div class="chart-title">Peso % per strumento</div>
     ${[...rows].sort((a,b)=>b.value-a.value).map(r=>{const w=tv?r.value/tv*100:0;return`
       <div class="bar-row">
-        <div class="bar-head"><span class="bar-label">${esc(r.displayTicker)} · ${esc(r.assetClass||UNCATEGORIZED)}</span><span class="bar-num">${w.toFixed(1)}%</span></div>
+        <div class="bar-head"><span class="bar-label">${esc(r.name||r.displayTicker)} · ${esc(r.assetClass||UNCATEGORIZED)}</span><span class="bar-num">${w.toFixed(1)}%</span></div>
         <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2,w)}%"></div></div>
       </div>`;}).join('')}
   </div>`;
@@ -2809,7 +2809,13 @@ function renderPnL() {
 function renderTaxRateSettings() {
   const el = document.getElementById('tax-rate-section');
   if (!el) return;
-  const tickers = [...new Set((S.ops||[]).map(o => (o.quoteTicker||o.ticker).split('.')[0]))].sort();
+  // Mappa ticker → nome esteso dalle operazioni
+  const tkNameMap = {};
+  (S.ops||[]).forEach(o => {
+    const base = (o.quoteTicker||o.ticker).split('.')[0];
+    if (!tkNameMap[base]) tkNameMap[base] = o.name || o.displayTicker || base;
+  });
+  const tickers = Object.keys(tkNameMap).sort();
   if (!tickers.length) { el.innerHTML = '<div class="sdesc">Nessun titolo ancora inserito.</div>'; return; }
 
   el.innerHTML = `<div class="taxrate-grid">
@@ -2817,12 +2823,15 @@ function renderTaxRateSettings() {
       const cur = S.taxRates?.[tk] ?? (DEFAULT_TAX_12_5.includes(tk) ? 12.5 :
         ((S.ops||[]).find(o => (o.quoteTicker||o.ticker).split('.')[0] === tk)?.assetClass === 'BTP / Titoli di Stato' ? 12.5 : 26));
       const badge = cur <= 13 ? 'low' : 'std';
-      const badgeTxt = cur <= 13 ? '12.5%' : '26%';
+      const nm = tkNameMap[tk] || tk;
       return `<div class="taxrate-row">
-        <span class="taxrate-lbl">${esc(tk)}</span>
+        <div style="flex:1;min-width:0">
+          <div class="taxrate-lbl">${esc(nm)}</div>
+          <div style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace">${esc(tk)}</div>
+        </div>
         <input type="number" class="taxrate-inp" value="${cur}" step="0.1" min="0" max="100"
           onchange="saveTaxRate('${tk}',this.value)">
-        <span class="taxrate-badge ${badge}">${badgeTxt}</span>
+        <span class="taxrate-badge ${badge}">${cur <= 13 ? '12.5%' : '26%'}</span>
       </div>`;
     }).join('')}
   </div>`;
