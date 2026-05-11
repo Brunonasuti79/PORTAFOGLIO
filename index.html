@@ -326,7 +326,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 /* ──────────────────────── REBALANCE ──────────────────────── */
 .rb-table{width:100%;border-collapse:collapse;font-size:12px}
 .rb-table th{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;
-  font-weight:700;padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap}
+  font-weight:700;padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;
+  cursor:pointer;user-select:none}
+.rb-table th:hover{color:var(--text2)}
+.rb-table th.rb-sort-asc::after{content:' ▲';color:var(--blue)}
+.rb-table th.rb-sort-desc::after{content:' ▼';color:var(--blue)}
+.rb-table th.rb-sortable::after{content:' ⇅';opacity:.35}
 .rb-table td{padding:10px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
 .rb-table tfoot td{border-top:1px solid var(--border);border-bottom:none;padding-top:12px}
 .rb-cat{color:#c8d8ff;font-weight:500;font-size:12px}
@@ -700,6 +705,8 @@ let editingOpId = null;
 let expandedHoldings = {};
 let pfFilterCategory = 'Tutte';
 let pfSortMode = 'name';
+let rbSortCol  = '';   // colonna attiva ribilancia
+let rbSortDir  = 1;    // 1 = asc, -1 = desc
 let bestProxy = 0; // index into PROXIES
 
 // ════════════════════════════════════════════════════════════════
@@ -1832,6 +1839,11 @@ function renderCharts() {
 // ════════════════════════════════════════════════════════════════
 //  RENDER — REBALANCE
 // ════════════════════════════════════════════════════════════════
+function sortRB(col) {
+  if (rbSortCol === col) rbSortDir *= -1;
+  else { rbSortCol = col; rbSortDir = col === 'categoria' ? 1 : -1; }
+  renderRebalance();
+}
 function renderRebalance() {
   const area = document.getElementById('rebalance-area');
   if (!area) return;
@@ -1847,15 +1859,38 @@ function renderRebalance() {
     totalValue += val;
   });
   const allCats = new Set([...Object.keys(catValues), ...Object.keys(targets)]);
-  const rows = [...allCats].sort((a,b)=>a.localeCompare(b,'it'));
   const totalTarget = Object.values(targets).reduce((a,v)=>a+(Number(v)||0),0);
+
+  let rows = [...allCats].map(cat => {
+    const val    = catValues[cat] || 0;
+    const actual = totalValue ? val/totalValue*100 : 0;
+    const target = Number(targets[cat]) || 0;
+    const delta  = actual - target;
+    const needed = target > 0 && totalValue ? (target/100*totalValue) - val : null;
+    return { cat, val, actual, target, delta, needed };
+  });
+
+  rows.sort((a,b) => {
+    let v;
+    switch(rbSortCol) {
+      case 'categoria': v = a.cat.localeCompare(b.cat,'it'); break;
+      case 'obiettivo': v = a.target - b.target; break;
+      case 'attuale':   v = a.actual - b.actual; break;
+      case 'delta':     v = a.delta  - b.delta;  break;
+      case 'importo':   v = a.val    - b.val;     break;
+      default:          v = a.cat.localeCompare(b.cat,'it');
+    }
+    return v * rbSortDir;
+  });
+
+  const thCls = col => rbSortCol !== col ? 'rb-sortable' : rbSortDir === 1 ? 'rb-sort-asc' : 'rb-sort-desc';
 
   function advice(actual, target) {
     if (!target) return {text:'—',cls:''};
     const d = actual - target;
     if (Math.abs(d) < 1.5) return {text:'✓ Bilanciato',cls:'adv-ok'};
-    if (d > 5) return {text:'📉 Vendi',cls:'adv-sell'};
-    if (d > 0) return {text:'↓ Eccesso lieve',cls:'adv-warn'};
+    if (d > 5)  return {text:'📉 Vendi',cls:'adv-sell'};
+    if (d > 0)  return {text:'↓ Eccesso lieve',cls:'adv-warn'};
     if (d < -5) return {text:'📈 Compra',cls:'adv-buy'};
     return {text:'↑ Carenza lieve',cls:'adv-warn'};
   }
@@ -1863,18 +1898,22 @@ function renderRebalance() {
   area.innerHTML = `
   <div class="ssec" style="margin:14px">
     <div class="slbl">📐 Come funziona</div>
-    <div class="sdesc">Clicca ✎ per impostare l'obiettivo % di ogni categoria. Somma = 100%.</div>
+    <div class="sdesc">Clicca ✎ per impostare l'obiettivo %. Clicca le intestazioni per ordinare la tabella. Somma = 100%.</div>
     ${totalTarget > 0 && Math.abs(totalTarget-100) > 0.1 ? `<div class="rb-warn-bar">⚠ Totale obiettivi: ${totalTarget.toFixed(1)}% (deve essere 100%)</div>` : ''}
   </div>
   <div style="margin:0 14px 14px;overflow-x:auto">
     <table class="rb-table">
-      <thead><tr><th>Categoria</th><th>Obiettivo %</th><th>Attuale %</th><th>Delta</th><th>Importo</th><th>Consiglio</th></tr></thead>
+      <thead><tr>
+        <th class="${thCls('categoria')}" onclick="sortRB('categoria')">Categoria</th>
+        <th class="${thCls('obiettivo')}" onclick="sortRB('obiettivo')">Obiettivo %</th>
+        <th class="${thCls('attuale')}"   onclick="sortRB('attuale')">Attuale %</th>
+        <th class="${thCls('delta')}"     onclick="sortRB('delta')">Delta</th>
+        <th class="${thCls('importo')}"   onclick="sortRB('importo')">Importo</th>
+        <th>Consiglio</th>
+      </tr></thead>
       <tbody>
-        ${rows.map(cat => {
-          const val=catValues[cat]||0, actual=totalValue?val/totalValue*100:0;
-          const target=Number(targets[cat])||0, delta=actual-target;
-          const needed=target>0&&totalValue?(target/100*totalValue)-val:null;
-          const adv=advice(actual,target);
+        ${rows.map(({cat,val,actual,target,delta,needed}) => {
+          const adv = advice(actual,target);
           return `<tr>
             <td class="rb-cat">${esc(cat)}</td>
             <td class="rb-num">${target>0?target.toFixed(1)+'%':'—'} <button class="rb-edit-btn" onclick="editTarget('${jsq(cat)}')">✎</button></td>
