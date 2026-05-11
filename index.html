@@ -123,17 +123,53 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .proj-table-wrap{margin:6px 14px 80px;overflow-x:auto}
 .proj-table{width:100%;border-collapse:collapse;font-size:11px}
 .proj-table th{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;
-  font-weight:700;padding:7px 8px;border-bottom:1px solid var(--border);text-align:right;white-space:nowrap}
-.proj-table th:first-child{text-align:left}
-.proj-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.03);
+  font-weight:700;padding:7px 10px;border-bottom:2px solid var(--border);
+  border-right:1px solid var(--border);text-align:right;white-space:nowrap;background:var(--bg3)}
+.proj-table th:first-child{text-align:left;border-left:1px solid var(--border)}
+.proj-table td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.05);
+  border-right:1px solid rgba(255,255,255,.04);
   font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);text-align:right;white-space:nowrap}
-.proj-table td:first-child{color:var(--text3);text-align:left;font-family:'Outfit',sans-serif}
-.proj-table tr:nth-child(5n){background:rgba(123,167,255,.04)}
-.proj-table .col-att{color:#7ba7ff}
-.proj-table .col-obj{color:#22d47e}
-.proj-table .col-infl{color:#ff9944}
-.proj-table .col-net-att{color:var(--text)}
-.proj-table .col-net-obj{color:var(--green)}gap:10px;margin:5px 14px 6px;
+.proj-table td:first-child{color:var(--text3);text-align:left;font-family:'Outfit',sans-serif;
+  border-left:1px solid rgba(255,255,255,.04);font-weight:600}
+.proj-table tbody tr:hover{background:rgba(123,167,255,.06)}
+.proj-table tr:nth-child(5n) td{background:rgba(123,167,255,.03)}
+.proj-table .col-att{color:#7ba7ff}.proj-table .col-obj{color:#22d47e}
+.proj-table .col-net-att{color:var(--text)}.proj-table .col-net-obj{color:var(--green)}
+/* ── P&L ── */
+.pnl-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 14px 6px}
+.pnl-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;text-align:center}
+.pnl-lbl{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+.pnl-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700}
+.pnl-table-wrap{margin:6px 14px 80px;overflow-x:auto}
+.pnl-table{width:100%;border-collapse:collapse;font-size:11px}
+.pnl-table th{font-size:9px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;font-weight:700;
+  padding:7px 8px;border-bottom:2px solid var(--border);border-right:1px solid var(--border);
+  text-align:right;white-space:nowrap;background:var(--bg3);cursor:pointer;user-select:none}
+.pnl-table th:first-child{text-align:left;border-left:1px solid var(--border)}
+.pnl-table th:hover{color:var(--text2)}
+.pnl-table th.pnl-sort-asc::after{content:' ▲';color:var(--blue)}
+.pnl-table th.pnl-sort-desc::after{content:' ▼';color:var(--blue)}
+.pnl-table td{padding:7px 8px;border-bottom:1px solid rgba(255,255,255,.04);border-right:1px solid rgba(255,255,255,.03);
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);text-align:right;white-space:nowrap}
+.pnl-table td:first-child{text-align:left;font-family:'Outfit',sans-serif;border-left:1px solid rgba(255,255,255,.03)}
+.pnl-table tbody tr:hover{background:rgba(123,167,255,.06)}
+/* tax rate settings */
+.taxrate-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.taxrate-row{display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:6px 10px;gap:8px}
+.taxrate-lbl{font-size:11px;color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.taxrate-inp{width:52px;background:var(--bg);border:1px solid var(--border2);color:var(--text);
+  font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;text-align:right;
+  border-radius:6px;padding:3px 6px}
+.taxrate-badge{font-size:9px;padding:2px 5px;border-radius:4px;font-weight:700;flex-shrink:0}
+.taxrate-badge.low{background:rgba(34,212,126,.12);color:var(--green)}
+.taxrate-badge.std{background:rgba(123,167,255,.1);color:var(--blue)}
+#toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);
+  background:#0a1a2e;border:1px solid var(--blue);color:#dce8ff;
+  font-size:12px;padding:9px 16px;border-radius:12px;z-index:999;
+  opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;max-width:90vw;
+  text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.5)}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}gap:10px;margin:5px 14px 6px;
   background:rgba(7,11,20,.4);border:1px solid var(--border);border-radius:12px;
   padding:8px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
 .cash-bar:active{opacity:.8}
@@ -512,9 +548,22 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
     </div>
 
     <div class="ssec">
+      <div class="slbl">📊 Aliquote fiscali per ticker</div>
+      <div class="sdesc">Imposta l'aliquota % per ogni titolo. Default: 26%. XGLE e XEON pre-impostati al 12,5% (titoli di stato / assimilati).<br>Il tuo broker in regime amministrato applica le aliquote corrette — questi valori servono solo per la stima nel P&amp;L.</div>
+      <div id="tax-rate-section" style="margin-top:8px"><div class="sdesc">Caricamento...</div></div>
+      <button class="bbtn" onclick="showTaxRateSettings()" style="margin-top:8px">Aggiorna lista</button>
+    </div>
+
+    <div class="ssec">
       <div class="slbl">ℹ Info</div>
       <div class="sdesc" style="color:var(--text3)">Portafoglio BIT v9.0 · Multi-portafoglio · Finnhub + Yahoo + Stooq + Anthropic · Festivi italiani</div>
     </div>
+  </div>
+
+  <!-- P&L PAGE -->
+  <div id="pg-pnl" class="page">
+    <div class="ph"><div class="ph-left"><div class="pt">PROFIT &amp; LOSS</div><div class="pt-sub">Posizioni chiuse — plusvalenze e minusvalenze</div></div></div>
+    <div id="pnl-area"></div>
   </div>
 
   <!-- BACKUP PAGE -->
@@ -571,6 +620,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
         <circle cx="3.5" cy="6" r=".8" fill="currentColor"/><circle cx="3.5" cy="12" r=".8" fill="currentColor"/><circle cx="3.5" cy="18" r=".8" fill="currentColor"/>
       </svg><span>Operazioni</span>
     </button>
+    <button class="nbtn" id="nav-pnl" onclick="showPage('pnl')">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="12" y1="2" x2="12" y2="22"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+        <line x1="18" y1="6" x2="22" y2="2"/><line x1="18" y1="18" x2="22" y2="22"/>
+      </svg><span>P&amp;L</span>
+    </button>
     <button class="nbtn" id="nav-backup" onclick="showPage('backup')">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
@@ -583,6 +638,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
     </button>
   </nav>
 </div>
+
+<!-- TOAST -->
+<div id="toast"></div>
 
 <!-- QUICK ADD MODAL -->
 <div id="qmodal" class="mov hidden" onclick="if(event.target.id==='qmodal')closeQuick()">
@@ -808,7 +866,18 @@ function normalizePortfolio(pf) {
   if (!pf.priceHistory)     pf.priceHistory = [];
   if (!pf.rebalanceTargets) pf.rebalanceTargets = {};
   if (pf.cashEUR == null)   pf.cashEUR = 0;
+  if (!pf.taxRates)         pf.taxRates = {};
   pf.ops.forEach(op => normalizeOp(op));
+}
+
+// Tickers noti con aliquota 12.5%
+const DEFAULT_TAX_12_5 = ['XGLE','XEON'];
+function getTaxRateForTicker(ticker, assetClass) {
+  const base = (ticker || '').split('.')[0];
+  if (S.taxRates?.[base] != null) return S.taxRates[base] / 100;
+  if (DEFAULT_TAX_12_5.includes(base)) return 0.125;
+  if (assetClass === 'BTP / Titoli di Stato') return 0.125;
+  return 0.26;
 }
 
 function normalizeOp(op) {
@@ -2007,15 +2076,15 @@ function renderProjection() {
 
   // ── TABELLA 0→30 ──────────────────────────────────────────────
   const rowHtml = Array.from({length: YRS}, (_, y) => {
-    const va = attuale[y], vo = obiettivo?.[y], vi = inflaz[y];
-    const erosione = va * (inflRate / 100);        // erosione inflaz. annua sul montante
-    const na = va - vi, no = vo != null ? vo - vi : null;
+    const va = attuale[y], vo = obiettivo?.[y];
+    const base = total * Math.pow(1 + inflRate/100, y); // soglia inflazione su capitale iniziale
+    const na = va - base;
+    const no = vo != null ? vo - base : null;
     const yr = y === 0 ? '<strong>Oggi</strong>' : `Anno ${y}`;
     return `<tr>
       <td>${yr}</td>
       <td class="col-att">${e2(va)}</td>
       ${obiettivo ? `<td class="col-obj">${e2(vo)}</td>` : ''}
-      <td class="col-infl">${y === 0 ? '—' : e2(erosione)}</td>
       <td class="col-net-att ${na>=0?'gain':'loss'}">${na>=0?'+':''}${e2(na)}</td>
       ${obiettivo ? `<td class="col-net-obj ${no>=0?'gain':'loss'}">${no>=0?'+':''}${e2(no)}</td>` : ''}
     </tr>`;
@@ -2060,8 +2129,7 @@ function renderProjection() {
         <th>Anno</th>
         <th>Portafoglio attuale</th>
         ${obiettivo ? '<th>Portafoglio obiettivo</th>' : ''}
-        <th>Erosione inflaz. annua</th>
-        <th>Guadagno accumulato</th>
+        <th>Guadagno accumulato netto infl.</th>
         ${obiettivo ? '<th>Guadagno acc. netto infl. (obiettivo)</th>' : ''}
       </tr></thead>
       <tbody>${rowHtml}</tbody>
@@ -2290,7 +2358,7 @@ function renderHistory() {
 //  NAVIGATION
 // ════════════════════════════════════════════════════════════════
 function showPage(pg) {
-  ['portfolio','operations','charts','rebalance','proj','history','backup','settings'].forEach(p => {
+  ['portfolio','operations','charts','rebalance','proj','history','pnl','backup','settings'].forEach(p => {
     const el  = document.getElementById(`pg-${p}`);
     const nav = document.getElementById(`nav-${p}`);
     if (el)  el.classList.toggle('active', p===pg);
@@ -2299,6 +2367,7 @@ function showPage(pg) {
   if (pg==='charts')     renderCharts();
   if (pg==='rebalance')  renderRebalance();
   if (pg==='proj')       renderProjection();
+  if (pg==='pnl')        renderPnL();
   if (pg==='history')  renderHistory();
   if (pg==='settings') renderSettingsUI();
 }
@@ -2371,6 +2440,60 @@ function calcFTotal() {
   const totEl = document.getElementById('f-tot'); if (totEl) totEl.value = imp>0?(opType==='buy'?imp+cm:imp-cm).toFixed(2):'';
 }
 
+let _toastTimer = null;
+function showToast(msg, duration=3500) {
+  const t = document.getElementById('toast');
+  if (!t) return;
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function taxRateForCat(assetClass) {
+  return (assetClass === 'BTP / Titoli di Stato') ? 0.125 : 0.26;
+}
+
+// Aggiorna la liquidità dopo un'operazione (solo nuove ops, non editing)
+function updateCashForOp(op, holdingsSnap) {
+  if (!op || S.cashEUR == null) return;
+  const isUSDpurchase = (op.titleCcy === 'USD' && op.purchCcy === 'USD');
+  if (isUSDpurchase) return; // acquisto in $, non toccare la liquidità in €
+
+  if (op.type === 'buy') {
+    let cost;
+    if (op.titleCcy === 'USD' && op.purchCcy === 'EUR' && op.fxRate) {
+      cost = (op.price / op.fxRate) * op.qty + (op.commissions || 0);
+    } else {
+      cost = op.price * op.qty + (op.commissions || 0);
+    }
+    const prev = S.cashEUR;
+    S.cashEUR = Math.max(0, S.cashEUR - cost);
+    const scalato = prev - S.cashEUR;
+    showToast(`💶 Liquidità scalata: −${e2(scalato)}  →  Residuo: ${e2(S.cashEUR)}`);
+
+  } else if (op.type === 'sell') {
+    // Calcola guadagno sul holding prima della vendita
+    const h = holdingsSnap?.find(x => x.ticker === op.quoteTicker);
+    const avgPrc = h?.avgPriceBuyCcy ?? h?.avgPrice ?? op.price;
+    let proceeds, gain;
+    if (op.titleCcy === 'USD' && op.purchCcy === 'EUR' && op.fxRate) {
+      const rate = ALL.fxRates?.EURUSD || op.fxRate;
+      proceeds = (op.price / rate) * op.qty - (op.commissions || 0);
+      const avgEur = avgPrc / op.fxRate;
+      gain = Math.max(0, (op.price / rate - avgEur) * op.qty);
+    } else {
+      proceeds = op.price * op.qty - (op.commissions || 0);
+      gain = Math.max(0, (op.price - avgPrc) * op.qty);
+    }
+    const tax  = gain * getTaxRateForTicker(op.quoteTicker || op.ticker, op.assetClass);
+    const net  = Math.max(0, proceeds - tax);
+    S.cashEUR += net;
+    const taxPct = (getTaxRateForTicker(op.quoteTicker || op.ticker, op.assetClass) * 100).toFixed(1);
+    showToast(`💶 +${e2(net)} in liquidità  (imposte est. ${taxPct}%: −${e2(tax)})`, 5000);
+  }
+}
+
 function saveOp() {
   const qf = readQuoteForm('f');
   if (!qf) return;
@@ -2412,11 +2535,13 @@ function saveOp() {
     titleCcy: qf.titleCcy || 'EUR', purchCcy: qf.purchCcy || 'EUR', fxRate: qf.fxRate || null
   };
 
+  const holdingsSnap = !editingOpId ? calcPF() : null;
   if (editingOpId) {
     const idx = (S.ops||[]).findIndex(o => o.id === editingOpId);
     if (idx >= 0) S.ops[idx] = opData;
   } else {
     S.ops.push(opData);
+    updateCashForOp(opData, holdingsSnap);
   }
   save(); closeModal(); renderAll();
 }
@@ -2463,6 +2588,7 @@ function saveQuick() {
   const existing = calcPF().find(h => h.ticker === qf.quoteTicker);
   if (existing && !confirm(`${qf.displayTicker} è già in portafoglio. Aggiungere aggiornerà il prezzo medio di carico. Continuare?`)) return;
 
+  const snapQ = calcPF();
   S.ops.push({
     id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
     date: new Date().toISOString().slice(0,10),
@@ -2478,6 +2604,7 @@ function saveQuick() {
     name, assetClass, price:avg, qty, commissions:comm,
     titleCcy: qf.titleCcy || 'EUR', purchCcy: qf.purchCcy || 'EUR', fxRate: qf.fxRate || null
   });
+  updateCashForOp(S.ops[S.ops.length-1], snapQ);
   save(); closeQuick(); renderAll();
 }
 
@@ -2502,6 +2629,209 @@ function syncSettingsUI() {
   if (stAk)  { stAk.textContent  = ak  ? '✓ API key Finnhub salvata'    : 'Nessuna API key Finnhub';    stAk.className  = ak  ? 'akst ok' : 'akst ko'; }
   if (stAnt) { stAnt.textContent = ant ? '✓ API key Anthropic salvata'  : 'Nessuna API key Anthropic';  stAnt.className = ant ? 'akst ok' : 'akst ko'; }
 }
+// ════════════════════════════════════════════════════════════════
+//  P&L — POSIZIONI CHIUSE
+// ════════════════════════════════════════════════════════════════
+let pnlSortCol = 'date', pnlSortDir = -1;
+
+function saveTaxRate(ticker, val) {
+  const n = parseFloat(val);
+  if (isNaN(n) || n < 0 || n > 100) return;
+  if (!S.taxRates) S.taxRates = {};
+  S.taxRates[ticker] = n;
+  save();
+}
+
+function calcRealizedPnL() {
+  const ops = (S.ops || [])
+    .filter(o => o.type === 'buy' || o.type === 'sell')
+    .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
+
+  const lots = {}; // quoteTicker -> [{price,qty,date,assetClass,fxRate,titleCcy,purchCcy,name,comm}]
+  const trades = [];
+
+  for (const op of ops) {
+    const tk = op.quoteTicker || op.ticker;
+    if (!lots[tk]) lots[tk] = [];
+
+    if (op.type === 'buy') {
+      lots[tk].push({ price: op.price, qty: op.qty, date: op.date,
+        assetClass: op.assetClass, fxRate: op.fxRate || null,
+        titleCcy: op.titleCcy || 'EUR', purchCcy: op.purchCcy || 'EUR',
+        name: op.name || op.displayTicker, comm: op.commissions || 0 });
+    } else {
+      let remQty = op.qty;
+      while (remQty > 0.0001 && lots[tk]?.length) {
+        const lot = lots[tk][0];
+        const usedQty = Math.min(lot.qty, remQty);
+        const fracComm = lot.qty > 0 ? lot.comm * (usedQty / lot.qty) : 0;
+
+        // Calcolo gain nella valuta di acquisto
+        let buyPriceDisp, sellPriceDisp, sym;
+        if (lot.titleCcy === 'USD' && lot.purchCcy === 'EUR' && lot.fxRate) {
+          buyPriceDisp  = lot.price / lot.fxRate;
+          const liveR   = ALL.fxRates?.EURUSD || lot.fxRate;
+          sellPriceDisp = op.price / liveR;
+          sym = '€';
+        } else if (lot.titleCcy === 'USD' && lot.purchCcy === 'USD') {
+          buyPriceDisp = lot.price; sellPriceDisp = op.price; sym = '$';
+        } else {
+          buyPriceDisp = lot.price; sellPriceDisp = op.price; sym = '€';
+        }
+
+        const grossPerShare = sellPriceDisp - buyPriceDisp;
+        const grossTotal    = grossPerShare * usedQty;
+        const sellComm      = (op.commissions || 0) * (usedQty / op.qty);
+        const netBeforeTax  = grossTotal - fracComm - sellComm;
+        const taxR          = getTaxRateForTicker(tk, op.assetClass);
+        const tax           = netBeforeTax > 0 ? netBeforeTax * taxR : 0;
+        const netTotal      = netBeforeTax - tax;
+        const gainPct       = buyPriceDisp > 0 ? (grossPerShare / buyPriceDisp) * 100 : 0;
+
+        trades.push({
+          ticker: op.displayTicker || tk, name: op.name || lot.name || tk,
+          assetClass: op.assetClass, sym,
+          sellDate: op.date, buyDate: lot.date,
+          qty: usedQty, buyPrice: buyPriceDisp, sellPrice: sellPriceDisp,
+          grossTotal, netBeforeTax, tax, netTotal, gainPct,
+          taxRate: taxR * 100,
+          commissions: fracComm + sellComm
+        });
+
+        lot.qty -= usedQty;
+        remQty  -= usedQty;
+        if (lot.qty <= 0.0001) lots[tk].shift();
+      }
+    }
+  }
+  return trades;
+}
+
+function sortPnL(col) {
+  pnlSortDir = pnlSortCol === col ? -pnlSortDir : -1;
+  pnlSortCol = col;
+  renderPnL();
+}
+
+function renderPnL() {
+  const area = document.getElementById('pnl-area');
+  if (!area) return;
+
+  const trades = calcRealizedPnL();
+
+  if (!trades.length) {
+    area.innerHTML = `<div class="empty" style="margin-top:40px">Nessuna vendita registrata.<br>Le posizioni chiuse appariranno qui.</div>`;
+    return;
+  }
+
+  // Ordina
+  const colMap = { date:'sellDate', ticker:'ticker', gross:'grossTotal', tax:'tax', net:'netTotal', pct:'gainPct' };
+  const skey = colMap[pnlSortCol] || 'sellDate';
+  trades.sort((a,b) => {
+    const av = a[skey], bv = b[skey];
+    return typeof av === 'string' ? av.localeCompare(bv) * pnlSortDir : (av - bv) * pnlSortDir;
+  });
+
+  // Aggregati
+  const totGross = trades.reduce((s,t) => s + t.grossTotal, 0);
+  const totTax   = trades.reduce((s,t) => s + t.tax, 0);
+  const totNet   = trades.reduce((s,t) => s + t.netTotal, 0);
+  const totComm  = trades.reduce((s,t) => s + t.commissions, 0);
+
+  const thC = col => pnlSortCol === col ? (pnlSortDir > 0 ? 'pnl-sort-asc' : 'pnl-sort-desc') : '';
+
+  area.innerHTML = `
+  <div class="pnl-summary">
+    <div class="pnl-card">
+      <div class="pnl-lbl">Gain/Loss lordo</div>
+      <div class="pnl-val ${totGross>=0?'gain':'loss'}">${totGross>=0?'+':''}${e2(totGross)}</div>
+    </div>
+    <div class="pnl-card">
+      <div class="pnl-lbl">Gain/Loss netto</div>
+      <div class="pnl-val ${totNet>=0?'gain':'loss'}">${totNet>=0?'+':''}${e2(totNet)}</div>
+    </div>
+    <div class="pnl-card">
+      <div class="pnl-lbl">Imposte stimate</div>
+      <div class="pnl-val loss">−${e2(totTax)}</div>
+    </div>
+    <div class="pnl-card">
+      <div class="pnl-lbl">Commissioni totali</div>
+      <div class="pnl-val neutral">−${e2(totComm)}</div>
+    </div>
+  </div>
+  <div class="sdesc" style="margin:0 14px 6px;font-style:italic">⚠ Imposte calcolate su plusvalenze nette commissioni. Aliquote personalizzabili in Impostazioni.</div>
+  <div class="pnl-table-wrap">
+    <table class="pnl-table">
+      <thead><tr>
+        <th class="${thC('ticker')}" onclick="sortPnL('ticker')">Titolo</th>
+        <th class="${thC('date')}"   onclick="sortPnL('date')">Data vendita</th>
+        <th style="text-align:right">Qtà</th>
+        <th style="text-align:right">P.M. acq.</th>
+        <th style="text-align:right">Prezzo vend.</th>
+        <th class="${thC('pct')}"   onclick="sortPnL('pct')">Rend. %</th>
+        <th class="${thC('gross')}" onclick="sortPnL('gross')">Gain lordo</th>
+        <th style="text-align:right">Aliquota</th>
+        <th style="text-align:right">Imposte</th>
+        <th class="${thC('net')}"   onclick="sortPnL('net')">Gain netto</th>
+      </tr></thead>
+      <tbody>
+        ${trades.map(t => {
+          const gc = t.netTotal >= 0 ? 'gain' : 'loss';
+          const fg = t.grossTotal >= 0 ? 'gain' : 'loss';
+          return `<tr>
+            <td>
+              <div style="font-weight:600;color:#dce8ff">${esc(t.ticker)}</div>
+              <div style="font-size:10px;color:var(--text3);font-family:'Outfit',sans-serif">${esc(t.name)}</div>
+            </td>
+            <td style="color:var(--text3);font-family:'Outfit',sans-serif">${t.sellDate}</td>
+            <td>${t.qty % 1 === 0 ? t.qty : t.qty.toFixed(4)}</td>
+            <td>${n3(t.buyPrice)} ${t.sym}</td>
+            <td>${n3(t.sellPrice)} ${t.sym}</td>
+            <td class="${fg}">${t.gainPct>=0?'+':''}${t.gainPct.toFixed(2)}%</td>
+            <td class="${fg}">${t.grossTotal>=0?'+':''}${e2(t.grossTotal)} ${t.sym}</td>
+            <td style="color:var(--text3)">${t.taxRate.toFixed(1)}%</td>
+            <td class="loss">${t.tax > 0 ? '−'+e2(t.tax)+' '+t.sym : '—'}</td>
+            <td class="${gc}" style="font-weight:700">${t.netTotal>=0?'+':''}${e2(t.netTotal)} ${t.sym}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+      <tfoot><tr>
+        <td colspan="6" style="text-align:right;font-weight:700;color:var(--text2);border-top:2px solid var(--border)">TOTALE</td>
+        <td class="${totGross>=0?'gain':'loss'}" style="font-weight:700;border-top:2px solid var(--border)">${totGross>=0?'+':''}${e2(totGross)}</td>
+        <td style="border-top:2px solid var(--border)">—</td>
+        <td class="loss" style="font-weight:700;border-top:2px solid var(--border)">${totTax>0?'−'+e2(totTax):'—'}</td>
+        <td class="${totNet>=0?'gain':'loss'}" style="font-weight:700;border-top:2px solid var(--border)">${totNet>=0?'+':''}${e2(totNet)}</td>
+      </tr></tfoot>
+    </table>
+  </div>`;
+}
+
+function renderTaxRateSettings() {
+  const el = document.getElementById('tax-rate-section');
+  if (!el) return;
+  const tickers = [...new Set((S.ops||[]).map(o => (o.quoteTicker||o.ticker).split('.')[0]))].sort();
+  if (!tickers.length) { el.innerHTML = '<div class="sdesc">Nessun titolo ancora inserito.</div>'; return; }
+
+  el.innerHTML = `<div class="taxrate-grid">
+    ${tickers.map(tk => {
+      const cur = S.taxRates?.[tk] ?? (DEFAULT_TAX_12_5.includes(tk) ? 12.5 :
+        ((S.ops||[]).find(o => (o.quoteTicker||o.ticker).split('.')[0] === tk)?.assetClass === 'BTP / Titoli di Stato' ? 12.5 : 26));
+      const badge = cur <= 13 ? 'low' : 'std';
+      const badgeTxt = cur <= 13 ? '12.5%' : '26%';
+      return `<div class="taxrate-row">
+        <span class="taxrate-lbl">${esc(tk)}</span>
+        <input type="number" class="taxrate-inp" value="${cur}" step="0.1" min="0" max="100"
+          onchange="saveTaxRate('${tk}',this.value)">
+        <span class="taxrate-badge ${badge}">${badgeTxt}</span>
+      </div>`;
+    }).join('')}
+  </div>`;
+}
+
+function showTaxRateSettings() {
+  renderTaxRateSettings();
+}
+
 function renderSettingsUI() {
   const sel = document.getElementById('pf-settings-sel');
   const inp = document.getElementById('pf-name-inp');
@@ -2512,6 +2842,7 @@ function renderSettingsUI() {
   sel.value = cur;
   inp.value = S?.name || '';
   syncSettingsUI();
+  renderTaxRateSettings();
 }
 function onSettingsPfSelect(id) { switchPortfolio(id); showPage('settings'); }
 function onPortfolioNameInput() {
