@@ -1984,24 +1984,62 @@ const DEFAULT_INFLATION = 2.2;
 
 function setProjectionRate(cat, val) {
   const n = parseFloat(val);
-  if (isNaN(n)) return;
+  if (isNaN(n) || n < 0) return;
   if (!ALL.settings.projRates) ALL.settings.projRates = {};
   ALL.settings.projRates[cat] = n;
   save();
+  refreshProjectionOutput();
 }
 function setProjectionInflation(val) {
   const n = parseFloat(val);
-  if (!isNaN(n)) { ALL.settings.projInflation = n; save(); }
+  if (!isNaN(n) && n >= 0) { ALL.settings.projInflation = n; save(); refreshProjectionOutput(); }
 }
 
 function renderProjection() {
   const area = document.getElementById('proj-area');
   if (!area) return;
 
-  const rates     = Object.assign({}, DEFAULT_PROJ_RATES, ALL.settings.projRates || {});
-  const inflRate  = ALL.settings.projInflation ?? DEFAULT_INFLATION;
+  const rates    = Object.assign({}, DEFAULT_PROJ_RATES, ALL.settings.projRates || {});
+  const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
+  const allCatRates = [...new Set([...Object.keys(DEFAULT_PROJ_RATES),
+    ...calcPF().map(h => h.assetClass).filter(Boolean)])];
 
-  // Valori per categoria (in EUR)
+  const ratesHtml = allCatRates.map(cat => `
+    <div class="proj-rate-row">
+      <span class="proj-rate-lbl">${esc(cat)}</span>
+      <div style="display:flex;align-items:center;gap:4px">
+        <input type="number" class="proj-rate-inp" value="${rates[cat]??0}" step="0.1" min="0" max="50"
+          inputmode="decimal"
+          oninput="setProjectionRate(${JSON.stringify(cat)},this.value)">
+        <span style="font-size:11px;color:var(--text3)">%</span>
+      </div>
+    </div>`).join('');
+
+  area.innerHTML = `
+  <div class="proj-section">
+    <div class="slbl">📊 Tassi di rendimento annuo</div>
+    <div class="sdesc">Modifica i valori — grafico e tabella si aggiornano in tempo reale.</div>
+    <div class="proj-rates-grid">${ratesHtml}</div>
+    <div class="proj-infl-row">
+      <span style="font-size:11px;color:#ff9944;font-weight:700;flex:1">📉 Inflazione annua stimata</span>
+      <input type="number" class="proj-rate-inp" value="${inflRate}" step="0.1" min="0" max="20"
+        inputmode="decimal"
+        oninput="setProjectionInflation(this.value)" style="border-color:rgba(255,153,68,.4)">
+      <span style="font-size:11px;color:var(--text3)">%</span>
+    </div>
+  </div>
+  <div id="proj-output"></div>`;
+
+  refreshProjectionOutput();
+}
+
+function refreshProjectionOutput() {
+  const out = document.getElementById('proj-output');
+  if (!out) return;
+
+  const rates    = Object.assign({}, DEFAULT_PROJ_RATES, ALL.settings.projRates || {});
+  const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
+
   const hlds = calcPF();
   const catVal = {};
   let total = 0;
@@ -2011,113 +2049,66 @@ function renderProjection() {
     catVal[c] = (catVal[c] || 0) + v;
     total += v;
   });
-  if (S.cashEUR > 0) { catVal['Liquidità'] = (catVal['Liquidità'] || 0) + S.cashEUR; total += S.cashEUR; }
+  if (S.cashEUR > 0) { catVal['Liquidità'] = (catVal['Liquidità']||0)+S.cashEUR; total+=S.cashEUR; }
 
-  // Allocazione obiettivo
   const targets   = S.rebalanceTargets || {};
   const hasTarget = Object.values(targets).some(v => Number(v) > 0);
   const catObj    = {};
-  if (hasTarget) {
-    Object.entries(targets).forEach(([c, pct]) => { catObj[c] = total * (Number(pct) || 0) / 100; });
-  }
+  if (hasTarget) Object.entries(targets).forEach(([c,pct]) => { catObj[c] = total*(Number(pct)||0)/100; });
 
-  // Proiezione 0→30 anni
   const YRS = 31;
-  const proj = (catMap) => Array.from({length: YRS}, (_, y) =>
-    Object.entries(catMap).reduce((s, [c, v]) => s + v * Math.pow(1 + (rates[c] ?? 0) / 100, y), 0)
-  );
+  const proj = cm => Array.from({length:YRS}, (_,y) =>
+    Object.entries(cm).reduce((s,[c,v]) => s + v*Math.pow(1+(rates[c]??0)/100, y), 0));
   const attuale   = proj(catVal);
   const obiettivo = hasTarget ? proj(catObj) : null;
-  const inflaz    = Array.from({length: YRS}, (_, y) => total * Math.pow(1 + inflRate / 100, y));
+  const inflaz    = Array.from({length:YRS}, (_,y) => total*Math.pow(1+inflRate/100, y));
 
-  // ── SVG CHART ─────────────────────────────────────────────────
-  const pl=72, pr=16, pt=18, pb=36, W=740, H=260;
+  // SVG
+  const pl=72,pr=16,pt=18,pb=36,W=740,H=260;
   const cw=W-pl-pr, ch=H-pt-pb;
-  const allVals = [...attuale, ...(obiettivo||[]), ...inflaz];
-  const maxV = Math.max(...allVals) * 1.06;
-  const sx = y  => pl + (y / 30) * cw;
-  const sy = v  => pt + ch * (1 - v / maxV);
-  const fY = v  => v >= 1e6 ? (v/1e6).toFixed(1)+'M' : v >= 1e3 ? Math.round(v/1e3)+'k' : Math.round(v)+'';
-  const pts = arr => arr.map((v, i) => `${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
-  const gridY = Array.from({length: 5}, (_, i) => maxV * (i+1) / 5);
-  const xTicks = [0,5,10,15,20,25,30];
-
-  const svgGrid = gridY.map(v =>
-    `<line x1="${pl}" y1="${sy(v).toFixed(1)}" x2="${pl+cw}" y2="${sy(v).toFixed(1)}" stroke="#1a2a4a" stroke-width="1"/>`
-  ).join('');
-  const svgYLbls = gridY.map(v =>
-    `<text x="${pl-5}" y="${(sy(v)+4).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="10">${fY(v)}€</text>`
-  ).join('');
-  const svgXLbls = xTicks.map(y =>
-    `<text x="${sx(y).toFixed(1)}" y="${(pt+ch+20).toFixed(1)}" text-anchor="middle" fill="#4b6090" font-size="10">${y}a</text>`
-  ).join('');
-  const svgXTicks = xTicks.map(y =>
-    `<line x1="${sx(y).toFixed(1)}" y1="${pt+ch}" x2="${sx(y).toFixed(1)}" y2="${pt+ch+5}" stroke="#1a2a4a" stroke-width="1"/>`
-  ).join('');
-  // Area fill under attuale
-  const areaPath = `M${sx(0)},${sy(0)} ` + attuale.map((v,i)=>`L${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ') + ` L${sx(30)},${pt+ch} L${sx(0)},${pt+ch} Z`;
-
-  const svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="gAtt" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="#7ba7ff" stop-opacity="0.18"/>
-        <stop offset="100%" stop-color="#7ba7ff" stop-opacity="0.01"/>
-      </linearGradient>
-    </defs>
-    ${svgGrid}${svgXTicks}
-    <path d="${areaPath}" fill="url(#gAtt)"/>
+  const allVals=[...attuale,...(obiettivo||[]),...inflaz];
+  const maxV=Math.max(...allVals)*1.06;
+  const sx=y=>pl+(y/30)*cw, sy=v=>pt+ch*(1-v/maxV);
+  const fY=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?Math.round(v/1e3)+'k':''+Math.round(v);
+  const pts=arr=>arr.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+  const gridY=Array.from({length:5},(_,i)=>maxV*(i+1)/5);
+  const xTicks=[0,5,10,15,20,25,30];
+  const areaPath=`M${sx(0)},${sy(0)} `+attuale.map((v,i)=>`L${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ')+` L${sx(30)},${pt+ch} L${sx(0)},${pt+ch} Z`;
+  const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
+    <defs><linearGradient id="gAtt2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#7ba7ff" stop-opacity="0.18"/>
+      <stop offset="100%" stop-color="#7ba7ff" stop-opacity="0.01"/>
+    </linearGradient></defs>
+    ${gridY.map(v=>`<line x1="${pl}" y1="${sy(v).toFixed(1)}" x2="${pl+cw}" y2="${sy(v).toFixed(1)}" stroke="#1a2a4a" stroke-width="1"/>`).join('')}
+    ${xTicks.map(y=>`<line x1="${sx(y).toFixed(1)}" y1="${pt+ch}" x2="${sx(y).toFixed(1)}" y2="${pt+ch+5}" stroke="#1a2a4a" stroke-width="1"/>`).join('')}
+    <path d="${areaPath}" fill="url(#gAtt2)"/>
     <polyline points="${pts(inflaz)}" fill="none" stroke="#ff9944" stroke-width="1.5" stroke-dasharray="5,3"/>
-    ${obiettivo ? `<polyline points="${pts(obiettivo)}" fill="none" stroke="#22d47e" stroke-width="2"/>` : ''}
+    ${obiettivo?`<polyline points="${pts(obiettivo)}" fill="none" stroke="#22d47e" stroke-width="2"/>`:''}
     <polyline points="${pts(attuale)}" fill="none" stroke="#7ba7ff" stroke-width="2.5"/>
-    ${svgYLbls}${svgXLbls}
+    ${gridY.map(v=>`<text x="${pl-5}" y="${(sy(v)+4).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="10">${fY(v)}€</text>`).join('')}
+    ${xTicks.map(y=>`<text x="${sx(y).toFixed(1)}" y="${(pt+ch+20).toFixed(1)}" text-anchor="middle" fill="#4b6090" font-size="10">${y}a</text>`).join('')}
     <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
     <line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
   </svg>`;
 
-  // ── TABELLA 0→30 ──────────────────────────────────────────────
-  const rowHtml = Array.from({length: YRS}, (_, y) => {
-    const va = attuale[y], vo = obiettivo?.[y];
-    const base = total * Math.pow(1 + inflRate/100, y); // soglia inflazione su capitale iniziale
-    const na = va - base;
-    const no = vo != null ? vo - base : null;
-    const yr = y === 0 ? '<strong>Oggi</strong>' : `Anno ${y}`;
+  const rowHtml = Array.from({length:YRS}, (_,y) => {
+    const va=attuale[y], vo=obiettivo?.[y], base=inflaz[y];
+    const na=va-base, no=vo!=null?vo-base:null;
+    const yr=y===0?'<strong>Oggi</strong>':`Anno ${y}`;
     return `<tr>
       <td>${yr}</td>
       <td class="col-att">${e2(va)}</td>
-      ${obiettivo ? `<td class="col-obj">${e2(vo)}</td>` : ''}
+      ${obiettivo?`<td class="col-obj">${e2(vo)}</td>`:''}
       <td class="col-net-att ${na>=0?'gain':'loss'}">${na>=0?'+':''}${e2(na)}</td>
-      ${obiettivo ? `<td class="col-net-obj ${no>=0?'gain':'loss'}">${no>=0?'+':''}${e2(no)}</td>` : ''}
+      ${obiettivo?`<td class="col-net-obj ${no>=0?'gain':'loss'}">${no>=0?'+':''}${e2(no)}</td>`:''}
     </tr>`;
   }).join('');
 
-  // ── TABELLA TASSI ──────────────────────────────────────────────
-  const allCatRates = [...new Set([...Object.keys(DEFAULT_PROJ_RATES), ...Object.keys(catVal)])];
-  const ratesHtml = allCatRates.map(cat => `
-    <div class="proj-rate-row">
-      <span class="proj-rate-lbl">${esc(cat)}</span>
-      <div style="display:flex;align-items:center;gap:4px">
-        <input type="number" class="proj-rate-inp" value="${rates[cat]??0}" step="0.1" min="0" max="50"
-          onchange="setProjectionRate(${JSON.stringify(cat)},this.value);renderProjection()">
-        <span style="font-size:11px;color:var(--text3)">%</span>
-      </div>
-    </div>`).join('');
-
-  area.innerHTML = `
-  <div class="proj-section">
-    <div class="slbl">📊 Tassi di rendimento annuo</div>
-    <div class="sdesc">Rendimenti medi storici per categoria — modificabili. Simulazione con interesse composto.</div>
-    <div class="proj-rates-grid">${ratesHtml}</div>
-    <div class="proj-infl-row">
-      <span style="font-size:11px;color:#ff9944;font-weight:700;flex:1">📉 Inflazione annua stimata</span>
-      <input type="number" class="proj-rate-inp" value="${inflRate}" step="0.1" min="0" max="20"
-        onchange="setProjectionInflation(this.value);renderProjection()" style="border-color:rgba(255,153,68,.4)">
-      <span style="font-size:11px;color:var(--text3)">%</span>
-    </div>
-  </div>
+  out.innerHTML = `
   <div class="proj-chart-wrap">
     <div class="proj-legend">
       <span><span class="proj-leg-dot" style="background:#7ba7ff"></span>Portafoglio attuale</span>
-      ${obiettivo ? `<span><span class="proj-leg-dot" style="background:#22d47e"></span>Allocazione obiettivo</span>` : ''}
+      ${obiettivo?`<span><span class="proj-leg-dot" style="background:#22d47e"></span>Allocazione obiettivo</span>`:''}
       <span><span class="proj-leg-dot" style="background:#ff9944"></span>Inflazione ${inflRate}%</span>
     </div>
     ${svg}
@@ -2126,17 +2117,15 @@ function renderProjection() {
     <div class="sdesc" style="margin:0 0 8px;font-style:italic">⚠ Simulazione basata su rendimenti medi storici. Non costituisce consulenza finanziaria.</div>
     <table class="proj-table">
       <thead><tr>
-        <th>Anno</th>
-        <th>Portafoglio attuale</th>
-        ${obiettivo ? '<th>Portafoglio obiettivo</th>' : ''}
-        <th>Guadagno accumulato netto infl.</th>
-        ${obiettivo ? '<th>Guadagno acc. netto infl. (obiettivo)</th>' : ''}
+        <th>Anno</th><th>Portafoglio attuale</th>
+        ${obiettivo?'<th>Portafoglio obiettivo</th>':''}
+        <th>Guadagno acc. netto infl.</th>
+        ${obiettivo?'<th>Guadagno acc. netto infl. (obiettivo)</th>':''}
       </tr></thead>
       <tbody>${rowHtml}</tbody>
     </table>
   </div>`;
 }
-
 function setCash() {
   const current = (S.cashEUR || 0).toFixed(2).replace('.',',');
   const val = prompt('Liquidità sul conto corrente (€):', current);
