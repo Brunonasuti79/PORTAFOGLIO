@@ -2289,7 +2289,7 @@ function renderHistory() {
 //  NAVIGATION
 // ════════════════════════════════════════════════════════════════
 function showPage(pg) {
-  ['portfolio','operations','charts','rebalance','history','backup','settings'].forEach(p => {
+  ['portfolio','operations','charts','rebalance','proj','history','backup','settings'].forEach(p => {
     const el  = document.getElementById(`pg-${p}`);
     const nav = document.getElementById(`nav-${p}`);
     if (el)  el.classList.toggle('active', p===pg);
