@@ -79,7 +79,15 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 /* ──────────────────────── SUMMARY CARD ──────────────────────── */
 .sum-card{background:linear-gradient(135deg,#0f1f3d,#162040);
   margin:7px 14px 5px;border-radius:16px;padding:10px 13px;border:1px solid #1a3060}
-.sum-top{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center}
+/* blocchi EUR / USD affiancati */
+.sum-blocks{display:flex;gap:8px}
+.sum-block{flex:1;min-width:0;padding:8px 10px;background:rgba(7,11,20,.3);border:1px solid #1a3060;border-radius:12px}
+.sum-blbl{font-size:10px;color:#c8d8ff;letter-spacing:1.3px;text-transform:uppercase;font-weight:800;margin-bottom:4px}
+.sum-btot{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fff;letter-spacing:1px;line-height:1;margin-bottom:6px}
+.sum-btot.usd{color:#ffd580}
+.sum-brow{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.sum-bmet{background:rgba(7,11,20,.3);border:1px solid rgba(123,167,255,.1);border-radius:8px;padding:5px 7px}
+.sum-rend{display:flex;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #1a2a4a}
 .sum-lbl{font-size:10px;color:#c8d8ff;letter-spacing:1.3px;text-transform:uppercase;
   font-weight:800;margin-bottom:3px;text-shadow:0 0 10px rgba(123,167,255,.18)}
 .sum-tot{font-family:'Bebas Neue',sans-serif;font-size:34px;color:#fff;letter-spacing:1px;line-height:1}
@@ -548,7 +556,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
         <input type="text" id="q-isin" placeholder="es. IE00B4L5Y983" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();autoFillFromIsin('q')"></div>
       <div class="fld full"><label>Mercato quotazione</label>
         <select id="q-market" onchange="onMarketChange('q')"></select></div>
-      <div class="fld full hidden" id="q-currency-row"></div>
+      <div class="fld"><label>Valuta titolo</label>
+        <select id="q-titleccy" onchange="onTitleCcyChange('q')">
+          <option value="EUR">€ — Euro</option>
+          <option value="USD">$ — Dollaro USA</option>
+        </select></div>
+      <div class="fld hidden" id="q-purchccy-row"><label>Valuta acquisto</label>
+        <select id="q-purchccy" onchange="onTitleCcyChange('q')">
+          <option value="EUR">€ — Ho pagato in euro</option>
+          <option value="USD">$ — Ho pagato in dollari</option>
+        </select></div>
+      <div class="fld full hidden" id="q-fxrate-row"><label>Cambio €/$ al momento dell'acquisto</label>
+        <input type="number" id="q-fxrate" placeholder="es. 1.08" step="0.0001" min="0.1" max="9" inputmode="decimal"></div>
       <div class="fld full"><label>Simbolo prezzo (per Aggiorna)</label>
         <input type="text" id="q-quote" placeholder="es. SWDA.MI, EHF1.DE, CD9.PA" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
       <div class="fld full"><label>Nome titolo (opzionale)</label>
@@ -559,9 +578,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
         <input type="text" id="q-cat-custom" placeholder="es. Polizza, Fondo pensione..."></div>
       <div class="fld"><label>Quantità</label>
         <input type="number" id="q-qty" placeholder="0" min="0" step="any" inputmode="decimal" oninput="calcQTotal()"></div>
-      <div class="fld"><label>Prezzo medio carico (€)</label>
+      <div class="fld"><label>Prezzo medio carico (<span id="q-price-ccy">€</span>)</label>
         <input type="number" id="q-avg" placeholder="0.000" step="0.001" min="0" inputmode="decimal" oninput="calcQTotal()"></div>
-      <div class="fld full"><label>Controvalore totale (€)</label>
+      <div class="fld"><label>Controvalore (<span id="q-tot-ccy">€</span>)</label>
         <input type="number" id="q-tot" placeholder="0.00" readonly style="font-size:17px;color:var(--blue)"></div>
       <div class="fld full"><label>Commissioni già pagate (€) — opzionale</label>
         <input type="number" id="q-comm" placeholder="0.00" step="0.01" min="0" value="0" inputmode="decimal"></div>
@@ -590,7 +609,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
         <input type="text" id="f-isin" placeholder="es. IE00B4L5Y983" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();autoFillFromIsin('f')"></div>
       <div class="fld"><label>Mercato quotazione</label>
         <select id="f-market" onchange="onMarketChange('f')"></select></div>
-      <div class="fld full hidden" id="f-currency-row"></div>
+      <div class="fld"><label>Valuta titolo</label>
+        <select id="f-titleccy" onchange="onTitleCcyChange('f')">
+          <option value="EUR">€ — Euro</option>
+          <option value="USD">$ — Dollaro USA</option>
+        </select></div>
+      <div class="fld hidden" id="f-purchccy-row"><label>Valuta acquisto</label>
+        <select id="f-purchccy" onchange="onTitleCcyChange('f')">
+          <option value="EUR">€ — Ho pagato in euro</option>
+          <option value="USD">$ — Ho pagato in dollari</option>
+        </select></div>
+      <div class="fld full hidden" id="f-fxrate-row"><label>Cambio €/$ al momento dell'acquisto</label>
+        <input type="number" id="f-fxrate" placeholder="es. 1.08" step="0.0001" min="0.1" max="9" inputmode="decimal"></div>
       <div class="fld full"><label>Simbolo prezzo (per Aggiorna)</label>
         <input type="text" id="f-quote" placeholder="es. SWDA.MI, EHF1.DE, CD9.PA" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
       <div class="fld full"><label>Nome titolo (opzionale)</label>
@@ -599,15 +629,15 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
         <select id="f-cat" onchange="onCatChange('f')"></select></div>
       <div class="fld full cat-custom hidden" id="f-cat-cw"><label>Nome categoria personalizzata</label>
         <input type="text" id="f-cat-custom" placeholder="es. Polizza, Fondo pensione..."></div>
-      <div class="fld"><label>Prezzo (€)</label>
+      <div class="fld"><label>Prezzo (<span id="f-price-ccy">€</span>)</label>
         <input type="number" id="f-price" placeholder="0.000" step="0.001" min="0" inputmode="decimal" oninput="calcFTotal()"></div>
       <div class="fld"><label>Quantità</label>
         <input type="number" id="f-qty" placeholder="0" step="any" min="0" inputmode="decimal" oninput="calcFTotal()"></div>
-      <div class="fld"><label>Importo (€)</label>
+      <div class="fld"><label>Importo (<span id="f-amt-ccy">€</span>)</label>
         <input type="number" id="f-amt" placeholder="0.00" readonly></div>
       <div class="fld"><label>Commissioni (€)</label>
         <input type="number" id="f-comm" placeholder="0.00" step="0.01" min="0" value="0" inputmode="decimal" oninput="calcFTotal()"></div>
-      <div class="fld full"><label>Totale operazione (€)</label>
+      <div class="fld full"><label>Totale operazione (<span id="f-tot-ccy">€</span>)</label>
         <input type="number" id="f-tot" placeholder="0.00" readonly style="font-size:17px;color:var(--blue)"></div>
     </div>
     <div class="mbtns">
@@ -700,6 +730,7 @@ function load() {
         ALL.portfolios = d.portfolios;
         ALL.activePortfolioId = d.activePortfolioId;
         ALL.settings = Object.assign({ak:'',anthropicKey:''}, d.settings || {});
+        ALL.fxRates  = d.fxRates || {};
         // Migrate from legacy single-portfolio format
         const pf = newPortfolio(d.settings?.portfolioName || 'Portafoglio principale');
         pf.ops = migrateLegacyOps(d.ops || []);
@@ -714,6 +745,7 @@ function load() {
   if (!ALL.portfolios.length) ALL.portfolios = [newPortfolio('Portafoglio principale')];
   if (!ALL.portfolios.find(p => p.id === ALL.activePortfolioId))
     ALL.activePortfolioId = ALL.portfolios[0].id;
+  ALL.fxRates = ALL.fxRates || {};
   // Normalize all portfolios
   ALL.portfolios.forEach(pf => normalizePortfolio(pf));
   S = ALL.portfolios.find(p => p.id === ALL.activePortfolioId);
@@ -855,7 +887,10 @@ function calcPF(pf) {
         market: op.market || marketFromSymbol(key),
         name: op.name || displaySymbol(op),
         assetClass: categoryOf(op),
-        qty: 0, avgPrice: 0, costBasis: 0
+        titleCcy: op.titleCcy || 'EUR',
+        buyCcy: op.purchCcy || op.titleCcy || 'EUR',
+        qty: 0, avgPrice: 0, costBasis: 0,
+        costBasisBuyCcy: 0, avgPriceBuyCcy: 0
       };
     }
     if (op.name)        h[key].name = op.name;
@@ -864,32 +899,112 @@ function calcPF(pf) {
     if (op.displayTicker) h[key].displayTicker = displaySymbol(op);
     const qty   = num(op.qty)   || 0;
     const price = num(op.price) || 0;
+    // prezzo in valuta di acquisto (per calcolo costo carico)
+    const opFx = num(op.fxRate) || null;
+    const priceBuyCcy = (op.titleCcy === 'USD' && op.purchCcy === 'EUR' && opFx)
+      ? price / opFx   // $ → € al cambio fisso d'acquisto
+      : price;          // già nella valuta giusta (€/€ o $/$ )
     if (op.type === 'buy') {
       const nq = h[key].qty + qty;
       const nc = h[key].costBasis + price * qty;
+      const ncB = h[key].costBasisBuyCcy + priceBuyCcy * qty;
       h[key].qty = nq;
       h[key].costBasis = nc;
-      h[key].avgPrice = nq > 0 ? nc / nq : 0;
+      h[key].costBasisBuyCcy = ncB;
+      h[key].avgPrice = nq > 0 ? nc / nq : 0;         // in titleCcy
+      h[key].avgPriceBuyCcy = nq > 0 ? ncB / nq : 0;  // in buyCcy
     } else {
       h[key].qty = Math.max(0, h[key].qty - qty);
       h[key].costBasis = h[key].avgPrice * h[key].qty;
+      h[key].costBasisBuyCcy = h[key].avgPriceBuyCcy * h[key].qty;
     }
   }
   return Object.values(h).filter(x => x.qty > 0.00001);
 }
 
+// ── Caso 1: titolo€/acquisto€ | Caso 2: titolo$/acquisto€ | Caso 3: titolo$/acquisto$
+function getCaso(h) {
+  if ((h.titleCcy||'EUR') !== 'USD') return 1;
+  return (h.buyCcy||'USD') === 'EUR' ? 2 : 3;
+}
+// Prezzo corrente nella valuta di acquisto
+function currentPriceBuyCcy(h) {
+  const p = S.prices[h.ticker];
+  if (p == null) return null;
+  if (getCaso(h) === 2) {
+    const rate = ALL.fxRates?.EURUSD;
+    return rate ? p / rate : null;  // $→€ live
+  }
+  return p; // €/€ o $/$ invariato
+}
+// Gain nella valuta di acquisto
+function gainBuyCcy(h) {
+  const p = currentPriceBuyCcy(h);
+  if (p == null) return null;
+  return (p - h.avgPriceBuyCcy) * h.qty;
+}
+// Gain% nella valuta di acquisto
+function gainPctBuyCcy(h) {
+  if (!h.avgPriceBuyCcy) return null;
+  const p = currentPriceBuyCcy(h);
+  if (p == null) return null;
+  return (p - h.avgPriceBuyCcy) / h.avgPriceBuyCcy * 100;
+}
+// Valore attuale in EUR (per rendimento complessivo)
+function currentValueAllEUR(h) {
+  const p = S.prices[h.ticker];
+  if (p == null) return null;
+  if (h.titleCcy === 'USD') {
+    const rate = ALL.fxRates?.EURUSD;
+    return rate ? p * h.qty / rate : null;
+  }
+  return p * h.qty;
+}
+// Costo carico in EUR (per rendimento complessivo)
+function costBasisAllEUR(h) {
+  const caso = getCaso(h);
+  if (caso === 1) return h.avgPriceBuyCcy * h.qty;
+  if (caso === 2) return h.avgPriceBuyCcy * h.qty; // già in €
+  const rate = ALL.fxRates?.EURUSD;
+  return rate ? h.avgPriceBuyCcy * h.qty / rate : h.avgPriceBuyCcy * h.qty;
+}
+// Simbolo valuta di acquisto
+function buySym(h) { return getCaso(h) === 3 ? '$' : '€'; }
+// Fetch cambio live EUR/USD
+async function fetchEURUSD() {
+  const q = await fetchYahooChart('EURUSD=X');
+  return q?.price || null;
+}
+
 function pfSummary(hlds) {
-  let tc=0, tv=0, n=0;
+  let eurTc=0, eurTv=0, eurN=0;
+  let usdTc=0, usdTv=0, usdN=0;
   for (const h of hlds) {
+    const caso = getCaso(h);
     const p = S.prices[h.ticker];
     if (p == null) continue;
-    tc += h.avgPrice * h.qty;
-    tv += p * h.qty;
-    n++;
+    if (caso === 3) {
+      usdTc += h.avgPriceBuyCcy * h.qty;
+      usdTv += p * h.qty;
+      usdN++;
+    } else {
+      const pEur = currentPriceBuyCcy(h);
+      if (pEur == null) continue;
+      eurTc += h.avgPriceBuyCcy * h.qty;
+      eurTv += pEur * h.qty;
+      eurN++;
+    }
   }
-  if (!n) return null;
-  const g = tv - tc;
-  return { tc, tv, g, pct: tc > 0 ? (g/tc)*100 : 0 };
+  const rate = ALL.fxRates?.EURUSD || null;
+  const totalTc = eurTc + (rate ? usdTc/rate : 0);
+  const totalTv = eurTv + (rate ? usdTv/rate : 0);
+  const totalG  = totalTv - totalTc;
+  const rendimento = totalTc > 0 ? (totalG/totalTc)*100 : 0;
+  return {
+    eur: eurN  > 0 ? { tc:eurTc, tv:eurTv, g:eurTv-eurTc } : null,
+    usd: usdN  > 0 ? { tc:usdTc, tv:usdTv, g:usdTv-usdTc } : null,
+    rendimento, hasData: eurN+usdN > 0
+  };
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -952,6 +1067,20 @@ function populateMarketSelect(prefix, selectedCode='') {
   sel.innerHTML = MARKETS.map(m => `<option value="${m.code}"${m.code===selectedCode?'selected':''}>${m.label}</option>`).join('');
   sel.value = selectedCode || '';
 }
+function onTitleCcyChange(prefix) {
+  const tc = document.getElementById(`${prefix}-titleccy`)?.value || 'EUR';
+  const pc = document.getElementById(`${prefix}-purchccy`)?.value || 'EUR';
+  const isUSD = tc === 'USD';
+  document.getElementById(`${prefix}-purchccy-row`)?.classList.toggle('hidden', !isUSD);
+  document.getElementById(`${prefix}-fxrate-row`)?.classList.toggle('hidden', !isUSD);
+  const sym = isUSD ? '$' : '€';
+  ['price-ccy','amt-ccy','tot-ccy'].forEach(id => {
+    const el = document.getElementById(`${prefix}-${id}`); if (el) el.textContent = sym;
+  });
+  const qcc = document.getElementById(`${prefix}-price-ccy`) || document.getElementById(`${prefix}-tot-ccy`);
+  // quick form uses q-price-ccy and q-tot-ccy
+  const qTotCcy = document.getElementById(`${prefix}-tot-ccy`); if (qTotCcy) qTotCcy.textContent = sym;
+}
 function onMarketChange(prefix) {
   const ticker  = fc(document.getElementById(`${prefix}-ticker`)?.value || '');
   const market  = document.getElementById(`${prefix}-market`)?.value || '';
@@ -992,7 +1121,10 @@ function readQuoteForm(prefix) {
     if (!quoteTicker && market !== 'MANUAL') quoteTicker = baseTicker(displayTicker) + marketSuffix(market);
   }
   if (!quoteTicker) { alert('Inserisci il simbolo prezzo per aggiornamento (es. SWDA.MI, EHF1.DE).'); return null; }
-  return { displayTicker, isin, market, quoteTicker };
+  const titleCcy    = document.getElementById(`${prefix}-titleccy`)?.value  || 'EUR';
+  const purchCcy    = titleCcy === 'USD' ? (document.getElementById(`${prefix}-purchccy`)?.value || 'EUR') : 'EUR';
+  const fxRate      = titleCcy === 'USD' ? (parseFloat(document.getElementById(`${prefix}-fxrate`)?.value) || null) : null;
+  return { displayTicker, isin, market, quoteTicker, titleCcy, purchCcy, fxRate };
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -1248,6 +1380,12 @@ async function fetchPrices() {
       }
     }
 
+    // Fetch EUR/USD live se ci sono titoli in $
+    if (hlds.some(h => h.titleCcy === 'USD')) {
+      const rate = await fetchEURUSD();
+      if (rate) ALL.fxRates = { EURUSD: rate };
+    }
+
     // Snapshot for history
     const snapValue = hlds.reduce((a,h) => a + ((S.prices[h.ticker]??0)*h.qty), 0);
     const snapCost  = hlds.reduce((a,h) => a + h.avgPrice*h.qty, 0);
@@ -1381,23 +1519,22 @@ function renderSwitcher() {
 // ════════════════════════════════════════════════════════════════
 //  RENDER — PORTFOLIO
 // ════════════════════════════════════════════════════════════════
-function gainEuro(h) { const p = S.prices[h.ticker]; return p != null ? (p - h.avgPrice)*h.qty : null; }
-function currentValue(h) { const p = S.prices[h.ticker]; return p != null ? p*h.qty : null; }
+function gainEuro(h) { return gainBuyCcy(h); }
+function currentValue(h) { const p = currentPriceBuyCcy(h); return p != null ? p*h.qty : null; }
 
 function sortHoldings(list) {
-  const gainPct = h => { const p = S.prices[h.ticker]; return p != null ? (p - h.avgPrice)/h.avgPrice*100 : null; };
-  const oggi    = h => S.dailyChanges?.[h.ticker]?.pct ?? null;
-  const prezzo  = h => S.prices[h.ticker] ?? null;
+  const oggi = h => S.dailyChanges?.[h.ticker]?.pct ?? null;
+  const prezzo = h => S.prices[h.ticker] ?? null;
   return [...list].sort((a,b) => {
     switch(pfSortMode) {
-      case 'gain_eur_desc': return (gainEuro(b)??-Infinity)  - (gainEuro(a)??-Infinity);
-      case 'gain_eur_asc':  return (gainEuro(a)??Infinity)   - (gainEuro(b)??Infinity);
-      case 'gain_pct_desc': return (gainPct(b)??-Infinity)   - (gainPct(a)??-Infinity);
-      case 'gain_pct_asc':  return (gainPct(a)??Infinity)    - (gainPct(b)??Infinity);
-      case 'oggi_desc':     return (oggi(b)??-Infinity)       - (oggi(a)??-Infinity);
-      case 'oggi_asc':      return (oggi(a)??Infinity)        - (oggi(b)??Infinity);
-      case 'prezzo_desc':   return (prezzo(b)??-Infinity)     - (prezzo(a)??-Infinity);
-      case 'prezzo_asc':    return (prezzo(a)??Infinity)      - (prezzo(b)??Infinity);
+      case 'gain_eur_desc': return (gainBuyCcy(b)??-Infinity)    - (gainBuyCcy(a)??-Infinity);
+      case 'gain_eur_asc':  return (gainBuyCcy(a)??Infinity)     - (gainBuyCcy(b)??Infinity);
+      case 'gain_pct_desc': return (gainPctBuyCcy(b)??-Infinity) - (gainPctBuyCcy(a)??-Infinity);
+      case 'gain_pct_asc':  return (gainPctBuyCcy(a)??Infinity)  - (gainPctBuyCcy(b)??Infinity);
+      case 'oggi_desc':     return (oggi(b)??-Infinity)           - (oggi(a)??-Infinity);
+      case 'oggi_asc':      return (oggi(a)??Infinity)            - (oggi(b)??Infinity);
+      case 'prezzo_desc':   return (prezzo(b)??-Infinity)         - (prezzo(a)??-Infinity);
+      case 'prezzo_asc':    return (prezzo(a)??Infinity)          - (prezzo(b)??Infinity);
       default: return (a.name||a.displayTicker).localeCompare(b.name||b.displayTicker,'it');
     }
   });
@@ -1447,17 +1584,31 @@ function renderPF() {
   // Summary
   const sum = pfSummary(allHlds);
   const sa  = document.getElementById('sum-area');
-  if (sum) {
-    const gc = sum.g >= 0 ? 'gain' : 'loss';
+  if (sum.hasData) {
+    const rGc = sum.rendimento >= 0 ? 'gain' : 'loss';
+    const block = (lbl, tc, tv, g, sym) => {
+      const gc = g >= 0 ? 'gain' : 'loss';
+      const fmt = v => sym === '$' ? '$'+Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}) : e2(v);
+      const fmtS = v => (v>=0?'+':'-')+fmt(v);
+      return `<div class="sum-block">
+        <div class="sum-blbl">${lbl}</div>
+        <div class="sum-btot ${sym==='$'?'usd':''}">${fmt(tv)}</div>
+        <div class="sum-brow">
+          <div class="sum-bmet"><div class="sum-sl">Investito</div><div class="sum-sv neutral">${fmt(tc)}</div></div>
+          <div class="sum-bmet"><div class="sum-sl">Gain/Loss</div><div class="sum-sv ${gc}">${fmtS(g)}</div></div>
+        </div>
+      </div>`;
+    };
     sa.innerHTML = `<div class="sum-card">
-      <div class="sum-top">
-        <div><div class="sum-lbl">Valore Portafoglio</div><div class="sum-tot">${e2(sum.tv)}</div></div>
-        <div><div class="sum-lbl">Investito</div><div class="sum-tot neutral">${e2(sum.tc)}</div></div>
+      <div class="sum-blocks">
+        ${sum.eur ? block('Portafoglio €', sum.eur.tc, sum.eur.tv, sum.eur.g, '€') : ''}
+        ${sum.usd ? block('Portafoglio $', sum.usd.tc, sum.usd.tv, sum.usd.g, '$') : ''}
       </div>
-      <div class="sum-row">
-        <div class="sum-metric"><div class="sum-sl">Gain / Loss</div><div class="sum-sv ${gc}">${e2(sum.g)}</div></div>
-        <div class="sum-metric"><div class="sum-sl">Rendimento</div><div class="sum-sv ${gc}">${pct(sum.pct)}</div></div>
-      </div></div>`;
+      <div class="sum-rend">
+        <span class="sum-sl">Rendimento complessivo</span>
+        <span class="sum-sv ${rGc}" style="font-size:20px;margin-left:10px">${pct(sum.rendimento)}</span>
+      </div>
+    </div>`;
   } else {
     sa.innerHTML = `<div class="sum-card">
       <div class="sum-lbl">Valore Portafoglio</div>
@@ -1484,11 +1635,12 @@ function renderPF() {
   }
 
   pl.innerHTML = visible.map((h, i) => {
-    const p      = S.prices[h.ticker];
+    const p      = currentPriceBuyCcy(h);
     const hp     = p != null;
-    const gain   = hp ? (p - h.avgPrice)*h.qty : null;
-    const pp     = hp ? ((p - h.avgPrice)/h.avgPrice)*100 : null;
+    const gain   = hp ? gainBuyCcy(h) : null;
+    const pp     = hp ? gainPctBuyCcy(h) : null;
     const gc     = gain !== null ? (gain >= 0 ? 'gain' : 'loss') : '';
+    const sym    = buySym(h);
     const day    = S.dailyChanges?.[h.ticker];
     const dayPct = day && Number.isFinite(Number(day.pct)) ? Number(day.pct) : null;
     const dayCls = dayPct === null ? 'neutral' : (dayPct >= 0 ? 'gain' : 'loss');
@@ -1509,7 +1661,7 @@ function renderPF() {
         </div>
         <div class="h-metrics">
           ${hp
-            ? `<div class="h-metric"><div class="h-mlbl">Gain €</div><div class="h-mval ${gc}">${gain>=0?'+':''}${n2(gain)} €</div></div>
+            ? `<div class="h-metric"><div class="h-mlbl">Gain ${sym}</div><div class="h-mval ${gc}">${gain>=0?'+':''}${n2(Math.abs(gain))} ${sym}</div></div>
                <div class="h-metric"><div class="h-mlbl">Gain %</div><div class="h-mval ${gc}">${pct(pp)}</div></div>
                <div class="h-metric"><div class="h-mlbl">Oggi</div><div class="h-mval ${dayCls}">${dayPct!==null?pct(dayPct):'—'}</div></div>`
             : `<div class="h-metric" style="grid-column:span 3"><div class="h-mval" style="color:var(--border2)">—</div></div>`
@@ -1517,17 +1669,17 @@ function renderPF() {
         </div>
         <div class="h-price">
           ${hp
-            ? `<div class="h-plbl">Prezzo</div><div class="hpr">${n3(p)} €</div>`
+            ? `<div class="h-plbl">Prezzo</div><div class="hpr">${n3(p)} ${sym}</div>`
             : `<div class="hpend">— Aggiorna</div>`
           }
         </div>
       </div>
       ${isOpen ? `<div class="hdetails"><div class="cgrid">
         <div><div class="ml">Quantità</div><div class="mv">${h.qty%1===0?h.qty:n2(h.qty)}</div></div>
-        <div><div class="ml">P.M. Carico</div><div class="mv">${n3(h.avgPrice)} €</div></div>
-        <div><div class="ml">Gain €</div><div class="mv ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' €':'—'}</div></div>
-        <div><div class="ml">Val. Attuale</div><div class="mv">${hp?e2(p*h.qty):'—'}</div></div>
-        <div><div class="ml">Val. Carico</div><div class="mv">${e2(h.avgPrice*h.qty)}</div></div>
+        <div><div class="ml">P.M. Carico</div><div class="mv">${n3(h.avgPriceBuyCcy||h.avgPrice)} ${sym}</div></div>
+        <div><div class="ml">Gain ${sym}</div><div class="mv ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'—'}</div></div>
+        <div><div class="ml">Val. Attuale</div><div class="mv">${hp?n2(p*h.qty)+' '+sym:'—'}</div></div>
+        <div><div class="ml">Val. Carico</div><div class="mv">${n2((h.avgPriceBuyCcy||h.avgPrice)*h.qty)+' '+sym}</div></div>
         <div><div class="ml">Commissioni</div><div class="mv">${e2(totalComm)}</div></div>
         <div><div class="ml">Simbolo prezzo</div><div class="mv" style="font-size:11px">${esc(h.ticker)}</div></div>
         ${h.isin?`<div><div class="ml">ISIN</div><div class="mv" style="font-size:11px">${esc(h.isin)}</div></div>`:''}
@@ -1900,6 +2052,14 @@ function editOp(id) {
   document.getElementById('f-quote').value   = quoteSymbol(op);
   populateCatSelect('f', categoryOf(op));
   populateMarketSelect('f', op.market || '');
+  // Campi valuta
+  const tcEl = document.getElementById('f-titleccy');
+  if (tcEl) { tcEl.value = op.titleCcy || 'EUR'; }
+  const pcEl = document.getElementById('f-purchccy');
+  if (pcEl) { pcEl.value = op.purchCcy || 'EUR'; }
+  const fxEl = document.getElementById('f-fxrate');
+  if (fxEl) { fxEl.value = op.fxRate || ''; }
+  onTitleCcyChange('f');
   calcFTotal();
   document.getElementById('modal').classList.remove('hidden');
   setTimeout(() => document.getElementById('f-price')?.focus(), 200);
@@ -1955,7 +2115,11 @@ function saveOp() {
     quoteTicker: tk,
     isin: qf.isin,
     market: qf.market,
-    name, assetClass, price, qty, commissions:comm
+    titleCcy: qf.titleCcy || 'EUR',
+    purchCcy: qf.purchCcy || 'EUR',
+    fxRate: qf.fxRate || null,
+    name, assetClass, price, qty, commissions:comm,
+    titleCcy: qf.titleCcy || 'EUR', purchCcy: qf.purchCcy || 'EUR', fxRate: qf.fxRate || null
   };
 
   if (editingOpId) {
@@ -2018,7 +2182,11 @@ function saveQuick() {
     quoteTicker: qf.quoteTicker,
     isin: qf.isin,
     market: qf.market,
-    name, assetClass, price:avg, qty, commissions:comm
+    titleCcy: qf.titleCcy || 'EUR',
+    purchCcy: qf.purchCcy || 'EUR',
+    fxRate: qf.fxRate || null,
+    name, assetClass, price:avg, qty, commissions:comm,
+    titleCcy: qf.titleCcy || 'EUR', purchCcy: qf.purchCcy || 'EUR', fxRate: qf.fxRate || null
   });
   save(); closeQuick(); renderAll();
 }
