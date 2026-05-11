@@ -2008,13 +2008,14 @@ function renderProjection() {
   // ── TABELLA 0→30 ──────────────────────────────────────────────
   const rowHtml = Array.from({length: YRS}, (_, y) => {
     const va = attuale[y], vo = obiettivo?.[y], vi = inflaz[y];
+    const erosione = va * (inflRate / 100);        // erosione inflaz. annua sul montante
     const na = va - vi, no = vo != null ? vo - vi : null;
     const yr = y === 0 ? '<strong>Oggi</strong>' : `Anno ${y}`;
     return `<tr>
       <td>${yr}</td>
       <td class="col-att">${e2(va)}</td>
       ${obiettivo ? `<td class="col-obj">${e2(vo)}</td>` : ''}
-      <td class="col-infl">${e2(vi)}</td>
+      <td class="col-infl">${y === 0 ? '—' : e2(erosione)}</td>
       <td class="col-net-att ${na>=0?'gain':'loss'}">${na>=0?'+':''}${e2(na)}</td>
       ${obiettivo ? `<td class="col-net-obj ${no>=0?'gain':'loss'}">${no>=0?'+':''}${e2(no)}</td>` : ''}
     </tr>`;
@@ -2059,9 +2060,9 @@ function renderProjection() {
         <th>Anno</th>
         <th>Portafoglio attuale</th>
         ${obiettivo ? '<th>Portafoglio obiettivo</th>' : ''}
-        <th>Base inflazione</th>
-        <th>Gain netto attuale</th>
-        ${obiettivo ? '<th>Gain netto obiettivo</th>' : ''}
+        <th>Erosione inflaz. annua</th>
+        <th>Guadagno accumulato</th>
+        ${obiettivo ? '<th>Guadagno acc. netto infl. (obiettivo)</th>' : ''}
       </tr></thead>
       <tbody>${rowHtml}</tbody>
     </table>
