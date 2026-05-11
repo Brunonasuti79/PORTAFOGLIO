@@ -79,25 +79,18 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 /* ──────────────────────── SUMMARY CARD ──────────────────────── */
 .sum-card{background:linear-gradient(135deg,#0f1f3d,#162040);
   margin:7px 14px 5px;border-radius:16px;padding:10px 13px;border:1px solid #1a3060}
-/* blocchi EUR / USD affiancati */
-.sum-blocks{display:flex;gap:8px}
-.sum-block{flex:1;min-width:0;padding:8px 10px;background:rgba(7,11,20,.3);border:1px solid #1a3060;border-radius:12px}
-.sum-blbl{font-size:10px;color:#c8d8ff;letter-spacing:1.3px;text-transform:uppercase;font-weight:800;margin-bottom:4px}
-.sum-btot{font-family:'Bebas Neue',sans-serif;font-size:26px;color:#fff;letter-spacing:1px;line-height:1;margin-bottom:6px}
-.sum-btot.usd{color:#ffd580}
-.sum-brow{display:grid;grid-template-columns:1fr 1fr;gap:6px}
-.sum-bmet{background:rgba(7,11,20,.3);border:1px solid rgba(123,167,255,.1);border-radius:8px;padding:5px 7px}
-.sum-rend{display:flex;align-items:center;margin-top:8px;padding-top:8px;border-top:1px solid #1a2a4a}
+.sum-top{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center}
 .sum-lbl{font-size:10px;color:#c8d8ff;letter-spacing:1.3px;text-transform:uppercase;
   font-weight:800;margin-bottom:3px;text-shadow:0 0 10px rgba(123,167,255,.18)}
-.sum-tot{font-family:'Bebas Neue',sans-serif;font-size:34px;color:#fff;letter-spacing:1px;line-height:1}
+.sum-tot{font-family:'Bebas Neue',sans-serif;font-size:30px;color:#fff;letter-spacing:1px;line-height:1.1}
+.sum-tot.usd{color:#ffd580;font-size:26px}
 .sum-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;
   margin-top:8px;padding-top:8px;border-top:1px solid #1a2a4a;text-align:center}
 .sum-metric{background:rgba(7,11,20,.3);border:1px solid rgba(123,167,255,.1);
   border-radius:12px;padding:6px 8px}
 .sum-sl{font-size:10px;color:#c8d8ff;text-transform:uppercase;letter-spacing:1px;
   font-weight:800;margin-bottom:3px;text-shadow:0 0 10px rgba(123,167,255,.16)}
-.sum-sv{font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:700;line-height:1.2}
+.sum-sv{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;line-height:1.3}
 
 /* ──────────────────────── SECTION HEADER ──────────────────────── */
 .sh{display:flex;justify-content:space-between;align-items:center;padding:8px 16px 4px}
@@ -1586,27 +1579,33 @@ function renderPF() {
   const sa  = document.getElementById('sum-area');
   if (sum.hasData) {
     const rGc = sum.rendimento >= 0 ? 'gain' : 'loss';
-    const block = (lbl, tc, tv, g, sym) => {
-      const gc = g >= 0 ? 'gain' : 'loss';
-      const fmt = v => sym === '$' ? '$'+Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}) : e2(v);
-      const fmtS = v => (v>=0?'+':'-')+fmt(v);
-      return `<div class="sum-block">
-        <div class="sum-blbl">${lbl}</div>
-        <div class="sum-btot ${sym==='$'?'usd':''}">${fmt(tv)}</div>
-        <div class="sum-brow">
-          <div class="sum-bmet"><div class="sum-sl">Investito</div><div class="sum-sv neutral">${fmt(tc)}</div></div>
-          <div class="sum-bmet"><div class="sum-sl">Gain/Loss</div><div class="sum-sv ${gc}">${fmtS(g)}</div></div>
-        </div>
-      </div>`;
-    };
+    const fE = v => `<div class="sum-tot">${e2(v)} €</div>`;
+    const fU = v => `<div class="sum-tot usd">$${Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>`;
+    const gE = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>=0?'+':''}${e2(v)} €</div>`;
+    const gU = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>=0?'+':'-'}$${Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>`;
     sa.innerHTML = `<div class="sum-card">
-      <div class="sum-blocks">
-        ${sum.eur ? block('Portafoglio €', sum.eur.tc, sum.eur.tv, sum.eur.g, '€') : ''}
-        ${sum.usd ? block('Portafoglio $', sum.usd.tc, sum.usd.tv, sum.usd.g, '$') : ''}
+      <div class="sum-top">
+        <div>
+          <div class="sum-lbl">Valore Portafoglio</div>
+          ${sum.eur ? fE(sum.eur.tv) : ''}
+          ${sum.usd ? fU(sum.usd.tv) : ''}
+        </div>
+        <div>
+          <div class="sum-lbl">Investito</div>
+          ${sum.eur ? `<div class="sum-tot neutral">${e2(sum.eur.tc)} €</div>` : ''}
+          ${sum.usd ? `<div class="sum-tot usd">${'$'+sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>` : ''}
+        </div>
       </div>
-      <div class="sum-rend">
-        <span class="sum-sl">Rendimento complessivo</span>
-        <span class="sum-sv ${rGc}" style="font-size:20px;margin-left:10px">${pct(sum.rendimento)}</span>
+      <div class="sum-row">
+        <div class="sum-metric">
+          <div class="sum-sl">Gain / Loss</div>
+          ${sum.eur ? gE(sum.eur.g) : ''}
+          ${sum.usd ? gU(sum.usd.g) : ''}
+        </div>
+        <div class="sum-metric">
+          <div class="sum-sl">Rendimento</div>
+          <div class="sum-sv ${rGc}" style="font-size:20px">${sum.rendimento>=0?'+':''}${pct(sum.rendimento)}</div>
+        </div>
       </div>
     </div>`;
   } else {
