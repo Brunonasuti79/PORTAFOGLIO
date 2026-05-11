@@ -1918,6 +1918,7 @@ function renderRebalance() {
       case 'attuale':   v = a.actual - b.actual; break;
       case 'delta':     v = a.delta  - b.delta;  break;
       case 'importo':   v = a.val    - b.val;     break;
+      case 'mancante':  v = (a.needed??-Infinity) - (b.needed??-Infinity); break;
       default:          v = a.cat.localeCompare(b.cat,'it');
     }
     return v * rbSortDir;
@@ -1947,8 +1948,9 @@ function renderRebalance() {
         <th class="${thCls('categoria')}" onclick="sortRB('categoria')">Categoria</th>
         <th class="${thCls('obiettivo')}" onclick="sortRB('obiettivo')">Obiettivo %</th>
         <th class="${thCls('attuale')}"   onclick="sortRB('attuale')">Attuale %</th>
-        <th class="${thCls('delta')}"     onclick="sortRB('delta')">Delta</th>
-        <th class="${thCls('importo')}"   onclick="sortRB('importo')">Importo</th>
+        <th class="${thCls('importo')}"   onclick="sortRB('importo')">Valore €</th>
+        <th class="${thCls('delta')}"     onclick="sortRB('delta')">Delta %</th>
+        <th class="${thCls('mancante')}"  onclick="sortRB('mancante')">Da ribilanciare</th>
         <th>Consiglio</th>
       </tr></thead>
       <tbody>
@@ -1958,6 +1960,7 @@ function renderRebalance() {
             <td class="rb-cat">${esc(cat)}</td>
             <td class="rb-num">${target>0?target.toFixed(1)+'%':'—'} <button class="rb-edit-btn" onclick="editTarget('${jsq(cat)}')">✎</button></td>
             <td class="rb-num ${actual>0?(delta>2?'rb-over':delta<-2?'rb-under':''):''}">${actual.toFixed(1)}%</td>
+            <td class="rb-num">${e2(val)}</td>
             <td class="rb-num ${delta>=0?'rb-over':'rb-under'}">${target>0?(delta>=0?'+':'')+delta.toFixed(1)+'%':'—'}</td>
             <td class="rb-num ${needed!==null?(needed>=0?'rb-under':'rb-over'):''}">${needed!==null?(needed>=0?'+':'')+e2(needed):'—'}</td>
             <td><span class="rb-adv ${adv.cls}">${adv.text}</span></td>
@@ -1968,8 +1971,9 @@ function renderRebalance() {
         <td class="rb-cat"><strong>TOTALE</strong></td>
         <td class="rb-num">${totalTarget>0?`<strong>${totalTarget.toFixed(1)}%</strong>`:'—'}</td>
         <td class="rb-num"><strong>100%</strong></td>
-        <td>—</td>
         <td class="rb-num"><strong>${e2(totalValue)}</strong></td>
+        <td>—</td>
+        <td>—</td>
         <td>—</td>
       </tr></tfoot>
     </table>
