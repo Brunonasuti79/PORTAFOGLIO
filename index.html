@@ -2010,7 +2010,7 @@ function renderProjection() {
       <div style="display:flex;align-items:center;gap:4px">
         <input type="number" class="proj-rate-inp" value="${rates[cat]??0}" step="0.1" min="0" max="50"
           inputmode="decimal"
-          oninput="setProjectionRate(${JSON.stringify(cat)},this.value)">
+          oninput="setProjectionRate('${jsq(cat)}',this.value)">
         <span style="font-size:11px;color:var(--text3)">%</span>
       </div>
     </div>`).join('');
