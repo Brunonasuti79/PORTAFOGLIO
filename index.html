@@ -1737,10 +1737,11 @@ function renderCharts() {
   if (!hlds.length) { area.innerHTML = `<div class="empty-chart">Nessun dato da mostrare.<br>Aggiungi posizioni per iniziare.</div>`; return; }
 
   const rows = hlds.map(h => {
-    const p = S.prices[h.ticker];
-    const cost = h.avgPrice*h.qty, value=(p??h.avgPrice)*h.qty;
-    const gain=value-cost, pctGain=cost>0?gain/cost*100:0;
-    return {...h, cost, value, gain, pctGain, hasPrice:p!=null};
+    const cost  = costBasisAllEUR(h);
+    const value = currentValueAllEUR(h) ?? cost;
+    const gain  = value - cost;
+    const pctGain = cost > 0 ? gain/cost*100 : 0;
+    return {...h, cost, value, gain, pctGain, hasPrice: currentValueAllEUR(h) != null};
   });
   const tv=rows.reduce((a,r)=>a+r.value,0), tc=rows.reduce((a,r)=>a+r.cost,0);
   const tg=tv-tc, tp=tc>0?tg/tc*100:0;
@@ -1839,8 +1840,8 @@ function renderRebalance() {
   const catValues = {};
   let totalValue = 0;
   hlds.forEach(h => {
-    const p = S.prices[h.ticker];
-    const val = (p??h.avgPrice)*h.qty;
+    const p = currentValueAllEUR(h);
+    const val = p ?? costBasisAllEUR(h);
     const cat = h.assetClass||UNCATEGORIZED;
     catValues[cat] = (catValues[cat]||0) + val;
     totalValue += val;
