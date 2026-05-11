@@ -83,7 +83,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .sum-lbl{font-size:10px;color:#c8d8ff;letter-spacing:1.3px;text-transform:uppercase;
   font-weight:800;margin-bottom:3px;text-shadow:0 0 10px rgba(123,167,255,.18)}
 .sum-tot{font-family:'Bebas Neue',sans-serif;font-size:30px;color:#fff;letter-spacing:1px;line-height:1.1}
-.sum-tot.usd{color:#ffd580;font-size:26px}
+.sum-tot.usd{font-size:26px}
 .sum-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;
   margin-top:8px;padding-top:8px;border-top:1px solid #1a2a4a;text-align:center}
 .sum-metric{background:rgba(7,11,20,.3);border:1px solid rgba(123,167,255,.1);
@@ -1579,10 +1579,11 @@ function renderPF() {
   const sa  = document.getElementById('sum-area');
   if (sum.hasData) {
     const rGc = sum.rendimento >= 0 ? 'gain' : 'loss';
-    const fE = v => `<div class="sum-tot">${e2(v)} €</div>`;
-    const fU = v => `<div class="sum-tot usd">$${Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>`;
-    const gE = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>=0?'+':''}${e2(v)} €</div>`;
-    const gU = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>=0?'+':'-'}$${Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>`;
+    const fmtU = v => Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';
+    const fE = v => `<div class="sum-tot">${e2(v)}</div>`;
+    const fU = v => `<div class="sum-tot usd">${fmtU(v)}</div>`;
+    const gE = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':''}${e2(v)}</div>`;
+    const gU = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':v<0?'-':''}${fmtU(v)}</div>`;
     sa.innerHTML = `<div class="sum-card">
       <div class="sum-top">
         <div>
@@ -1592,8 +1593,8 @@ function renderPF() {
         </div>
         <div>
           <div class="sum-lbl">Investito</div>
-          ${sum.eur ? `<div class="sum-tot neutral">${e2(sum.eur.tc)} €</div>` : ''}
-          ${sum.usd ? `<div class="sum-tot usd">${'$'+sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})}</div>` : ''}
+          ${sum.eur ? `<div class="sum-tot neutral">${e2(sum.eur.tc)}</div>` : ''}
+          ${sum.usd ? `<div class="sum-tot usd">${sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>` : ''}
         </div>
       </div>
       <div class="sum-row">
@@ -1604,7 +1605,7 @@ function renderPF() {
         </div>
         <div class="sum-metric">
           <div class="sum-sl">Rendimento</div>
-          <div class="sum-sv ${rGc}" style="font-size:20px">${sum.rendimento>=0?'+':''}${pct(sum.rendimento)}</div>
+          <div class="sum-sv ${rGc}" style="font-size:20px">${pct(sum.rendimento)}</div>
         </div>
       </div>
     </div>`;
