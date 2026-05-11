@@ -107,7 +107,13 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .pf-ctrl select:focus{border-color:#3d6aaa}
 
 /* ──────────────────────── HOLDING CARD ──────────────────────── */
-.hcard{background:var(--bg2);margin:0 14px 4px;border-radius:13px;padding:6px 9px;
+.cash-bar{display:flex;align-items:center;gap:10px;margin:5px 14px 6px;
+  background:rgba(7,11,20,.4);border:1px solid var(--border);border-radius:12px;
+  padding:8px 12px;cursor:pointer;-webkit-tap-highlight-color:transparent}
+.cash-bar:active{opacity:.8}
+.cash-lbl{font-size:10px;color:#c8d8ff;text-transform:uppercase;letter-spacing:1px;font-weight:700;flex-shrink:0}
+.cash-val{font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:var(--blue);flex:1}
+.cash-edit{font-size:11px;color:var(--text3)}border-radius:13px;padding:6px 9px;
   border:1px solid var(--border);animation:fu .3s ease both}
 .hcard.is-gain{border-left:3px solid rgba(34,212,126,.35)}
 .hcard.is-loss{border-left:3px solid rgba(255,77,109,.35)}
@@ -393,6 +399,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
         style="margin-top:8px;padding:4px 12px;background:#2a4a6a;color:#c0d8f0;border:none;border-radius:6px;cursor:pointer;font-size:12px">Chiudi</button>
     </div>
     <div id="sum-area"></div>
+    <div id="cash-area"></div>
     <div class="sh"><span class="stl" id="port-cnt"></span></div>
     <div id="port-tools" class="pf-tools" style="display:none"></div>
     <div id="port-list"></div>
@@ -758,12 +765,12 @@ function save() {
 }
 
 function normalizePortfolio(pf) {
-  if (!pf.ops)             pf.ops = [];
-  if (!pf.prices)          pf.prices = {};
-  if (!pf.dailyChanges)    pf.dailyChanges = {};
-  if (!pf.priceHistory)    pf.priceHistory = [];
+  if (!pf.ops)              pf.ops = [];
+  if (!pf.prices)           pf.prices = {};
+  if (!pf.dailyChanges)     pf.dailyChanges = {};
+  if (!pf.priceHistory)     pf.priceHistory = [];
   if (!pf.rebalanceTargets) pf.rebalanceTargets = {};
-  // Normalize operations
+  if (pf.cashEUR == null)   pf.cashEUR = 0;
   pf.ops.forEach(op => normalizeOp(op));
 }
 
@@ -997,7 +1004,9 @@ function pfSummary(hlds) {
       eurN++;
     }
   }
-  const rate = ALL.fxRates?.EURUSD || null;
+  // Liquidità sul conto corrente (sempre EUR, valore = costo)
+  const cash = S.cashEUR || 0;
+  if (cash > 0) { eurTc += cash; eurTv += cash; eurN++; }
   const totalTc = eurTc + (rate ? usdTc/rate : 0);
   const totalTv = eurTv + (rate ? usdTv/rate : 0);
   const totalG  = totalTv - totalTc;
@@ -1626,6 +1635,17 @@ function renderPF() {
       </div></div>`;
   }
 
+  // Widget liquidità
+  const ca = document.getElementById('cash-area');
+  if (ca) {
+    const cash = S.cashEUR || 0;
+    ca.innerHTML = `<div class="cash-bar" onclick="setCash()">
+      <span class="cash-lbl">💶 Liquidità c/c</span>
+      <span class="cash-val">${cash > 0 ? e2(cash) : '— tocca per inserire'}</span>
+      <span class="cash-edit">✎</span>
+    </div>`;
+  }
+
   const pl = document.getElementById('port-list');
   if (!allHlds.length) {
     pl.innerHTML = `<div class="empty">Nessun titolo in portafoglio.<br>Vai su <strong>Operazioni</strong> e registra il tuo primo acquisto.</div>`;
@@ -1750,6 +1770,12 @@ function renderCharts() {
     const pctGain = cost > 0 ? gain/cost*100 : 0;
     return {...h, cost, value, gain, pctGain, hasPrice: currentValueAllEUR(h) != null};
   });
+  // Aggiungi liquidità come voce separata
+  if (S.cashEUR > 0) {
+    const cashRow = { displayTicker:'CASH', name:'Liquidità', assetClass:'Liquidità',
+      cost: S.cashEUR, value: S.cashEUR, gain: 0, pctGain: 0, hasPrice: true };
+    rows.push(cashRow);
+  }
   const tv=rows.reduce((a,r)=>a+r.value,0), tc=rows.reduce((a,r)=>a+r.cost,0);
   const tg=tv-tc, tp=tc>0?tg/tc*100:0;
 
@@ -1839,6 +1865,15 @@ function renderCharts() {
 // ════════════════════════════════════════════════════════════════
 //  RENDER — REBALANCE
 // ════════════════════════════════════════════════════════════════
+function setCash() {
+  const current = (S.cashEUR || 0).toFixed(2).replace('.',',');
+  const val = prompt('Liquidità sul conto corrente (€):', current);
+  if (val === null) return;
+  const n = parseFloat(val.replace(',','.'));
+  if (isNaN(n) || n < 0) { alert('Valore non valido.'); return; }
+  S.cashEUR = n;
+  save(); renderAll();
+}
 function sortRB(col) {
   if (rbSortCol === col) rbSortDir *= -1;
   else { rbSortCol = col; rbSortDir = col === 'categoria' ? 1 : -1; }
@@ -1858,7 +1893,10 @@ function renderRebalance() {
     catValues[cat] = (catValues[cat]||0) + val;
     totalValue += val;
   });
-  const allCats = new Set([...Object.keys(catValues), ...Object.keys(targets)]);
+  if (S.cashEUR > 0) {
+    catValues['Liquidità'] = (catValues['Liquidità'] || 0) + S.cashEUR;
+    totalValue += S.cashEUR;
+  }
   const totalTarget = Object.values(targets).reduce((a,v)=>a+(Number(v)||0),0);
 
   let rows = [...allCats].map(cat => {
