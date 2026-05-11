@@ -176,25 +176,26 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 }
 
 /* ──────────────────────── OPERATIONS ──────────────────────── */
-.opcard{background:var(--bg2);margin:0 14px 8px;border-radius:12px;padding:13px 14px;
-  border:1px solid var(--border);display:flex;align-items:center;gap:12px;animation:fu .2s ease both}
-.otb{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+.opcard{background:var(--bg2);margin:0 14px 4px;border-radius:10px;padding:7px 10px;
+  border:1px solid var(--border);display:flex;align-items:center;gap:8px;animation:fu .2s ease both}
+.otb{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
 .otb.buy{background:var(--green-bg)}.otb.sell{background:var(--red-bg)}
-.om{flex:1;min-width:0}
-.otr{display:flex;align-items:center;gap:8px}
-.otk{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:#c8d8ff}
-.otn{font-size:11px;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.od{font-size:11px;color:var(--text3);margin-top:2px}
-.odet{font-size:11px;color:var(--text3);margin-top:1px}
+.om{flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden}
+.otk{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:#c8d8ff;flex-shrink:0;white-space:nowrap}
+.otn{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;flex-shrink:1;min-width:0}
+.osep{font-size:10px;color:var(--border2);flex-shrink:0}
+.od{font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap}
+.odet{font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap}
 .ort{text-align:right;flex-shrink:0}
-.otot{font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600}
+.otot{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;white-space:nowrap}
 .otot.buy{color:var(--red)}.otot.sell{color:var(--green)}
-.odel{background:none;border:none;color:#2a3d5a;font-size:20px;cursor:pointer;
-  padding:4px 2px;line-height:1;transition:color .2s;-webkit-tap-highlight-color:transparent}
+.obts{display:flex;gap:3px;align-items:center;flex-shrink:0}
+.odel{background:none;border:none;color:#2a3d5a;font-size:16px;cursor:pointer;
+  padding:2px 4px;line-height:1;transition:color .2s;-webkit-tap-highlight-color:transparent}
 .odel:active{color:var(--red)}
-.oedit{background:var(--bg);border:1px solid var(--border2);color:var(--blue);
+.oedit{background:none;border:1px solid var(--border2);color:var(--blue);
   font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;
-  padding:6px 9px;border-radius:8px;cursor:pointer;margin-top:6px;
+  padding:3px 7px;border-radius:6px;cursor:pointer;
   -webkit-tap-highlight-color:transparent}
 
 /* ──────────────────────── ERROR BAR ──────────────────────── */
@@ -1531,19 +1532,22 @@ function renderOps() {
     const imp = op.price * op.qty;
     const tot = imp + (op.type==='buy'?1:-1)*(op.commissions||0);
     return `<div class="opcard" style="animation-delay:${i*.03}s">
-      <div class="otb ${op.type}">${op.type==='buy'?'📈':'📉'}</div>
+      <div class="otb ${op.type}">${op.type==='buy'?'▲':'▼'}</div>
       <div class="om">
-        <div class="otr"><span class="otk">${esc(op.displayTicker||op.ticker)}</span><span class="otn">${esc(op.name||'')}</span></div>
-        <span class="cat-pill">${esc(categoryOf(op))}</span>
-        <div class="od">${fdate(op.date)}</div>
-        <div class="odet">${op.qty} × ${n3(op.price)} €${op.commissions?` · comm. ${n2(op.commissions)} €`:''}</div>
+        <span class="otk">${esc(op.displayTicker||op.ticker)}</span>
+        <span class="osep">·</span>
+        <span class="otn">${esc(op.name||'')}</span>
+        <span class="cat-pill" style="flex-shrink:0">${esc(categoryOf(op))}</span>
+        <span class="osep">·</span>
+        <span class="od">${fdate(op.date)}</span>
+        <span class="osep">·</span>
+        <span class="odet">${op.qty} × ${n3(op.price)} €${op.commissions?` · comm. ${n2(op.commissions)} €`:''}</span>
       </div>
       <div class="ort">
-        <div class="otot ${op.type}">${op.type==='buy'?'− ':'+ '}${n2(Math.abs(tot))} €</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:3px">imp. ${n2(imp)} €</div>
+        <div class="otot ${op.type}">${op.type==='buy'?'−':'+'}${n2(Math.abs(tot))} €</div>
       </div>
-      <div style="display:flex;flex-direction:column;align-items:center;gap:2px">
-        <button class="oedit" onclick="editOp('${op.id}')">Modifica</button>
+      <div class="obts">
+        <button class="oedit" onclick="editOp('${op.id}')">✎</button>
         <button class="odel" onclick="delOp('${op.id}')">×</button>
       </div>
     </div>`;
