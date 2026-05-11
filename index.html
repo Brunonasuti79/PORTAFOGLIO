@@ -31,38 +31,35 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .page.active{display:block}
 
 /* ──────────────────────── PAGE HEADER ──────────────────────── */
-.ph{display:flex;justify-content:space-between;align-items:center;
-  padding:16px 16px 14px;background:var(--bg3);border-bottom:1px solid var(--border);
-  position:sticky;top:0;z-index:5;gap:10px}
-.ph-left{min-width:0;flex:1}
+.ph{display:flex;align-items:center;
+  padding:10px 12px;background:var(--bg3);border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:5;gap:8px;overflow:hidden}
+.ph-left{flex-shrink:0}
 .pt{font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:2px;color:#fff;line-height:1}
 .pt-sub{font-size:11px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;margin-top:2px}
-.pt-name{font-family:'Bebas Neue',sans-serif;font-size:20px;letter-spacing:1.4px;color:var(--text2);
+.pt-name{font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.6px;color:#fff;
   display:inline;margin-left:7px;}
-.ph-actions{display:flex;gap:8px;flex-shrink:0}
+.ph-actions{display:flex;gap:6px;flex-shrink:0}
 
-/* ──────────────────────── PORTFOLIO SWITCHER ──────────────────────── */
-#pf-switcher{display:flex;gap:6px;padding:8px 14px;background:var(--bg3);
-  border-bottom:1px solid var(--border);overflow-x:auto;flex-shrink:0;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+/* ──────────────────────── PORTFOLIO SWITCHER (in header) ──────────────────────── */
+#pf-switcher{display:flex;gap:5px;flex:1;overflow-x:auto;align-items:center;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;padding:0 2px}
 #pf-switcher::-webkit-scrollbar{display:none}
-.pf-tab{background:var(--bg2);border:1px solid var(--border2);border-radius:10px;
-  padding:6px 10px;cursor:pointer;flex-shrink:0;min-width:90px;transition:all .18s;
+.pf-tab{display:flex;align-items:center;gap:4px;
+  background:var(--bg2);border:1px solid var(--border2);border-radius:20px;
+  padding:4px 10px;cursor:pointer;flex-shrink:0;transition:all .18s;
   -webkit-tap-highlight-color:transparent}
 .pf-tab.active{background:#0a1a2e;border-color:var(--blue)}
-.pf-tab-name{font-size:11px;font-weight:600;color:var(--text2);
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
+.pf-tab-name{font-size:11px;font-weight:600;color:var(--text2);white-space:nowrap}
 .pf-tab.active .pf-tab-name{color:var(--blue)}
-.pf-tab-val{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:2px}
-.pf-tab.active .pf-tab-val{color:var(--text2)}
-.pf-tab-acts{display:flex;gap:3px;margin-top:5px}
-.pf-tab-acts button{background:none;border:1px solid var(--border2);color:var(--text3);
-  font-size:10px;padding:1px 6px;border-radius:5px;cursor:pointer;
+.pf-tab-acts{display:flex;gap:2px}
+.pf-tab-acts button{background:none;border:none;color:var(--text3);
+  font-size:12px;padding:0 3px;cursor:pointer;line-height:1;
   -webkit-tap-highlight-color:transparent;transition:color .15s}
-.pf-tab-acts button:active{color:var(--red);border-color:var(--red)}
+.pf-tab-acts button:active{color:var(--red)}
 .pf-add-btn{background:none;border:1px dashed var(--border2);color:var(--text3);
-  font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:6px 10px;
-  border-radius:10px;cursor:pointer;flex-shrink:0;
+  font-family:'Outfit',sans-serif;font-size:11px;font-weight:600;padding:4px 8px;
+  border-radius:20px;cursor:pointer;flex-shrink:0;white-space:nowrap;
   -webkit-tap-highlight-color:transparent;transition:all .18s}
 .pf-add-btn:active{color:var(--blue);border-color:var(--blue)}
 
@@ -109,7 +106,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .pf-ctrl select:focus{border-color:#3d6aaa}
 
 /* ──────────────────────── HOLDING CARD ──────────────────────── */
-.hcard{background:var(--bg2);margin:0 14px 5px;border-radius:14px;padding:8px 10px;
+.hcard{background:var(--bg2);margin:0 14px 4px;border-radius:13px;padding:6px 9px;
   border:1px solid var(--border);animation:fu .3s ease both}
 .hcard.is-gain{border-left:3px solid rgba(34,212,126,.35)}
 .hcard.is-loss{border-left:3px solid rgba(255,77,109,.35)}
@@ -130,8 +127,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .h-main{min-width:0;flex:1}
 .h-topline{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:1px}
 .hcard.closed .h-topline{margin-bottom:1px}
-.htk{font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#dce8ff;line-height:1.2;
-  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:200px}
+.htk{font-family:'Outfit',sans-serif;font-size:13px;font-weight:600;color:#dce8ff;line-height:1.3;
+  white-space:normal;word-break:break-word;}
 .hn{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text3);margin-top:1px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
 .cat-pill{display:inline-flex;align-items:center;background:#0a1a2e;border:1px solid #1a3060;
@@ -373,15 +370,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
     <div class="ph">
       <div class="ph-left">
         <div class="pt" id="port-title">PORTAFOGLIO</div>
-        <div class="pt-sub" id="port-sub"></div>
       </div>
+      <div id="pf-switcher"></div>
       <div class="ph-actions">
         <button class="hbtn" onclick="openQuick()">+ Aggiungi</button>
         <button class="hbtn" id="btn-ref" onclick="fetchPrices()">⟳ Aggiorna</button>
         <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
       </div>
     </div>
-    <div id="pf-switcher"></div>
     <div id="ebar" class="ebar" style="display:none"></div>
     <div id="diag-panel">
       <div style="font-weight:700;color:#c0d8f0">🔧 Diagnostica connessione</div>
@@ -1367,11 +1363,8 @@ function renderSwitcher() {
   if (!el) return;
   el.innerHTML = ALL.portfolios.map(pf => {
     const active = pf.id === ALL.activePortfolioId;
-    const hlds = calcPF(pf);
-    const tv = hlds.reduce((a,h) => { const p = pf.prices[h.ticker]; return a + (p??h.avgPrice)*h.qty; }, 0);
     return `<div class="pf-tab ${active?'active':''}" onclick="switchPortfolio('${pf.id}')">
-      <div class="pf-tab-name">${esc(pf.name)}</div>
-      <div class="pf-tab-val">${e2(tv)}</div>
+      <span class="pf-tab-name">${esc(pf.name)}</span>
       ${active ? `<div class="pf-tab-acts">
         <button onclick="event.stopPropagation();renamePortfolio('${pf.id}')" title="Rinomina">✎</button>
         <button onclick="event.stopPropagation();deletePortfolio('${pf.id}')" title="Elimina">×</button>
@@ -1406,7 +1399,7 @@ function renderPF() {
   // Header
   const titleEl = document.getElementById('port-title');
   if (titleEl) titleEl.innerHTML = `PORTAFOGLIO${S?.name ? `<span class="pt-name"> · ${esc(S.name)}</span>` : ''}`;
-  document.getElementById('port-sub').textContent = '';
+  
 
   // Filter/sort tools
   const toolsEl = document.getElementById('port-tools');
