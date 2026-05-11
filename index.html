@@ -1898,6 +1898,7 @@ function renderRebalance() {
     catValues['Liquidità'] = (catValues['Liquidità'] || 0) + S.cashEUR;
     totalValue += S.cashEUR;
   }
+  const allCats = new Set([...Object.keys(catValues), ...Object.keys(targets)]);
   const totalTarget = Object.values(targets).reduce((a,v)=>a+(Number(v)||0),0);
 
   let rows = [...allCats].map(cat => {
