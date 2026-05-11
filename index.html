@@ -1004,6 +1004,7 @@ function pfSummary(hlds) {
       eurN++;
     }
   }
+  const rate = ALL.fxRates?.EURUSD || null;
   // Liquidità sul conto corrente (sempre EUR, valore = costo)
   const cash = S.cashEUR || 0;
   if (cash > 0) { eurTc += cash; eurTv += cash; eurN++; }
