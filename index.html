@@ -548,6 +548,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
         <input type="text" id="q-isin" placeholder="es. IE00B4L5Y983" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();autoFillFromIsin('q')"></div>
       <div class="fld full"><label>Mercato quotazione</label>
         <select id="q-market" onchange="onMarketChange('q')"></select></div>
+      <div class="fld full hidden" id="q-currency-row"></div>
       <div class="fld full"><label>Simbolo prezzo (per Aggiorna)</label>
         <input type="text" id="q-quote" placeholder="es. SWDA.MI, EHF1.DE, CD9.PA" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
       <div class="fld full"><label>Nome titolo (opzionale)</label>
@@ -589,6 +590,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
         <input type="text" id="f-isin" placeholder="es. IE00B4L5Y983" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();autoFillFromIsin('f')"></div>
       <div class="fld"><label>Mercato quotazione</label>
         <select id="f-market" onchange="onMarketChange('f')"></select></div>
+      <div class="fld full hidden" id="f-currency-row"></div>
       <div class="fld full"><label>Simbolo prezzo (per Aggiorna)</label>
         <input type="text" id="f-quote" placeholder="es. SWDA.MI, EHF1.DE, CD9.PA" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
       <div class="fld full"><label>Nome titolo (opzionale)</label>
@@ -698,7 +700,6 @@ function load() {
         ALL.portfolios = d.portfolios;
         ALL.activePortfolioId = d.activePortfolioId;
         ALL.settings = Object.assign({ak:'',anthropicKey:''}, d.settings || {});
-      } else {
         // Migrate from legacy single-portfolio format
         const pf = newPortfolio(d.settings?.portfolioName || 'Portafoglio principale');
         pf.ops = migrateLegacyOps(d.ops || []);
@@ -848,7 +849,7 @@ function calcPF(pf) {
     if (!key) continue;
     if (!h[key]) {
       h[key] = {
-        ticker: key,          // = quoteTicker (price lookup key)
+        ticker: key,
         displayTicker: displaySymbol(op),
         isin: op.isin || '',
         market: op.market || marketFromSymbol(key),
@@ -955,13 +956,10 @@ function onMarketChange(prefix) {
   const market  = document.getElementById(`${prefix}-market`)?.value || '';
   const quoteEl = document.getElementById(`${prefix}-quote`);
   if (!quoteEl || !ticker || market === 'MANUAL') return;
-  // Auto-fill quote symbol
   const isin = fc(document.getElementById(`${prefix}-isin`)?.value || '');
   const db = ISIN_DB[isin];
   if (db && db.quotes[market]) { quoteEl.value = db.quotes[market]; return; }
-  const base = baseTicker(ticker);
-  const sfx = marketSuffix(market);
-  quoteEl.value = base + sfx;
+  quoteEl.value = baseTicker(ticker) + marketSuffix(market);
 }
 function autoFillFromIsin(prefix) {
   const isin = fc(document.getElementById(`${prefix}-isin`)?.value || '');
@@ -1386,11 +1384,21 @@ function gainEuro(h) { const p = S.prices[h.ticker]; return p != null ? (p - h.a
 function currentValue(h) { const p = S.prices[h.ticker]; return p != null ? p*h.qty : null; }
 
 function sortHoldings(list) {
+  const gainPct = h => { const p = S.prices[h.ticker]; return p != null ? (p - h.avgPrice)/h.avgPrice*100 : null; };
+  const oggi    = h => S.dailyChanges?.[h.ticker]?.pct ?? null;
+  const prezzo  = h => S.prices[h.ticker] ?? null;
   return [...list].sort((a,b) => {
-    if (pfSortMode === 'gain_desc') return (gainEuro(b)??-Infinity) - (gainEuro(a)??-Infinity);
-    if (pfSortMode === 'gain_asc')  return (gainEuro(a)??Infinity)  - (gainEuro(b)??Infinity);
-    if (pfSortMode === 'value_desc') return (currentValue(b)??-Infinity) - (currentValue(a)??-Infinity);
-    return (a.name||a.displayTicker).localeCompare(b.name||b.displayTicker, 'it');
+    switch(pfSortMode) {
+      case 'gain_eur_desc': return (gainEuro(b)??-Infinity)  - (gainEuro(a)??-Infinity);
+      case 'gain_eur_asc':  return (gainEuro(a)??Infinity)   - (gainEuro(b)??Infinity);
+      case 'gain_pct_desc': return (gainPct(b)??-Infinity)   - (gainPct(a)??-Infinity);
+      case 'gain_pct_asc':  return (gainPct(a)??Infinity)    - (gainPct(b)??Infinity);
+      case 'oggi_desc':     return (oggi(b)??-Infinity)       - (oggi(a)??-Infinity);
+      case 'oggi_asc':      return (oggi(a)??Infinity)        - (oggi(b)??Infinity);
+      case 'prezzo_desc':   return (prezzo(b)??-Infinity)     - (prezzo(a)??-Infinity);
+      case 'prezzo_asc':    return (prezzo(a)??Infinity)      - (prezzo(b)??Infinity);
+      default: return (a.name||a.displayTicker).localeCompare(b.name||b.displayTicker,'it');
+    }
   });
 }
 
@@ -1423,10 +1431,15 @@ function renderPF() {
         </select></div>
       <div class="pf-ctrl"><label>Ordina per</label>
         <select onchange="pfSortMode=this.value;renderPF()">
-          <option value="name"${pfSortMode==='name'?'selected':''}>Nome</option>
-          <option value="gain_desc"${pfSortMode==='gain_desc'?'selected':''}>Gain migliore</option>
-          <option value="gain_asc"${pfSortMode==='gain_asc'?'selected':''}>Gain peggiore</option>
-          <option value="value_desc"${pfSortMode==='value_desc'?'selected':''}>Valore più alto</option>
+          <option value="name"             ${pfSortMode==='name'            ?'selected':''}>Nome A→Z</option>
+          <option value="gain_eur_desc"    ${pfSortMode==='gain_eur_desc'   ?'selected':''}>Gain € — migliore</option>
+          <option value="gain_eur_asc"     ${pfSortMode==='gain_eur_asc'    ?'selected':''}>Gain € — peggiore</option>
+          <option value="gain_pct_desc"    ${pfSortMode==='gain_pct_desc'   ?'selected':''}>Gain % — migliore</option>
+          <option value="gain_pct_asc"     ${pfSortMode==='gain_pct_asc'    ?'selected':''}>Gain % — peggiore</option>
+          <option value="oggi_desc"        ${pfSortMode==='oggi_desc'       ?'selected':''}>Oggi % — migliore</option>
+          <option value="oggi_asc"         ${pfSortMode==='oggi_asc'        ?'selected':''}>Oggi % — peggiore</option>
+          <option value="prezzo_desc"      ${pfSortMode==='prezzo_desc'     ?'selected':''}>Prezzo — più alto</option>
+          <option value="prezzo_asc"       ${pfSortMode==='prezzo_asc'      ?'selected':''}>Prezzo — più basso</option>
         </select></div>`;
   }
 
