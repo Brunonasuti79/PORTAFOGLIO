@@ -2443,6 +2443,38 @@ function taxRateForCat(assetClass) {
   return (assetClass === 'BTP / Titoli di Stato') ? 0.125 : 0.26;
 }
 
+// Annulla l'effetto sulla liquidità di un'operazione già salvata
+function reverseCashForOp(op) {
+  if (!op || S.cashEUR == null) return;
+  if (op.titleCcy === 'USD' && op.purchCcy === 'USD') return;
+  const tk = op.quoteTicker || op.ticker;
+
+  if (op.type === 'buy') {
+    const cost = (op.titleCcy === 'USD' && op.purchCcy === 'EUR' && op.fxRate)
+      ? (op.price / op.fxRate) * op.qty + (op.commissions || 0)
+      : op.price * op.qty + (op.commissions || 0);
+    S.cashEUR = (S.cashEUR || 0) + cost;
+    showToast(`💶 Liquidità ripristinata: +${e2(cost)}`);
+
+  } else if (op.type === 'sell') {
+    // calcPF è chiamata prima della rimozione → avgPrice ancora corretto
+    const h = calcPF().find(x => x.ticker === tk);
+    const avgPrc = h?.avgPriceBuyCcy ?? h?.avgPrice ?? op.price;
+    let proceeds, gain;
+    if (op.titleCcy === 'USD' && op.purchCcy === 'EUR' && op.fxRate) {
+      const rate = ALL.fxRates?.EURUSD || op.fxRate;
+      proceeds = (op.price / rate) * op.qty - (op.commissions || 0);
+      gain = Math.max(0, ((op.price / rate) - avgPrc) * op.qty);
+    } else {
+      proceeds = op.price * op.qty - (op.commissions || 0);
+      gain = Math.max(0, (op.price - avgPrc) * op.qty);
+    }
+    const net = Math.max(0, proceeds - gain * getTaxRateForTicker(tk, op.assetClass));
+    S.cashEUR = Math.max(0, (S.cashEUR || 0) - net);
+    showToast(`💶 Liquidità ridotta: −${e2(net)} (vendita annullata)`);
+  }
+}
+
 // Aggiorna la liquidità dopo un'operazione (solo nuove ops, non editing)
 function updateCashForOp(op, holdingsSnap) {
   if (!op || S.cashEUR == null) return;
@@ -2525,6 +2557,13 @@ function saveOp() {
   };
 
   const holdingsSnap = !editingOpId ? calcPF() : null;
+  // Bug fix: se esiste già un'op con stesso displayTicker, usa il suo quoteTicker
+  // per garantire che calcPF li fonda in un unico holding
+  if (!editingOpId) {
+    const sameDisp = (S.ops||[]).find(o =>
+      fc(o.displayTicker||o.ticker) === fc(opData.displayTicker||'') && o.quoteTicker);
+    if (sameDisp) opData.quoteTicker = sameDisp.quoteTicker;
+  }
   if (editingOpId) {
     const idx = (S.ops||[]).findIndex(o => o.id === editingOpId);
     if (idx >= 0) S.ops[idx] = opData;
@@ -2537,6 +2576,8 @@ function saveOp() {
 
 function delOp(id) {
   if (!confirm('Eliminare questa operazione?')) return;
+  const op = (S.ops||[]).find(o => o.id === id);
+  if (op) reverseCashForOp(op);
   S.ops = (S.ops||[]).filter(o => o.id !== id);
   save(); renderAll();
 }
@@ -2578,20 +2619,25 @@ function saveQuick() {
   if (existing && !confirm(`${qf.displayTicker} è già in portafoglio. Aggiungere aggiornerà il prezzo medio di carico. Continuare?`)) return;
 
   const snapQ = calcPF();
+  // Normalizza quoteTicker: se esiste già la stessa azione usa il suo quoteTicker
+  let resolvedQuoteTicker = qf.quoteTicker;
+  const sameDispQ = (S.ops||[]).find(o =>
+    fc(o.displayTicker||o.ticker) === fc(qf.displayTicker||'') && o.quoteTicker);
+  if (sameDispQ) resolvedQuoteTicker = sameDispQ.quoteTicker;
+
   S.ops.push({
     id: Date.now().toString(36)+Math.random().toString(36).slice(2,6),
     date: new Date().toISOString().slice(0,10),
-    type:'buy',
+    type: 'buy',
     ticker: qf.displayTicker,
     displayTicker: qf.displayTicker,
-    quoteTicker: qf.quoteTicker,
+    quoteTicker: resolvedQuoteTicker,
     isin: qf.isin,
     market: qf.market,
     titleCcy: qf.titleCcy || 'EUR',
     purchCcy: qf.purchCcy || 'EUR',
     fxRate: qf.fxRate || null,
-    name, assetClass, price:avg, qty, commissions:comm,
-    titleCcy: qf.titleCcy || 'EUR', purchCcy: qf.purchCcy || 'EUR', fxRate: qf.fxRate || null
+    name, assetClass, price:avg, qty, commissions:comm
   });
   updateCashForOp(S.ops[S.ops.length-1], snapQ);
   save(); closeQuick(); renderAll();
