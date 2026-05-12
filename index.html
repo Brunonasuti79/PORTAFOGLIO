@@ -117,7 +117,14 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   border-radius:6px;padding:3px 6px}
 .proj-infl-row{display:flex;align-items:center;gap:10px;margin-top:8px;
   background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.25);border-radius:10px;padding:8px 12px}
-.proj-chart-wrap{margin:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 0 6px}
+.proj-sub-row{display:flex;align-items:center;justify-content:space-between;
+  background:rgba(7,11,20,.35);border-left:3px solid #1a3060;
+  padding:5px 8px 5px 20px;gap:8px;margin-top:2px;border-radius:0 8px 8px 0}
+.proj-sub-lbl{display:flex;flex-direction:column;flex:1;min-width:0}
+.proj-sub-lbl span:first-child{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-sub-lbl span:last-child{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.proj-rate-row{position:relative}
+.proj-rate-row .rb-expand-btn{position:absolute;left:-2px;top:50%;transform:translateY(-50%);font-size:9px;padding:1px 4px}background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 0 6px}
 .proj-legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:4px 0 10px;font-size:11px}
 .proj-leg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
 .proj-table-wrap{margin:6px 14px 80px;overflow-x:auto}
@@ -2049,6 +2056,20 @@ function setProjectionInflation(val) {
   if (!isNaN(n) && n >= 0) { ALL.settings.projInflation = n; save(); refreshProjectionOutput(); }
 }
 
+let projExpandedCats = new Set();
+function toggleProjCat(cat) {
+  projExpandedCats.has(cat) ? projExpandedCats.delete(cat) : projExpandedCats.add(cat);
+  renderProjection();
+}
+function saveProjSubRate(ticker, val) {
+  if (!ALL.settings.projSubRates) ALL.settings.projSubRates = {};
+  const n = parseFloat(val);
+  if (isNaN(n) || val === '') delete ALL.settings.projSubRates[ticker];
+  else ALL.settings.projSubRates[ticker] = n;
+  save();
+  refreshProjectionOutput();
+}
+
 function renderProjection() {
   const area = document.getElementById('proj-area');
   if (!area) return;
@@ -2058,16 +2079,44 @@ function renderProjection() {
   const allCatRates = [...new Set([...Object.keys(DEFAULT_PROJ_RATES),
     ...calcPF().map(h => h.assetClass).filter(Boolean)])];
 
-  const ratesHtml = allCatRates.map(cat => `
-    <div class="proj-rate-row">
+  const hlds = calcPF();
+  const catHldsMap = {};
+  hlds.forEach(h => {
+    const c = h.assetClass||UNCATEGORIZED;
+    if (!catHldsMap[c]) catHldsMap[c] = [];
+    catHldsMap[c].push(h);
+  });
+  const projSubRates = ALL.settings.projSubRates || {};
+
+  const ratesHtml = allCatRates.map(cat => {
+    const catH = catHldsMap[cat] || [];
+    const isExp = projExpandedCats.has(cat);
+    const subRows = isExp && catH.length ? catH.map(h => {
+      const sr = projSubRates[h.ticker];
+      return `<div class="proj-sub-row">
+        <div class="proj-sub-lbl">
+          <span>${esc(h.name||h.displayTicker)}</span>
+          <span>${esc(h.displayTicker)}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:4px">
+          <input type="number" class="proj-rate-inp" value="${sr??''}"
+            placeholder="${rates[cat]??0}" step="0.1" min="0" max="100" inputmode="decimal"
+            oninput="saveProjSubRate('${h.ticker}',this.value)" style="width:52px">
+          <span style="font-size:11px;color:var(--text3)">%</span>
+          ${sr!=null?`<button onclick="saveProjSubRate('${h.ticker}','')" title="Rimuovi" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;line-height:1">✕</button>`:''}
+        </div>
+      </div>`;
+    }).join('') : '';
+    return `<div class="proj-rate-row" style="padding-left:${catH.length?'26px':'8px'}">
+      ${catH.length?`<button class="rb-expand-btn ${isExp?'open':''}" onclick="toggleProjCat('${jsq(cat)}')" style="position:absolute;left:4px">${isExp?'▼':'▶'}</button>`:''}
       <span class="proj-rate-lbl">${esc(cat)}</span>
       <div style="display:flex;align-items:center;gap:4px">
         <input type="number" class="proj-rate-inp" value="${rates[cat]??0}" step="0.1" min="0" max="50"
-          inputmode="decimal"
-          oninput="setProjectionRate('${jsq(cat)}',this.value)">
+          inputmode="decimal" oninput="setProjectionRate('${jsq(cat)}',this.value)">
         <span style="font-size:11px;color:var(--text3)">%</span>
       </div>
-    </div>`).join('');
+    </div>${subRows}`;
+  }).join('');
 
   area.innerHTML = `
   <div class="proj-section">
@@ -2095,26 +2144,56 @@ function refreshProjectionOutput() {
   const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
 
   const hlds = calcPF();
-  const catVal = {};
+  const catVals = {}, tkVals = {};
   let total = 0;
   hlds.forEach(h => {
     const v = currentValueAllEUR(h) ?? costBasisAllEUR(h);
-    const c = h.assetClass || UNCATEGORIZED;
-    catVal[c] = (catVal[c] || 0) + v;
-    total += v;
+    const c = h.assetClass||UNCATEGORIZED;
+    catVals[c] = (catVals[c]||0)+v; tkVals[h.ticker] = v; total += v;
   });
-  if (S.cashEUR > 0) { catVal['Liquidità'] = (catVal['Liquidità']||0)+S.cashEUR; total+=S.cashEUR; }
+  if (S.cashEUR>0) { catVals['Liquidità']=(catVals['Liquidità']||0)+S.cashEUR; total+=S.cashEUR; }
 
   const targets   = S.rebalanceTargets || {};
-  const hasTarget = Object.values(targets).some(v => Number(v) > 0);
+  const hasTarget = Object.values(targets).some(v => Number(v)>0);
   const catObj    = {};
-  if (hasTarget) Object.entries(targets).forEach(([c,pct]) => { catObj[c] = total*(Number(pct)||0)/100; });
+  if (hasTarget) Object.entries(targets).forEach(([c,pct]) => { catObj[c]=total*(Number(pct)||0)/100; });
 
-  const YRS = 31;
-  const proj = cm => Array.from({length:YRS}, (_,y) =>
-    Object.entries(cm).reduce((s,[c,v]) => s + v*Math.pow(1+(rates[c]??0)/100, y), 0));
-  const attuale   = proj(catVal);
-  const obiettivo = hasTarget ? proj(catObj) : null;
+  const projSubRates = ALL.settings.projSubRates || {};
+  // Mappa ticker → categoria per lookup dei tassi
+  const tkCatMap = {};
+  hlds.forEach(h => { tkCatMap[h.ticker] = h.assetClass||UNCATEGORIZED; });
+
+  // Tasso effettivo per un ticker: sub-rate > category rate > 0
+  const getRate = (tk) => (projSubRates[tk] ?? rates[tkCatMap[tk]] ?? rates[tk] ?? 0) / 100;
+
+  // Proietta una mappa {key→value} anno per anno
+  const project = (map) => Array.from({length:YRS}, (_,y) =>
+    Object.entries(map).reduce((s,[k,v]) => s + v*Math.pow(1+getRate(k), y), 0));
+
+  // Mappa ticker → valore per la curva "attuale" (include cash a tasso 0)
+  const tkAttualeMap = {...tkVals};
+  if (S.cashEUR>0) tkAttualeMap['__cash__'] = S.cashEUR; // __cash__ non ha sub-rate → 0%
+
+  // Mappa ticker → valore per la curva "obiettivo"
+  const tkObjMap = {};
+  if (hasTarget) {
+    Object.entries(catObj).forEach(([cat, val]) => {
+      const catH = hlds.filter(h => (h.assetClass||UNCATEGORIZED)===cat);
+      const sub  = S.subTargets?.[cat] || {};
+      const subKeys = Object.keys(sub).filter(tk => catH.find(h=>h.ticker===tk));
+      if (subKeys.length>0) {
+        const subTot = subKeys.reduce((s,tk)=>s+(Number(sub[tk])||0),0);
+        subKeys.forEach(tk => { tkObjMap[tk]=(tkObjMap[tk]||0)+val*(Number(sub[tk])||0)/(subTot||1); });
+      } else if (catH.length>0) {
+        catH.forEach(h => { tkObjMap[h.ticker]=(tkObjMap[h.ticker]||0)+val/catH.length; });
+      } else {
+        tkObjMap[cat]=(tkObjMap[cat]||0)+val; // nessun holding → chiave = categoria
+      }
+    });
+  }
+
+  const attuale   = project(tkAttualeMap);
+  const obiettivo = hasTarget ? project(tkObjMap) : null;
   const inflaz    = Array.from({length:YRS}, (_,y) => total*Math.pow(1+inflRate/100, y));
 
   // SVG
