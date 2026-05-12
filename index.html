@@ -2451,11 +2451,11 @@ function calcAvailableFunds() {
 
 function runPAC(months, maxOps) {
   const { catVals: cv0, tkVals: tv0, hlds, portfolioTotal } = calcAvailableFunds();
-  const catVals = {...cv0}, tkVals = {...tv0};
-  let total = portfolioTotal;
+  const catVals = {...cv0};
+  const tkVals  = {...tv0};
 
   const totalFunds = (S.cashEUR||0) + Math.max(0,
-    (cv0[MON_CAT]||0) - total * (Number(S.rebalanceTargets?.[MON_CAT]||0)/100));
+    (cv0[MON_CAT]||0) - portfolioTotal * (Number(S.rebalanceTargets?.[MON_CAT]||0)/100));
   const monthlyAmt = totalFunds / months;
   let fundsLeft    = totalFunds;
 
@@ -2464,41 +2464,44 @@ function runPAC(months, maxOps) {
   const SKIP    = new Set(['Liquidità', MON_CAT, UNCATEGORIZED]);
   const plan    = [];
 
-  // Costruisce la mappa ticker → valore target
-  // Sub-pesi sono % della categoria (somma 100%) → ticker target = catTarget × sub%/100
-  function buildTargets(currentTotal) {
+  // Target FISSO calcolato sulla dimensione finale del portafoglio
+  // (attuale + tutti i fondi da deployare).
+  // In questo modo chi è già sopra obiettivo non viene mai comprato.
+  const finalTotal = portfolioTotal + totalFunds;
+
+  function buildTargets() {
     const map = {};
     Object.entries(targets).forEach(([cat, pct]) => {
       if (SKIP.has(cat)) return;
-      const catTargetV = currentTotal * (Number(pct)||0) / 100;
+      const catTargetV = finalTotal * (Number(pct)||0) / 100;
       if (catTargetV < 0.01) return;
       const catH    = hlds.filter(h => (h.assetClass||UNCATEGORIZED) === cat);
       const sub     = subTgts[cat] || {};
       const subKeys = Object.keys(sub).filter(tk => catH.find(h => h.ticker === tk));
 
       if (subKeys.length > 0) {
-        // Sub-pesi definiti: % della categoria → valore assoluto
         subKeys.forEach(tk => {
           map[tk] = (map[tk]||0) + catTargetV * (Number(sub[tk])||0) / 100;
         });
       } else if (catH.length > 0) {
-        // Nessun sub-peso: distribuisce equamente tra i titoli della categoria
         catH.forEach(h => { map[h.ticker] = (map[h.ticker]||0) + catTargetV / catH.length; });
       } else {
-        // Categoria senza holding: usa chiave categoria
         map['__cat__'+cat] = (map['__cat__'+cat]||0) + catTargetV;
       }
     });
     return map;
   }
 
+  // Mappa target fissa — non cambia mese per mese
+  const tgtMap = buildTargets();
+
   for (let m = 1; m <= months; m++) {
     if (fundsLeft < 0.01) break;
     const amt = Math.min(monthlyAmt, fundsLeft);
     fundsLeft -= amt;
 
-    // Calcola shortfall per ogni ticker/categoria
-    const tgtMap = buildTargets(total + amt);
+    // Shortfall = quanto manca per raggiungere il target finale
+    // Se già sopra obiettivo → gap = 0 → non viene mai selezionato
     const shortfalls = [];
     Object.entries(tgtMap).forEach(([key, tgtV]) => {
       const curV = key.startsWith('__cat__')
@@ -2508,10 +2511,12 @@ function runPAC(months, maxOps) {
       if (gap > 0.01) shortfalls.push({ key, gap, tgtV });
     });
 
+    if (!shortfalls.length) break; // tutti i target raggiunti
+
     // Ordina per shortfall % decrescente → prendi top N
     shortfalls.sort((a,b) => (b.gap/b.tgtV) - (a.gap/a.tgtV));
     const topN   = shortfalls.slice(0, maxOps);
-    const totGap = topN.reduce((s,x) => s+x.gap, 0) || 1;
+    const totGap = topN.reduce((s,x) => s + x.gap, 0) || 1;
 
     const allocs = [];
     topN.forEach(({ key, gap }) => {
@@ -2528,10 +2533,9 @@ function runPAC(months, maxOps) {
         tkVals[key]  = (tkVals[key]||0)  + tkAmt;
         catVals[cat] = (catVals[cat]||0) + tkAmt;
       }
-      total += tkAmt;
     });
 
-    // Scala liquidità e poi ETF monetario
+    // Scala liquidità poi ETF monetario
     let rem = amt;
     const cashUsed = Math.min(rem, catVals['Liquidità']||0);
     catVals['Liquidità'] = Math.max(0, (catVals['Liquidità']||0) - cashUsed);
@@ -2541,7 +2545,7 @@ function runPAC(months, maxOps) {
     if (allocs.length > 0) plan.push({ month: m, amount: amt, allocations: allocs });
   }
 
-  return { plan, monthlyAmt, totalFunds };
+  return { plan, monthlyAmt, totalFunds, finalTotal };
 }
 function monthLabel(offset) {
   const d = new Date();
@@ -2592,7 +2596,7 @@ function calcAndRenderPAC() {
   if (!Object.keys(S.rebalanceTargets||{}).length) {
     alert('Imposta prima gli obiettivi % nel Ribilanciamento.'); return; }
 
-  const { plan, monthlyAmt, totalFunds } = runPAC(months, maxOps);
+  const { plan, monthlyAmt, totalFunds, finalTotal } = runPAC(months, maxOps);
   const planEl = document.getElementById('pac-plan');
   if (!planEl) return;
 
@@ -2630,6 +2634,7 @@ function calcAndRenderPAC() {
   </div>
   <div class="sdesc" style="margin:0 14px 8px">
     ${plan.length < months ? `⚠ I fondi (${e2(totalFunds)}) si esauriscono al mese ${plan.length}.` : `✓ Piano completo — ${months} mesi da ${monthLabel(1)} a ${monthLabel(months)}.`}
+    Target calcolato su portafoglio finale stimato: <strong>${e2(finalTotal)}</strong>. Titoli già sopra obiettivo non vengono mai selezionati.
     ${!hasSubTgts ? ' <em>Suggerimento: imposta sotto-obiettivi per titolo nel Ribilanciamento per un piano più preciso.</em>' : ''}
   </div>
   <div class="pac-plan-wrap">
@@ -2772,10 +2777,15 @@ function renderRebalance() {
           const subOver = subSum > 100.5; // eccede 100% della categoria
           const subFill = Math.min(subSum, 120); // verso 100%
           const subSubRows = isExpanded && catHlds.length ? catHlds.map(h => {
-            const hVal = currentValueAllEUR(h) ?? costBasisAllEUR(h);
-            const hActPct = totalValue>0 ? hVal/totalValue*100 : 0;  // % portafoglio reale
-            const hTgt = subTgt[h.ticker] || '';
+            const hVal     = currentValueAllEUR(h) ?? costBasisAllEUR(h);
+            const hActPct  = totalValue > 0 ? hVal / totalValue * 100 : 0;
+            const hTgt     = subTgt[h.ticker] || '';
+            // % target del portafoglio = subPeso% × macro% / 100
+            const hTgtPtfPct = (Number(hTgt)||0) * (target||0) / 100;
+            const deltaPct   = hTgtPtfPct - hActPct;
+            const deltaEur   = totalValue * deltaPct / 100;
             const hOver = hTgt !== '' && target > 0 && Number(hTgt) > target + 0.05;
+            const dCls  = deltaPct >= 0 ? 'rb-under' : 'rb-over';
             return `<tr class="rb-sub-row">
               <td>
                 <div style="font-weight:600;font-size:11px;color:#dce8ff">${esc(h.name||h.displayTicker)}</div>
@@ -2789,10 +2799,13 @@ function renderRebalance() {
                     onchange="renderRebalance()">
                   <span class="pct-suffix">% cat.</span>
                 </div>
+                ${hTgt !== '' ? `<div style="font-size:9px;color:var(--text3);margin-top:2px">= ${hTgtPtfPct.toFixed(1)}% ptf</div>` : ''}
               </td>
               <td class="rb-num">${hActPct.toFixed(1)}%</td>
               <td class="rb-num">${e2(hVal)}</td>
-              <td colspan="3">—</td>
+              <td class="rb-num ${hTgt !== '' ? dCls : ''}">${hTgt !== '' ? (deltaPct>=0?'+':'')+deltaPct.toFixed(1)+'%' : '—'}</td>
+              <td class="rb-num ${hTgt !== '' ? dCls : ''}">${hTgt !== '' ? (deltaEur>=0?'+':'')+e2(deltaEur) : '—'}</td>
+              <td>—</td>
             </tr>`;
           }).join('') + (catHlds.length ? `<tr class="rb-sub-total-row">
             <td colspan="7">
