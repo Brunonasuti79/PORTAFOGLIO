@@ -2192,8 +2192,8 @@ function refreshProjectionOutput() {
       const sub  = S.subTargets?.[cat] || {};
       const subKeys = Object.keys(sub).filter(tk => catH.find(h=>h.ticker===tk));
       if (subKeys.length>0) {
-        // sub-weights sono % di portafoglio totale → use dirette (non normalizzate)
-        subKeys.forEach(tk => { tkObjMap[tk]=(tkObjMap[tk]||0)+total*(Number(sub[tk])||0)/100; });
+        // sub-weights sono % della categoria (somma = 100%)
+        subKeys.forEach(tk => { tkObjMap[tk]=(tkObjMap[tk]||0)+val*(Number(sub[tk])||0)/100; });
       } else if (catH.length>0) {
         catH.forEach(h => { tkObjMap[h.ticker]=(tkObjMap[h.ticker]||0)+val/catH.length; });
       } else {
@@ -2345,12 +2345,9 @@ function runPAC(months, maxOps) {
       const sub  = subTgts[cat] || {};
       const subKeys = Object.keys(sub).filter(tk => catH.find(h => h.ticker === tk));
       if (subKeys.length > 0) {
-        // sub-weights sono % di portafoglio totale dirette
+        // subKeys sono % della categoria (somma = 100%)
         subKeys.forEach(tk => {
-          // proporzione del catAmt basata su peso relativo del titolo sul macro
-          const tkPct  = Number(sub[tk])||0;
-          const catPct = Number(targets[cat])||1;
-          const tkAmt  = catPct > 0 ? catAmt * tkPct / catPct : 0;
+          const tkAmt = catAmt * (Number(sub[tk])||0) / 100;
           if (tkAmt < 0.01) return;
           const h = catHlds.find(x => x.ticker === tk);
           allocs.push({ cat, ticker: h?.displayTicker||tk, name: h?.name||tk, amount: tkAmt });
@@ -2597,8 +2594,8 @@ function renderRebalance() {
           const subTgt = S.subTargets?.[cat] || {};
           // subWeights sono % di portafoglio totale → somma deve essere ≤ target macro
           const subSum  = Object.values(subTgt).reduce((s,v)=>s+(Number(v)||0),0);
-          const subOver = target > 0 && subSum > target + 0.05; // eccede il macro
-          const subFill = target > 0 ? Math.min(subSum / target * 100, 120) : 0;
+          const subOver = subSum > 100.5; // eccede 100% della categoria
+          const subFill = Math.min(subSum, 120); // verso 100%
           const subSubRows = isExpanded && catHlds.length ? catHlds.map(h => {
             const hVal = currentValueAllEUR(h) ?? costBasisAllEUR(h);
             const hActPct = totalValue>0 ? hVal/totalValue*100 : 0;  // % portafoglio reale
@@ -2614,7 +2611,7 @@ function renderRebalance() {
                   <input type="number" class="rb-sub-inp${hOver?' over':''}" value="${hTgt}" placeholder="0"
                     min="0" max="${target||100}" step="0.5"
                     oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);renderRebalance()">
-                  <span class="pct-suffix">% ptf</span>
+                  <span class="pct-suffix">% cat.</span>
                 </div>
               </td>
               <td class="rb-num">${hActPct.toFixed(1)}%</td>
@@ -2625,12 +2622,12 @@ function renderRebalance() {
             <td colspan="7">
               <div style="display:flex;align-items:center;gap:8px;padding:0 4px">
                 <div class="rb-sub-bar" style="flex:1;max-width:120px">
-                  <div class="rb-sub-bar-fill" style="width:${subFill.toFixed(0)}%;background:${subOver?'var(--red)':Math.abs(subSum-(target||0))<0.1?'var(--green)':'var(--blue)'}"></div>
+                  <div class="rb-sub-bar-fill" style="width:${subFill.toFixed(0)}%;background:${subOver?'var(--red)':Math.abs(subSum-100)<0.5?'var(--green)':'var(--blue)'}"></div>
                 </div>
-                <span style="font-size:10px;font-weight:700;white-space:nowrap;color:${subOver?'var(--red)':Math.abs(subSum-(target||0))<0.1?'var(--green)':'var(--text3)'}">
+                <span style="font-size:10px;font-weight:700;white-space:nowrap;color:${subOver?'var(--red)':Math.abs(subSum-100)<0.5?'var(--green)':'var(--text3)'}">
                   ${subSum>0
-                    ? subSum.toFixed(1)+'% / '+( target>0?target.toFixed(1):'?')+'%  '+(subOver?'⚠ supera il macro!':Math.abs(subSum-(target||0))<0.1?'✓ perfetto':'del portafoglio')
-                    : 'Espandi ▶ e assegna le % del portafoglio ai singoli titoli (tot = '+( target>0?target.toFixed(1)+'%':'macro')+')'}
+                    ? subSum.toFixed(1)+'% / 100%  '+(subOver?'⚠ supera 100%!':Math.abs(subSum-100)<0.5?'✓ perfetto':'della categoria')
+                    : 'Espandi ▶ e assegna le % ai titoli (devono sommare 100%)'}
                 </span>
               </div>
             </td>
