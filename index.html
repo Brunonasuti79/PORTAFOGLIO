@@ -2311,72 +2311,81 @@ function calcAvailableFunds() {
   return { cash, monExcess, total: cash + monExcess, catVals, tkVals, hlds, portfolioTotal: total };
 }
 
-function runPAC(monthlyInput, months) {
+function runPAC(months, maxOps) {
   const { catVals: cv0, tkVals: tv0, hlds, portfolioTotal } = calcAvailableFunds();
   const catVals = {...cv0}, tkVals = {...tv0};
   let total = portfolioTotal;
-  let funds = (S.cashEUR||0) + Math.max(0, (cv0[MON_CAT]||0) - total * (Number(S.rebalanceTargets?.[MON_CAT]||0)/100));
-  const targets  = S.rebalanceTargets || {};
-  const subTgts  = S.subTargets || {};
-  const plan = [];
-  const SKIP = new Set(['Liquidità', MON_CAT, UNCATEGORIZED]);
+  const totalFunds = (S.cashEUR||0) + Math.max(0,
+    (cv0[MON_CAT]||0) - total*(Number(S.rebalanceTargets?.[MON_CAT]||0)/100));
+  const monthlyAmt = totalFunds / months;
+  let fundsLeft = totalFunds;
 
-  for (let m = 1; m <= months; m++) {
-    if (funds < 0.01) break;
-    const amt = Math.min(monthlyInput, funds);
-    funds -= amt;
+  const targets = S.rebalanceTargets || {};
+  const subTgts = S.subTargets || {};
+  const SKIP    = new Set(['Liquidità', MON_CAT, UNCATEGORIZED]);
+  const plan    = [];
 
-    // Calcola shortfall per categoria (escludi Liquidità e ETF mon.)
-    const gaps = {};
-    let totGap = 0;
+  // Calcola target € per singolo ticker
+  function tkTargets(currentTotal) {
+    const map = {}; // ticker or catKey → targetValue
     Object.entries(targets).forEach(([cat, pct]) => {
       if (SKIP.has(cat)) return;
-      const targetV = (total + amt) * (Number(pct)||0) / 100;
-      const gap = Math.max(0, targetV - (catVals[cat]||0));
-      if (gap > 0.01) { gaps[cat] = gap; totGap += gap; }
-    });
-    // Se tutto in target, proporzionale agli obiettivi
-    if (totGap < 0.01) {
-      Object.entries(targets).forEach(([cat, pct]) => {
-        if (SKIP.has(cat)) return;
-        gaps[cat] = Number(pct)||0; totGap += Number(pct)||0;
-      });
-    }
-
-    const allocs = [];
-    Object.entries(gaps).forEach(([cat, gap]) => {
-      const catAmt = totGap > 0 ? amt * gap / totGap : 0;
-      if (catAmt < 0.01) return;
-      const catHlds = hlds.filter(h => (h.assetClass||UNCATEGORIZED) === cat);
-      const sub = subTgts[cat] || {};
-      const subKeys = Object.keys(sub).filter(tk => catHlds.find(h => h.ticker === tk));
-
+      const catTargetV = (currentTotal) * (Number(pct)||0) / 100;
+      const catH = hlds.filter(h => (h.assetClass||UNCATEGORIZED) === cat);
+      const sub  = subTgts[cat] || {};
+      const subKeys = Object.keys(sub).filter(tk => catH.find(h => h.ticker === tk));
       if (subKeys.length > 0) {
         const subTot = subKeys.reduce((s,tk) => s+(Number(sub[tk])||0), 0);
         subKeys.forEach(tk => {
-          const tkAmt = subTot > 0 ? catAmt * (Number(sub[tk])||0) / subTot : catAmt / subKeys.length;
-          if (tkAmt < 0.01) return;
-          const h = catHlds.find(x => x.ticker === tk);
-          allocs.push({ cat, ticker: h?.displayTicker||tk, name: h?.name||tk, amount: tkAmt });
-          tkVals[tk] = (tkVals[tk]||0) + tkAmt;
-          catVals[cat] = (catVals[cat]||0) + tkAmt;
+          map[tk] = catTargetV * (Number(sub[tk])||0) / (subTot||1);
         });
-      } else if (catHlds.length > 0) {
-        catHlds.forEach(h => {
-          const hAmt = catAmt / catHlds.length;
-          if (hAmt < 0.01) return;
-          allocs.push({ cat, ticker: h.displayTicker, name: h.name||h.displayTicker, amount: hAmt });
-          tkVals[h.ticker] = (tkVals[h.ticker]||0) + hAmt;
-          catVals[cat] = (catVals[cat]||0) + hAmt;
-        });
+      } else if (catH.length > 0) {
+        catH.forEach(h => { map[h.ticker] = catTargetV / catH.length; });
       } else {
-        allocs.push({ cat, ticker: null, name: cat, amount: catAmt });
-        catVals[cat] = (catVals[cat]||0) + catAmt;
+        map['__cat__'+cat] = catTargetV;
       }
-      total += catAmt;
+    });
+    return map;
+  }
+
+  for (let m = 1; m <= months; m++) {
+    if (fundsLeft < 0.01) break;
+    const amt = Math.min(monthlyAmt, fundsLeft);
+    fundsLeft -= amt;
+
+    // Shortfall per ticker
+    const tgtMap = tkTargets(total + amt);
+    const shortfalls = [];
+    Object.entries(tgtMap).forEach(([key, tgtV]) => {
+      const curV = key.startsWith('__cat__') ? (catVals[key.slice(7)]||0) : (tkVals[key]||0);
+      const gap  = Math.max(0, tgtV - curV);
+      if (gap > 0.01) shortfalls.push({ key, gap, tgtV, curV });
+    });
+    // Ordina per shortfall % decrescente
+    shortfalls.sort((a,b) => (b.gap/b.tgtV) - (a.gap/a.tgtV));
+    // Prendi i top maxOps
+    const topN   = shortfalls.slice(0, maxOps);
+    const totGap = topN.reduce((s,x) => s+x.gap, 0) || 1;
+
+    const allocs = [];
+    topN.forEach(({ key, gap }) => {
+      const tkAmt = amt * gap / totGap;
+      if (tkAmt < 0.01) return;
+      if (key.startsWith('__cat__')) {
+        const cat = key.slice(7);
+        allocs.push({ cat, ticker: null, name: cat, amount: tkAmt });
+        catVals[cat] = (catVals[cat]||0) + tkAmt;
+      } else {
+        const h = hlds.find(x => x.ticker === key);
+        const cat = h?.assetClass || UNCATEGORIZED;
+        allocs.push({ cat, ticker: h?.displayTicker||key, name: h?.name||key, amount: tkAmt });
+        tkVals[key] = (tkVals[key]||0) + tkAmt;
+        catVals[cat] = (catVals[cat]||0) + tkAmt;
+      }
+      total += tkAmt;
     });
 
-    // Scala ETF monetario e liquidità
+    // Scala liquidità / ETF mon.
     let rem = amt;
     const cashUsed = Math.min(rem, catVals['Liquidità']||0);
     catVals['Liquidità'] = (catVals['Liquidità']||0) - cashUsed; rem -= cashUsed;
@@ -2384,7 +2393,14 @@ function runPAC(monthlyInput, months) {
 
     plan.push({ month: m, amount: amt, allocations: allocs });
   }
-  return plan;
+  return { plan, monthlyAmt, totalFunds };
+}
+
+function monthLabel(offset) {
+  const d = new Date();
+  d.setDate(1);
+  d.setMonth(d.getMonth() + offset);
+  return d.toLocaleDateString('it-IT', {month:'long', year:'numeric'});
 }
 
 function renderPAC() {
@@ -2392,7 +2408,7 @@ function renderPAC() {
   if (!area) return;
   const { cash, monExcess, total: avail } = calcAvailableFunds();
   const months = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
-  const monthly = parseFloat(document.getElementById('pac-monthly-inp')?.value) || 0;
+  const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value) || 5;
 
   area.innerHTML = `
   <div class="pac-inputs">
@@ -2402,13 +2418,21 @@ function renderPAC() {
       <div style="font-size:10px;color:var(--text3)">Liquidità ${e2(cash)} + Eccesso ETF mon. ${e2(monExcess)}</div>
     </div>
     <div class="pac-input-card">
-      <div class="pac-input-lbl">Durata piano</div>
-      <input type="number" id="pac-months-inp" class="pac-inp" value="${months}" min="1" max="120" step="1" inputmode="numeric">
-      <div style="font-size:10px;color:var(--text3);margin-top:3px">mesi</div>
+      <div class="pac-input-lbl">Importo mensile stimato</div>
+      <div class="pac-input-val" style="color:#22d47e" id="pac-monthly-display">${e2(avail / (months||24))}</div>
+      <div style="font-size:10px;color:var(--text3)">calcolato automaticamente</div>
     </div>
-    <div class="pac-input-card" style="grid-column:span 2">
-      <div class="pac-input-lbl">Importo mensile da investire (€)</div>
-      <input type="number" id="pac-monthly-inp" class="pac-inp" value="${monthly||''}" placeholder="es. 500" min="1" step="10" inputmode="decimal">
+    <div class="pac-input-card">
+      <div class="pac-input-lbl">Durata piano (mesi)</div>
+      <input type="number" id="pac-months-inp" class="pac-inp" value="${months}"
+        min="1" max="120" step="1" inputmode="numeric"
+        oninput="document.getElementById('pac-monthly-display').textContent=
+          e2((${avail})/(parseInt(this.value)||1))">
+    </div>
+    <div class="pac-input-card">
+      <div class="pac-input-lbl">Max operazioni / mese</div>
+      <input type="number" id="pac-maxops-inp" class="pac-inp" value="${maxOps}"
+        min="1" max="20" step="1" inputmode="numeric">
     </div>
   </div>
   <button class="pac-calc-btn" onclick="calcAndRenderPAC()">📊 Calcola piano PAC</button>
@@ -2416,32 +2440,35 @@ function renderPAC() {
 }
 
 function calcAndRenderPAC() {
-  const months  = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
-  const monthly = parseFloat(document.getElementById('pac-monthly-inp')?.value) || 0;
-  if (!monthly || monthly < 1) { alert('Inserisci un importo mensile valido.'); return; }
+  const months = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
+  const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value) || 5;
   if (!Object.keys(S.rebalanceTargets||{}).length) {
     alert('Imposta prima gli obiettivi % nel Ribilanciamento.'); return; }
 
-  const plan = runPAC(monthly, months);
+  const { plan, monthlyAmt, totalFunds } = runPAC(months, maxOps);
   const planEl = document.getElementById('pac-plan');
   if (!planEl) return;
 
   if (!plan.length) {
-    planEl.innerHTML = '<div class="empty">Fondi insufficienti o obiettivi non configurati.</div>'; return; }
+    planEl.innerHTML = '<div class="empty">Fondi insufficienti o obiettivi non configurati.</div>';
+    return;
+  }
 
   const totInvested = plan.reduce((s,m) => s+m.amount, 0);
-  const { avail } = calcAvailableFunds();
+  const hasSubTgts  = Object.keys(S.subTargets||{}).some(c => Object.keys(S.subTargets[c]).length);
 
   const rows = plan.map(({ month, amount, allocations }) => {
+    const dateStr = monthLabel(month);
     const hdrRow = `<tr class="pac-month-hdr">
+      <td>${dateStr}</td>
       <td>Mese ${month}</td>
-      <td colspan="3">Totale: ${e2(amount)}</td>
+      <td colspan="2">Totale: ${e2(amount)}</td>
     </tr>`;
     const allocRows = allocations.map(a =>
       `<tr>
-        <td style="padding-left:16px;color:var(--text3);font-size:10px">${esc(a.cat)}</td>
-        <td style="font-size:11px">${esc(a.name)}</td>
-        <td style="font-family:'JetBrains Mono',monospace;color:#7ba7ff">${e2(a.amount)}</td>
+        <td style="padding-left:16px;font-size:10px;color:var(--text3)">${esc(a.cat)}</td>
+        <td style="font-size:11px;color:#dce8ff">${esc(a.name)}</td>
+        <td style="font-family:'JetBrains Mono',monospace;color:#7ba7ff;font-weight:600">${e2(a.amount)}</td>
         <td style="font-size:10px;color:var(--text3)">${((a.amount/amount)*100).toFixed(0)}%</td>
       </tr>`).join('');
     return hdrRow + allocRows;
@@ -2450,15 +2477,17 @@ function calcAndRenderPAC() {
   planEl.innerHTML = `
   <div class="pnl-summary" style="margin:8px 14px">
     <div class="pnl-card"><div class="pnl-lbl">Mesi pianificati</div><div class="pnl-val">${plan.length}</div></div>
+    <div class="pnl-card"><div class="pnl-lbl">Importo mensile</div><div class="pnl-val" style="color:#22d47e">${e2(monthlyAmt)}</div></div>
     <div class="pnl-card"><div class="pnl-lbl">Totale investito</div><div class="pnl-val" style="color:#7ba7ff">${e2(totInvested)}</div></div>
+    <div class="pnl-card"><div class="pnl-lbl">Max op./mese</div><div class="pnl-val">${maxOps}</div></div>
   </div>
-  <div class="sdesc" style="margin:0 14px 6px">
-    ${plan.length < months ? `⚠ I fondi disponibili (${e2(avail)}) si esauriscono al mese ${plan.length}.` : `✓ Piano completo su ${months} mesi.`}
-    ${Object.keys(S.subTargets||{}).some(c=>Object.keys(S.subTargets[c]).length) ? '' : ' <em>Suggerimento: imposta i sotto-obiettivi per titolo nel Ribilanciamento per un piano più preciso.</em>'}
+  <div class="sdesc" style="margin:0 14px 8px">
+    ${plan.length < months ? `⚠ I fondi (${e2(totalFunds)}) si esauriscono al mese ${plan.length}.` : `✓ Piano completo — ${months} mesi da ${monthLabel(1)} a ${monthLabel(months)}.`}
+    ${!hasSubTgts ? ' <em>Suggerimento: imposta sotto-obiettivi per titolo nel Ribilanciamento per un piano più preciso.</em>' : ''}
   </div>
   <div class="pac-plan-wrap">
     <table class="pac-table">
-      <thead><tr><th>Mese / Categoria</th><th>Titolo</th><th>Importo</th><th>%</th></tr></thead>
+      <thead><tr><th>Data</th><th>Titolo</th><th>Importo</th><th>%</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>
   </div>`;
