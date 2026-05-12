@@ -2035,7 +2035,7 @@ function renderOps() {
         <span class="osep">·</span>
         <span class="od">${fdate(op.date)}</span>
         <span class="osep">·</span>
-        <span class="odet">${op.qty} × ${n3(op.price)} €${op.commissions?` · comm. ${n2(op.commissions)} €`:''}</span>
+        <span class="odet">${op.qty} × ${n3(op.price)} ${op.titleCcy==='USD'?'$':'€'}${op.commissions?` · comm. ${n2(op.commissions)} €`:''}</span>
       </div>
       <div class="ort">
         <div class="otot ${op.type}">${op.type==='buy'?'−':'+'}${n2(Math.abs(tot))} €</div>
@@ -2267,6 +2267,9 @@ function renderProjection() {
         oninput="setProjectionInflation(this.value)" style="border-color:rgba(255,153,68,.4);width:68px">
       <span style="font-size:12px;color:var(--text3)">%</span>
     </div>
+    <button class="bbtn" onclick="exportProjectionExcel()" style="margin-top:10px;background:rgba(34,212,126,.12);border-color:rgba(34,212,126,.3);color:#22d47e">
+      📥 Esporta Excel
+    </button>
   </div>
   <div id="proj-output"></div>`;
 
@@ -2449,7 +2452,7 @@ function calcAvailableFunds() {
   return { cash, monExcess, total: cash + monExcess, catVals, tkVals, hlds, portfolioTotal: total };
 }
 
-function runPAC(months, maxOps) {
+function runPAC(months, maxOps, minOp=500) {
   const { catVals: cv0, tkVals: tv0, hlds, portfolioTotal } = calcAvailableFunds();
   const catVals = {...cv0};
   const tkVals  = {...tv0};
@@ -2464,9 +2467,6 @@ function runPAC(months, maxOps) {
   const SKIP    = new Set(['Liquidità', MON_CAT, UNCATEGORIZED]);
   const plan    = [];
 
-  // Target FISSO calcolato sulla dimensione finale del portafoglio
-  // (attuale + tutti i fondi da deployare).
-  // In questo modo chi è già sopra obiettivo non viene mai comprato.
   const finalTotal = portfolioTotal + totalFunds;
 
   function buildTargets() {
@@ -2478,11 +2478,8 @@ function runPAC(months, maxOps) {
       const catH    = hlds.filter(h => (h.assetClass||UNCATEGORIZED) === cat);
       const sub     = subTgts[cat] || {};
       const subKeys = Object.keys(sub).filter(tk => catH.find(h => h.ticker === tk));
-
       if (subKeys.length > 0) {
-        subKeys.forEach(tk => {
-          map[tk] = (map[tk]||0) + catTargetV * (Number(sub[tk])||0) / 100;
-        });
+        subKeys.forEach(tk => { map[tk] = (map[tk]||0) + catTargetV * (Number(sub[tk])||0) / 100; });
       } else if (catH.length > 0) {
         catH.forEach(h => { map[h.ticker] = (map[h.ticker]||0) + catTargetV / catH.length; });
       } else {
@@ -2491,36 +2488,43 @@ function runPAC(months, maxOps) {
     });
     return map;
   }
-
-  // Mappa target fissa — non cambia mese per mese
   const tgtMap = buildTargets();
+
+  let accumulated = 0; // fondi accumulati (mesi saltati per minimo operazione)
 
   for (let m = 1; m <= months; m++) {
     if (fundsLeft < 0.01) break;
-    const amt = Math.min(monthlyAmt, fundsLeft);
-    fundsLeft -= amt;
+    const rawAmt = Math.min(monthlyAmt, fundsLeft);
+    const amt    = rawAmt + accumulated; // aggiungi eventuale accumulo mesi precedenti
 
-    // Shortfall = quanto manca per raggiungere il target finale
-    // Se già sopra obiettivo → gap = 0 → non viene mai selezionato
     const shortfalls = [];
     Object.entries(tgtMap).forEach(([key, tgtV]) => {
-      const curV = key.startsWith('__cat__')
-        ? (catVals[key.slice(7)]||0)
-        : (tkVals[key]||0);
-      const gap = Math.max(0, tgtV - curV);
+      const curV = key.startsWith('__cat__') ? (catVals[key.slice(7)]||0) : (tkVals[key]||0);
+      const gap  = Math.max(0, tgtV - curV);
       if (gap > 0.01) shortfalls.push({ key, gap, tgtV });
     });
+    if (!shortfalls.length) break;
 
-    if (!shortfalls.length) break; // tutti i target raggiunti
-
-    // Ordina per shortfall % decrescente → prendi top N
     shortfalls.sort((a,b) => (b.gap/b.tgtV) - (a.gap/a.tgtV));
-    const topN   = shortfalls.slice(0, maxOps);
-    const totGap = topN.reduce((s,x) => s + x.gap, 0) || 1;
+    const topN = shortfalls.slice(0, maxOps);
 
-    const allocs = [];
-    topN.forEach(({ key, gap }) => {
-      const tkAmt = amt * gap / totGap;
+    // Calcola allocazioni e filtra sotto il minimo
+    let candidates = topN.map(x => ({ ...x, proposed: amt * x.gap / (topN.reduce((s,y)=>s+y.gap,0)||1) }));
+    candidates = candidates.filter(c => c.proposed >= minOp);
+
+    if (!candidates.length) {
+      // Nessuna operazione supera il minimo → accumula per il mese successivo
+      accumulated += rawAmt;
+      fundsLeft   -= rawAmt;
+      continue;
+    }
+    accumulated = 0;
+
+    // Ridistribuisce proporzionalmente tra i candidati validi
+    const validGap = candidates.reduce((s,c) => s+c.gap, 0) || 1;
+    const allocs   = [];
+    candidates.forEach(({ key, gap }) => {
+      const tkAmt = amt * gap / validGap;
       if (tkAmt < 0.01) return;
       if (key.startsWith('__cat__')) {
         const cat = key.slice(7);
@@ -2535,7 +2539,7 @@ function runPAC(months, maxOps) {
       }
     });
 
-    // Scala liquidità poi ETF monetario
+    fundsLeft -= rawAmt;
     let rem = amt;
     const cashUsed = Math.min(rem, catVals['Liquidità']||0);
     catVals['Liquidità'] = Math.max(0, (catVals['Liquidità']||0) - cashUsed);
@@ -2590,6 +2594,215 @@ function renderPAC() {
   <div id="pac-plan"></div>`;
 }
 
+async function loadXLSX() {
+  if (!window.XLSX) {
+    await new Promise((res, rej) => {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+      s.onload = res; s.onerror = rej;
+      document.head.appendChild(s);
+    });
+  }
+}
+
+// Cella con formula e valore cached (per Excel interattivo)
+function xfc(f, v, fmt) {
+  const c = { t: typeof v === 'number' ? 'n' : 's', v, f };
+  if (fmt) c.z = fmt;
+  return c;
+}
+// Cella valore
+function xv(v, fmt) {
+  const c = { t: typeof v === 'number' ? 'n' : 's', v };
+  if (fmt) c.z = fmt;
+  return c;
+}
+// Cella header
+function xh(v) { return { t:'s', v, s:{ font:{ bold:true } } }; }
+
+async function exportProjectionExcel() {
+  await loadXLSX();
+  const XU = window.XLSX.utils;
+  const wb = window.XLSX.utils.book_new();
+
+  const rates    = Object.assign({}, DEFAULT_PROJ_RATES, ALL.settings.projRates || {});
+  const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
+  const hlds     = calcPF();
+  const subRates = ALL.settings.projSubRates || {};
+
+  // ── Categorie uniche con valori e tassi
+  const catData = {};
+  hlds.forEach(h => {
+    const c = h.assetClass || UNCATEGORIZED;
+    const v = currentValueAllEUR(h) ?? costBasisAllEUR(h);
+    if (!catData[c]) catData[c] = { val: 0, rate: rates[c] ?? 0, tickers: [] };
+    catData[c].val += v;
+    catData[c].tickers.push({ name: h.name||h.displayTicker, val: v, rate: subRates[h.ticker] });
+  });
+  if ((S.cashEUR||0) > 0) catData['Liquidità'] = { val: S.cashEUR, rate: 0, tickers: [] };
+
+  const cats   = Object.keys(catData);
+  const YRS    = 31;
+
+  // ══════════════════════════════════════════
+  // FOGLIO 1 — INPUT
+  // ══════════════════════════════════════════
+  const inp = {};
+  const setCell = (ws, addr, cell) => { ws[addr] = cell; };
+
+  // Titoli
+  inp['A1'] = xh('Categoria');
+  inp['B1'] = xh('Tasso Annuo %');
+  inp['C1'] = xh('Valore Attuale €');
+  inp['D1'] = xh('Tasso Inflazione %');
+
+  cats.forEach((cat, i) => {
+    const r = i + 2;
+    inp[`A${r}`] = xv(cat);
+    inp[`B${r}`] = xv(catData[cat].rate, '0.0"%"');
+    inp[`C${r}`] = xv(parseFloat(catData[cat].val.toFixed(2)), '#,##0.00€');
+    if (i === 0) inp[`D${r}`] = xv(inflRate, '0.0"%"');
+  });
+
+  // Totale
+  const rTot = cats.length + 2;
+  inp[`A${rTot}`] = xh('TOTALE PORTAFOGLIO');
+  inp[`B${rTot}`] = xh('');
+  inp[`C${rTot}`] = xfc(`SUM(C2:C${rTot-1})`, parseFloat(cats.reduce((s,c)=>s+catData[c].val,0).toFixed(2)), '#,##0.00€');
+
+  inp['!ref'] = `A1:D${rTot}`;
+  inp['!cols'] = [{wch:28},{wch:14},{wch:18},{wch:18}];
+  XU.book_append_sheet(wb, inp, 'Input');
+
+  // ══════════════════════════════════════════
+  // FOGLIO 2 — TABELLA PROIEZIONE
+  // ══════════════════════════════════════════
+  const tab = {};
+  // Header row
+  tab['A1'] = xh('Anno');
+  cats.forEach((cat, i) => { tab[`${String.fromCharCode(66+i)}1`] = xh(cat); });
+  const colTot  = String.fromCharCode(66 + cats.length);
+  const colInfl = String.fromCharCode(66 + cats.length + 1);
+  const colNet  = String.fromCharCode(66 + cats.length + 2);
+  tab[`${colTot}1`]  = xh('Totale €');
+  tab[`${colInfl}1`] = xh('Base inflazione €');
+  tab[`${colNet}1`]  = xh('Guadagno netto infl. €');
+
+  const total0 = cats.reduce((s,c) => s+catData[c].val, 0);
+
+  for (let y = 0; y < YRS; y++) {
+    const r = y + 2;
+    tab[`A${r}`] = xv(y);
+    cats.forEach((cat, i) => {
+      const col   = String.fromCharCode(66 + i);
+      const inpR  = i + 2;            // riga in Input
+      const rateF = `(1+Input!B${inpR}/100)^${y}`; // tasso dalla cella Input
+      const valF  = `Input!C${inpR}`; // valore iniziale dalla cella Input
+      const formula = y === 0 ? `Input!C${inpR}` : `${valF}*${rateF}`;
+      const cached  = parseFloat((catData[cat].val * Math.pow(1 + catData[cat].rate/100, y)).toFixed(2));
+      tab[`${col}${r}`] = xfc(formula, cached, '#,##0€');
+    });
+    // Totale
+    const sumF = `SUM(B${r}:${String.fromCharCode(65+cats.length)}${r})`;
+    const cachedTot = parseFloat(cats.reduce((s,c) => s+catData[c].val*Math.pow(1+catData[c].rate/100,y),0).toFixed(2));
+    tab[`${colTot}${r}`]  = xfc(sumF, cachedTot, '#,##0€');
+    // Inflazione: valore base cresciuto a tasso inflazione (da Input!D2)
+    const inflF   = `Input!C${cats.length+2}*(1+Input!D2/100)^${y}`;
+    const cachedInfl = parseFloat((total0 * Math.pow(1+inflRate/100, y)).toFixed(2));
+    tab[`${colInfl}${r}`] = xfc(inflF, cachedInfl, '#,##0€');
+    // Guadagno netto
+    const netF = `${colTot}${r}-${colInfl}${r}`;
+    tab[`${colNet}${r}`] = xfc(netF, parseFloat((cachedTot-cachedInfl).toFixed(2)), '#,##0€');
+  }
+
+  tab['!ref'] = `A1:${colNet}${YRS+1}`;
+  tab['!cols'] = [{wch:8}, ...cats.map(()=>({wch:18})), {wch:14},{wch:20},{wch:22}];
+  XU.book_append_sheet(wb, tab, 'Tabella');
+
+  // ══════════════════════════════════════════
+  // FOGLIO 3 — DATI GRAFICO
+  // ══════════════════════════════════════════
+  const gRows = [['Anno','Portafoglio','Base inflazione','Guadagno netto']];
+  for (let y = 0; y < YRS; y++) {
+    const tot  = cats.reduce((s,c) => s+catData[c].val*Math.pow(1+catData[c].rate/100,y), 0);
+    const infl = total0 * Math.pow(1+inflRate/100, y);
+    gRows.push([y, parseFloat(tot.toFixed(2)), parseFloat(infl.toFixed(2)), parseFloat((tot-infl).toFixed(2))]);
+  }
+  const wsg = XU.aoa_to_sheet(gRows);
+  wsg['!cols'] = [{wch:8},{wch:16},{wch:18},{wch:16}];
+  XU.book_append_sheet(wb, wsg, 'Grafico');
+
+  window.XLSX.writeFile(wb, `Proiezione_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('📊 File Excel scaricato');
+}
+
+async function exportPACExcel() {
+  await loadXLSX();
+  const XU = window.XLSX.utils;
+
+  const months = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
+  const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value) || 5;
+  const { plan, monthlyAmt, totalFunds, finalTotal } = runPAC(months, maxOps, 500);
+  if (!plan.length) { alert('Calcola prima il piano PAC.'); return; }
+
+  const wb = window.XLSX.utils.book_new();
+  const totInvested = plan.reduce((s,m) => s+m.amount, 0);
+
+  // ══════════════════════════════════════════
+  // FOGLIO 1 — INPUT
+  // ══════════════════════════════════════════
+  const inp = XU.aoa_to_sheet([
+    ['Parametro','Valore',''],
+    ['Portafoglio attuale (€)', parseFloat((finalTotal-totalFunds).toFixed(2)), ''],
+    ['Fondi disponibili (€)', parseFloat(totalFunds.toFixed(2)), ''],
+    ['Portafoglio finale stimato (€)', parseFloat(finalTotal.toFixed(2)), '← attuale + fondi'],
+    ['Durata piano (mesi)', months, ''],
+    ['Max operazioni / mese', maxOps, ''],
+    ['Minimo per operazione (€)', 500, ''],
+    ['Importo mensile stimato (€)', parseFloat(monthlyAmt.toFixed(2)), '← fondi / mesi'],
+    ['Totale investito nel piano (€)', parseFloat(totInvested.toFixed(2)), ''],
+    ['Mesi con operazioni', plan.length, ''],
+  ]);
+  inp['!cols'] = [{wch:30},{wch:18},{wch:28}];
+  XU.book_append_sheet(wb, inp, 'Input');
+
+  // ══════════════════════════════════════════
+  // FOGLIO 2 — PIANO MENSILE
+  // ══════════════════════════════════════════
+  const tabRows = [['Data','Mese','Categoria','Titolo','Importo €','% del mese','Importo cumulato €']];
+  let cumul = 0;
+  plan.forEach(({ month, amount, allocations }) => {
+    allocations.forEach(a => {
+      cumul += a.amount;
+      tabRows.push([
+        monthLabel(month), month, a.cat, a.name,
+        parseFloat(a.amount.toFixed(2)),
+        parseFloat(((a.amount/amount)*100).toFixed(1)),
+        parseFloat(cumul.toFixed(2))
+      ]);
+    });
+  });
+  const wst = XU.aoa_to_sheet(tabRows);
+  wst['!cols'] = [{wch:18},{wch:6},{wch:24},{wch:30},{wch:12},{wch:10},{wch:18}];
+  XU.book_append_sheet(wb, wst, 'Piano');
+
+  // ══════════════════════════════════════════
+  // FOGLIO 3 — DATI GRAFICO (per mese)
+  // ══════════════════════════════════════════
+  const gRows = [['Mese','Data','Investito nel mese €','Cumulato €']];
+  let gc = 0;
+  plan.forEach(({ month, amount }) => {
+    gc += amount;
+    gRows.push([month, monthLabel(month), parseFloat(amount.toFixed(2)), parseFloat(gc.toFixed(2))]);
+  });
+  const wsg = XU.aoa_to_sheet(gRows);
+  wsg['!cols'] = [{wch:6},{wch:18},{wch:20},{wch:16}];
+  XU.book_append_sheet(wb, wsg, 'Grafico');
+
+  window.XLSX.writeFile(wb, `PAC_${new Date().toISOString().slice(0,10)}.xlsx`);
+  showToast('📊 File Excel scaricato');
+}
+
 function calcAndRenderPAC() {
   const months = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
   const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value) || 5;
@@ -2636,6 +2849,11 @@ function calcAndRenderPAC() {
     ${plan.length < months ? `⚠ I fondi (${e2(totalFunds)}) si esauriscono al mese ${plan.length}.` : `✓ Piano completo — ${months} mesi da ${monthLabel(1)} a ${monthLabel(months)}.`}
     Target calcolato su portafoglio finale stimato: <strong>${e2(finalTotal)}</strong>. Titoli già sopra obiettivo non vengono mai selezionati.
     ${!hasSubTgts ? ' <em>Suggerimento: imposta sotto-obiettivi per titolo nel Ribilanciamento per un piano più preciso.</em>' : ''}
+  </div>
+  <div style="margin:0 14px 10px">
+    <button class="bbtn" onclick="exportPACExcel()" style="background:rgba(34,212,126,.12);border-color:rgba(34,212,126,.3);color:#22d47e">
+      📥 Esporta Excel
+    </button>
   </div>
   <div class="pac-plan-wrap">
     <table class="pac-table">
