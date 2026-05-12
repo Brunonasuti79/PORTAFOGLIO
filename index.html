@@ -108,13 +108,16 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 
 /* ──────────────────────── HOLDING CARD ──────────────────────── */
 .proj-section{margin:12px 14px 6px}
-.proj-rates-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:8px}
+.proj-rates-grid{display:flex;flex-direction:column;gap:4px;margin-top:8px}
 .proj-rate-row{display:flex;align-items:center;justify-content:space-between;
   background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:7px 10px;gap:8px}
 .proj-rate-lbl{font-size:11px;color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.proj-rate-inp{width:56px;background:var(--bg);border:1px solid var(--border2);color:var(--text);
-  font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;text-align:right;
-  border-radius:6px;padding:3px 6px}
+.proj-rate-inp{
+  width:90px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
+  text-align:right;background:rgba(123,167,255,.1);border:1.5px solid rgba(123,167,255,.3);
+  color:#7ba7ff;border-radius:8px;padding:5px 8px;
+  transition:border-color .15s,background .15s}
+.proj-rate-inp:focus{border-color:var(--blue);background:rgba(123,167,255,.18);outline:none}
 .proj-infl-row{display:flex;align-items:center;gap:10px;margin-top:8px;
   background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.25);border-radius:10px;padding:8px 12px}
 .proj-sub-row{display:flex;align-items:center;justify-content:space-between;
@@ -124,7 +127,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .proj-sub-lbl span:first-child{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .proj-sub-lbl span:last-child{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace}
 .proj-rate-row{position:relative}
-.proj-rate-row .rb-expand-btn{position:absolute;left:-2px;top:50%;transform:translateY(-50%);font-size:9px;padding:1px 4px}background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 0 6px}
+.proj-rate-row .rb-expand-btn{position:absolute;left:-2px;top:50%;transform:translateY(-50%);font-size:9px;padding:1px 4px}
+.proj-chart-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 0 6px}
 .proj-legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:4px 0 10px;font-size:11px}
 .proj-leg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
 .proj-table-wrap{margin:6px 14px 80px;overflow-x:auto}
@@ -142,19 +146,19 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .proj-table tr:nth-child(5n) td{background:rgba(123,167,255,.03)}
 .proj-table .col-att{color:#7ba7ff}.proj-table .col-obj{color:#22d47e}
 .proj-table .col-net-att{color:var(--text)}.proj-table .col-net-obj{color:var(--green)}
-/* ── Input obiettivo macro (inline nella tabella) ── */
+/* ── Input obiettivo macro ── */
 .rb-tgt-inp{
-  width:62px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
+  width:90px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
   background:rgba(123,167,255,.1);border:1.5px solid rgba(123,167,255,.3);
-  color:#7ba7ff;border-radius:8px;padding:4px 7px;text-align:right;
+  color:#7ba7ff;border-radius:8px;padding:4px 8px;text-align:right;
   transition:border-color .15s,background .15s}
 .rb-tgt-inp:focus{border-color:var(--blue);background:rgba(123,167,255,.18);outline:none}
 .rb-tgt-inp::placeholder{color:rgba(123,167,255,.3);font-size:12px}
 /* ── Input sotto-obiettivo titolo ── */
 .rb-sub-inp{
-  width:58px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;
+  width:85px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;
   background:rgba(123,167,255,.07);border:1.5px solid rgba(123,167,255,.2);
-  color:#a8bcd8;border-radius:7px;padding:3px 6px;text-align:right;
+  color:#a8bcd8;border-radius:7px;padding:4px 7px;text-align:right;
   transition:border-color .15s}
 .rb-sub-inp:focus{border-color:var(--blue);outline:none}
 .rb-sub-inp.over{border-color:var(--red)!important;color:var(--red)}
@@ -163,26 +167,6 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .rb-sub-total-row td{background:rgba(123,167,255,.04);padding:5px 8px 5px 40px;border-bottom:1px solid var(--border)}
 .rb-sub-bar{height:4px;border-radius:2px;margin-top:4px;background:rgba(255,255,255,.06);overflow:hidden}
 .rb-sub-bar-fill{height:100%;border-radius:2px;transition:width .3s}
-/* ── Projection inputs redesign ── */
-.proj-rates-grid{display:flex;flex-direction:column;gap:4px;margin-top:8px}
-.proj-rate-row{
-  display:flex;align-items:center;gap:10px;
-  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
-  padding:8px 12px 8px 10px;position:relative}
-.proj-rate-lbl{font-size:12px;color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.proj-rate-inp{
-  width:68px;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;
-  background:rgba(123,167,255,.1);border:1.5px solid rgba(123,167,255,.25);
-  color:#7ba7ff;border-radius:8px;padding:5px 8px;text-align:right;
-  transition:border-color .15s}
-.proj-rate-inp:focus{border-color:var(--blue);outline:none}
-.proj-sub-row{
-  display:flex;align-items:center;gap:10px;
-  background:rgba(7,11,20,.4);border-left:3px solid #1a3060;
-  padding:6px 12px 6px 22px;gap:8px;border-radius:0 8px 8px 0;margin-top:2px}
-.proj-sub-lbl{display:flex;flex-direction:column;flex:1;min-width:0}
-.proj-sub-lbl span:first-child{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.proj-sub-lbl span:last-child{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace}
 /* ── expand btn (shared) ── */
 .rb-expand-btn{background:none;border:1px solid var(--border2);color:var(--text3);
   font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;
@@ -237,9 +221,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 10px;gap:8px}
 .taxrate-lbl{font-size:11px;color:var(--text2);flex-shrink:0}
 .taxrate-inp{
-  width:58px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
+  width:85px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
   background:rgba(123,167,255,.1);border:1.5px solid rgba(123,167,255,.3);
-  color:#7ba7ff;border-radius:8px;padding:4px 7px;text-align:right;
+  color:#7ba7ff;border-radius:8px;padding:4px 8px;text-align:right;
   transition:border-color .15s,background .15s}
 .taxrate-inp:focus{border-color:var(--blue);background:rgba(123,167,255,.18);outline:none}
 .taxrate-badge{font-size:9px;padding:2px 6px;border-radius:4px;font-weight:700;flex-shrink:0}
@@ -2116,12 +2100,22 @@ function renderProjection() {
         <div style="display:flex;align-items:center;gap:4px">
           <input type="number" class="proj-rate-inp" value="${sr??''}"
             placeholder="${rates[cat]??0}" step="0.1" min="0" max="100" inputmode="decimal"
-            oninput="saveProjSubRate('${h.ticker}',this.value)" style="width:52px">
-          <span style="font-size:11px;color:var(--text3)">%</span>
-          ${sr!=null?`<button onclick="saveProjSubRate('${h.ticker}','')" title="Rimuovi" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;line-height:1">✕</button>`:''}
+            oninput="saveProjSubRate('${h.ticker}',this.value)">
+          <span style="font-size:12px;color:var(--text3)">%</span>
+          ${sr!=null?`<button onclick="saveProjSubRate('${h.ticker}','')" title="Usa tasso categoria" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;line-height:1">✕</button>`:''}
         </div>
       </div>`;
-    }).join('') : '';
+    }).join('') + (() => {
+      const set = catH.filter(h=>projSubRates[h.ticker]!=null).length;
+      const unset = catH.length - set;
+      const note = set > 0
+        ? set + (set===1?' titolo':' titoli') + ' con tasso individuale'
+        : 'Nessun tasso individuale';
+      const rest = unset > 0
+        ? ' · ' + unset + (unset===1?' usa':' usano') + ' il tasso categoria (' + (rates[cat]??0) + '%)'
+        : ' ✓ tutti impostati';
+      return `<div class="proj-sum-note">${note}${rest}</div>`;
+    })() : '';
     return `<div class="proj-rate-row" style="padding-left:${catH.length?'36px':'12px'}">
       ${catH.length?`<button class="rb-expand-btn ${isExp?'open':''}" onclick="toggleProjCat('${jsq(cat)}')" style="position:absolute;left:6px">${isExp?'▼':'▶'}</button>`:''}
       <span class="proj-rate-lbl">${esc(cat)}</span>
@@ -2157,6 +2151,7 @@ function refreshProjectionOutput() {
 
   const rates    = Object.assign({}, DEFAULT_PROJ_RATES, ALL.settings.projRates || {});
   const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
+  const YRS      = 31;
 
   const hlds = calcPF();
   const catVals = {}, tkVals = {};
