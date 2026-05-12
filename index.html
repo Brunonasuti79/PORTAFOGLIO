@@ -1387,16 +1387,29 @@ async function fetchYahooChart(sym) {
       const data = await fetchJsonWithProxies(url);
       const r = data?.chart?.result?.[0];
       if (!r) continue;
-      const meta = r.meta || {};
-      const q = r.indicators?.quote?.[0] || {};
-      const closes = (q.close||[]).map(Number).filter(x=>Number.isFinite(x)&&x>0);
-      const price  = num(meta.regularMarketPrice || meta.postMarketPrice) || closes[closes.length-1];
-      const prev   = num(meta.previousClose || meta.chartPreviousClose) || (closes.length>=2?closes[closes.length-2]:null);
-      const out = makeQuote(price, prev, 'Yahoo');
+      const meta   = r.meta || {};
+      const q      = r.indicators?.quote?.[0] || {};
+      const closes = (q.close||[]).map(Number).filter(x => Number.isFinite(x) && x > 0);
+
+      const livePrice = num(meta.regularMarketPrice || meta.postMarketPrice);
+      const price     = livePrice || closes[closes.length-1];
+      if (!price || price <= 0) continue;
+
+      // Con range=5d+interval=1d i close sono chiusure giornaliere storiche.
+      // Se mercato aperto: today non ha ancora candela chiusa →
+      //   closes[last] = chiusura IERI = prevClose corretto
+      // Se mercato chiuso: closes[last] = chiusura OGGI →
+      //   closes[last-1] = chiusura IERI = prevClose corretto
+      const lastClose  = closes[closes.length-1];
+      const marketOpen = livePrice && lastClose && Math.abs(livePrice - lastClose) > lastClose * 0.003;
+      const prevClose  = marketOpen
+        ? lastClose
+        : (closes.length >= 2 ? closes[closes.length-2] : null);
+
+      const out = makeQuote(price, prevClose, 'Yahoo');
       if (out) {
-        // Usa la variazione % ufficiale di Yahoo se disponibile (più accurata)
         if (meta.regularMarketChangePercent != null)
-          out.dailyPct = num(meta.regularMarketChangePercent);
+          out.dailyPct   = num(meta.regularMarketChangePercent);
         if (meta.regularMarketChange != null)
           out.dailyValue = num(meta.regularMarketChange);
         return out;
@@ -1692,7 +1705,13 @@ async function runDiagnostic() {
         if (!res.ok) { log.textContent += `  [${proxyNames[i]}] HTTP ${res.status}\n`; continue; }
         const data = await res.json();
         const meta = data?.chart?.result?.[0]?.meta || {};
-        log.textContent += `  [${proxyNames[i]}] ✅ price=${meta.regularMarketPrice} | chgPct=${meta.regularMarketChangePercent?.toFixed(2)}% | prevClose=${meta.previousClose} | chartPrevClose=${meta.chartPreviousClose}\n`;
+        const q2   = data?.chart?.result?.[0]?.indicators?.quote?.[0] || {};
+        const closes = (q2.close||[]).map(Number).filter(x=>Number.isFinite(x)&&x>0);
+        const liveP = meta.regularMarketPrice;
+        const lastC = closes[closes.length-1];
+        const prevC = (liveP && lastC && Math.abs(liveP-lastC)>lastC*0.003) ? lastC : closes[closes.length-2];
+        const calcPct = prevC ? ((liveP-prevC)/prevC*100).toFixed(2) : '—';
+        log.textContent += `  [${proxyNames[i]}] ✅ livePrice=${liveP} | closes=[${closes.slice(-3).join(',')}] | prevClose usato=${prevC?.toFixed(3)} | calcOggi=${calcPct}% | chgPctMeta=${meta.regularMarketChangePercent?.toFixed(2)||'nd'}%\n`;
         break;
       } catch(e) { log.textContent += `  [${proxyNames[i]}] ❌ ${e.message}\n`; }
     }
