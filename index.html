@@ -1377,7 +1377,14 @@ async function fetchYahooChart(sym) {
       const price  = num(meta.regularMarketPrice || meta.postMarketPrice) || closes[closes.length-1];
       const prev   = num(meta.previousClose || meta.chartPreviousClose) || (closes.length>=2?closes[closes.length-2]:null);
       const out = makeQuote(price, prev, 'Yahoo');
-      if (out) return out;
+      if (out) {
+        // Usa la variazione % ufficiale di Yahoo se disponibile (più accurata)
+        if (meta.regularMarketChangePercent != null)
+          out.dailyPct = num(meta.regularMarketChangePercent);
+        if (meta.regularMarketChange != null)
+          out.dailyValue = num(meta.regularMarketChange);
+        return out;
+      }
     } catch(e) {}
   }
   return null;
@@ -1395,7 +1402,11 @@ async function fetchFinnhub(sym, ak) {
       const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(s)}&token=${encodeURIComponent(ak)}`;
       const data = await fetchWithTimeout(url, 7000); // Finnhub: direct, no proxy
       const out = makeQuote(data?.c, data?.pc, 'Finnhub');
-      if (out) return out;
+      if (out) {
+        if (data?.dp != null) out.dailyPct   = num(data.dp);
+        if (data?.d  != null) out.dailyValue = num(data.d);
+        return out;
+      }
     } catch(e) {}
   }
   return null;
