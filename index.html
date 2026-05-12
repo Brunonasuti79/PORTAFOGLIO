@@ -1361,6 +1361,22 @@ function makeQuote(price, prevClose, source) {
   return q;
 }
 
+async function fetchYahooQuote(sym) {
+  // v7/finance/quote → restituisce regularMarketChangePercent in tempo reale
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose`;
+  try {
+    const data = await fetchJsonWithProxies(url);
+    const q = data?.quoteResponse?.result?.[0];
+    if (!q?.regularMarketPrice) return null;
+    const out = makeQuote(q.regularMarketPrice, q.regularMarketPreviousClose, 'Yahoo');
+    if (out) {
+      if (q.regularMarketChangePercent != null) out.dailyPct   = q.regularMarketChangePercent;
+      if (q.regularMarketChange != null)        out.dailyValue = q.regularMarketChange;
+    }
+    return out;
+  } catch(e) { return null; }
+}
+
 async function fetchYahooChart(sym) {
   const urls = [
     `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`,
@@ -1423,11 +1439,21 @@ async function fetchStooq(sym, market) {
     if (lines.length < 2 || /^no data/i.test(lines[0])) return null;
     const rows = lines.slice(1)
       .map(l => l.split(','))
-      .filter(r => r.length >= 5)
-      .map(r => num(r[4]))
-      .filter(x => x && x > 0);
+      .filter(r => r.length >= 5);
     if (!rows.length) return null;
-    return makeQuote(rows[rows.length-1], rows.length>=2 ? rows[rows.length-2] : null, 'Stooq');
+    const last = rows[rows.length-1];
+    const prev = rows.length >= 2 ? rows[rows.length-2] : null;
+    const price    = num(last[4]);
+    const prevClose = prev ? num(prev[4]) : null;
+    if (!price || price <= 0) return null;
+    // Controlla se l'ultima riga è di oggi — se non è di oggi non usare dailyPct
+    const lastDate = last[0]; // formato YYYY-MM-DD
+    const today = new Date().toISOString().slice(0,10);
+    if (lastDate !== today) {
+      // Dati storici (mercato non ancora aperto o chiuso) — mostra prezzo senza variazione odierna
+      return makeQuote(price, null, 'Stooq');
+    }
+    return makeQuote(price, prevClose, 'Stooq');
   } catch(e) { return null; }
 }
 
@@ -1514,13 +1540,16 @@ async function fetchPriceForHolding(h) {
   const candidates = candidatesForHolding(h);
   // Try each candidate symbol across sources
   for (const sym of candidates) {
-    // Finnhub first (direct CORS-free call, fast)
+    // Yahoo Quote v7 prima (real-time, include regularMarketChangePercent esatto)
+    const yq = await fetchYahooQuote(sym);
+    if (yq) return yq;
+    // Finnhub (diretto, senza proxy)
     const fh = await fetchFinnhub(sym, ak);
     if (fh) return fh;
-    // Yahoo Chart (with proxy fallback)
+    // Yahoo Chart (fallback con proxy)
     const yc = await fetchYahooChart(sym);
     if (yc) return yc;
-    // Stooq (CSV, good for European ETFs)
+    // Stooq (CSV, buono per ETF europei)
     const sq = await fetchStooq(sym, h.market);
     if (sq) return sq;
   }
@@ -1621,29 +1650,97 @@ async function runDiagnostic() {
   const panel = document.getElementById('diag-panel');
   const log   = document.getElementById('diag-log');
   panel.style.display = 'block';
-  log.textContent = 'Avvio diagnostica...\n';
-  const testUrl = 'https://query1.finance.yahoo.com/v8/finance/chart/SWDA.MI?interval=1d&range=2d';
-  const proxyNames = ['Diretto','allorigins.win','corsproxy.io','codetabs.com','thingproxy.freeboard.io'];
-  let firstOk = -1;
-  for (let i=0; i<PROXIES.length; i++) {
-    log.textContent += `[${i+1}/${PROXIES.length}] ${proxyNames[i]}... `;
+
+  // Chiedi il ticker da testare
+  const ticker = (prompt('Ticker da testare (es. XMME.DE):', 'XMME.DE') || '').trim();
+  if (!ticker) return;
+
+  log.textContent = `🔍 Diagnostica: ${ticker}\n${'─'.repeat(40)}\n`;
+
+  const proxyNames = ['Diretto','allorigins','corsproxy','codetabs','thingproxy'];
+  const fmt = (q) => q ? `prezzo=${q.price?.toFixed(3)} | oggi=${q.dailyPct!=null?q.dailyPct.toFixed(2)+'%':'—'} | fonte=${q.source}` : 'null';
+
+  // 1. Yahoo Quote v7
+  log.textContent += '\n[1] Yahoo Quote v7...\n';
+  try {
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(ticker)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose`;
+    for (let i=0; i<PROXIES.length; i++) {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(()=>ctrl.abort(), 8000);
+        const res = await fetch(PROXIES[i](url), {signal:ctrl.signal,cache:'no-store'});
+        clearTimeout(t);
+        if (!res.ok) { log.textContent += `  [${proxyNames[i]}] HTTP ${res.status}\n`; continue; }
+        const data = await res.json();
+        const q = data?.quoteResponse?.result?.[0];
+        log.textContent += `  [${proxyNames[i]}] ✅ price=${q?.regularMarketPrice} | chgPct=${q?.regularMarketChangePercent?.toFixed(2)}% | prevClose=${q?.regularMarketPreviousClose}\n`;
+        break;
+      } catch(e) { log.textContent += `  [${proxyNames[i]}] ❌ ${e.message}\n`; }
+    }
+  } catch(e) { log.textContent += `  ❌ ${e.message}\n`; }
+
+  // 2. Yahoo Chart v8
+  log.textContent += '\n[2] Yahoo Chart v8...\n';
+  try {
+    const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`;
+    for (let i=0; i<PROXIES.length; i++) {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(()=>ctrl.abort(), 8000);
+        const res = await fetch(PROXIES[i](url), {signal:ctrl.signal,cache:'no-store'});
+        clearTimeout(t);
+        if (!res.ok) { log.textContent += `  [${proxyNames[i]}] HTTP ${res.status}\n`; continue; }
+        const data = await res.json();
+        const meta = data?.chart?.result?.[0]?.meta || {};
+        log.textContent += `  [${proxyNames[i]}] ✅ price=${meta.regularMarketPrice} | chgPct=${meta.regularMarketChangePercent?.toFixed(2)}% | prevClose=${meta.previousClose} | chartPrevClose=${meta.chartPreviousClose}\n`;
+        break;
+      } catch(e) { log.textContent += `  [${proxyNames[i]}] ❌ ${e.message}\n`; }
+    }
+  } catch(e) { log.textContent += `  ❌ ${e.message}\n`; }
+
+  // 3. Stooq
+  log.textContent += '\n[3] Stooq CSV...\n';
+  try {
+    const base = ticker.split('.')[0].toLowerCase();
+    const sfx  = stooqSuffix(marketFromSymbol(ticker));
+    const stooqSym = sfx ? base+sfx : ticker.toLowerCase();
+    const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`;
+    for (let i=0; i<PROXIES.length; i++) {
+      try {
+        const ctrl = new AbortController();
+        const t = setTimeout(()=>ctrl.abort(), 8000);
+        const res = await fetch(PROXIES[i](url), {signal:ctrl.signal,cache:'no-store'});
+        clearTimeout(t);
+        if (!res.ok) { log.textContent += `  [${proxyNames[i]}] HTTP ${res.status}\n`; continue; }
+        const csv = await res.text();
+        const rows = csv.trim().split(/\r?\n/).filter(Boolean).slice(1).map(l=>l.split(','));
+        const today = new Date().toISOString().slice(0,10);
+        const last = rows[rows.length-1], prev = rows[rows.length-2];
+        log.textContent += `  [${proxyNames[i]}] ✅ ultima riga: ${last?.[0]} price=${last?.[4]} | prev: ${prev?.[0]} price=${prev?.[4]} | oggi=${last?.[0]===today?'SÌ':'NO (stale!)'}\n`;
+        break;
+      } catch(e) { log.textContent += `  [${proxyNames[i]}] ❌ ${e.message}\n`; }
+    }
+  } catch(e) { log.textContent += `  ❌ ${e.message}\n`; }
+
+  // 4. Finnhub
+  const ak = ALL.settings.ak;
+  log.textContent += `\n[4] Finnhub (API key: ${ak?'presente':'MANCANTE'})...\n`;
+  if (ak) {
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(()=>ctrl.abort(), 9000);
-      const res = await fetch(PROXIES[i](testUrl), {signal:ctrl.signal,cache:'no-store'});
-      clearTimeout(t);
-      if (!res.ok) throw new Error('HTTP '+res.status);
-      const data = await res.json();
-      const price = data?.chart?.result?.[0]?.meta?.regularMarketPrice;
-      if (price > 0) {
-        log.textContent += `✅ OK (SWDA.MI = ${price.toFixed(2)})\n`;
-        if (firstOk < 0) { firstOk = i; bestProxy = i; log.textContent += `   → Proxy preferito impostato\n`; }
-      } else { log.textContent += `⚠ Risposta vuota\n`; }
-    } catch(e) { log.textContent += `❌ ${e.message||e}\n`; }
+      const mkt = marketFromSymbol(ticker);
+      const exch = FH_EXCH[mkt] || '';
+      const base = baseTicker(ticker);
+      const sym = exch ? exch+':'+base : ticker;
+      const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${encodeURIComponent(ak)}`;
+      const res = await fetch(url);
+      const d = await res.json();
+      log.textContent += `  c=${d?.c} | pc=${d?.pc} | d=${d?.d} | dp=${d?.dp?.toFixed(2)}%\n`;
+    } catch(e) { log.textContent += `  ❌ ${e.message}\n`; }
+  } else {
+    log.textContent += `  Skipped (nessuna API key)\n`;
   }
-  log.textContent += '\n' + (firstOk >= 0
-    ? `✅ Proxy funzionante: "${proxyNames[firstOk]}"\n   Premi ⟳ Aggiorna.`
-    : `❌ Nessun proxy funzionante.\n   💡 Inserisci la API key Finnhub nelle Impostazioni.`);
+
+  log.textContent += '\n' + '─'.repeat(40) + '\nDiagnostica completata.';
 }
 
 // ════════════════════════════════════════════════════════════════
