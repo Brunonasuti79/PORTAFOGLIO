@@ -2594,213 +2594,644 @@ function renderPAC() {
   <div id="pac-plan"></div>`;
 }
 
-async function loadXLSX() {
-  if (!window.XLSX) {
-    await new Promise((res, rej) => {
-      const s = document.createElement('script');
-      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-      s.onload = res; s.onerror = rej;
-      document.head.appendChild(s);
-    });
+async function loadLibs() {
+  const load = (src, check) => new Promise((res,rej) => {
+    if (window[check]) return res();
+    const s = document.createElement('script');
+    s.src = src; s.onload = res; s.onerror = rej;
+    document.head.appendChild(s);
+  });
+  await load('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js','ExcelJS');
+  await load('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js','JSZip');
+}
+
+// ─── Stili Excel professionali ───────────────────────────────────────────────
+const XL = {
+  hdr: { // header scuro
+    font:{bold:true,color:{argb:'FFFFFFFF'},size:11,name:'Calibri'},
+    fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FF1B3A6B'}},
+    alignment:{horizontal:'center',vertical:'middle',wrapText:true},
+    border:{top:{style:'thin',color:{argb:'FF2A6496'}},bottom:{style:'thin',color:{argb:'FF2A6496'}},
+            left:{style:'thin',color:{argb:'FF2A6496'}},right:{style:'thin',color:{argb:'FF2A6496'}}}
+  },
+  sub: { // sub-header
+    font:{bold:true,color:{argb:'FF1B3A6B'},size:10,name:'Calibri'},
+    fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFDCE8F5'}},
+    alignment:{horizontal:'left',vertical:'middle'},
+    border:{bottom:{style:'medium',color:{argb:'FF2A6496'}}}
+  },
+  row0: { // riga pari
+    font:{color:{argb:'FF2C3E50'},size:10,name:'Calibri'},
+    fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFF8FAFC'}},
+    border:{bottom:{style:'thin',color:{argb:'FFD0DCE8'}},right:{style:'thin',color:{argb:'FFD0DCE8'}}}
+  },
+  row1: { // riga dispari
+    font:{color:{argb:'FF2C3E50'},size:10,name:'Calibri'},
+    fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFEBF5FB'}},
+    border:{bottom:{style:'thin',color:{argb:'FFD0DCE8'}},right:{style:'thin',color:{argb:'FFD0DCE8'}}}
+  },
+  tot: { // totale
+    font:{bold:true,color:{argb:'FFFFFFFF'},size:10,name:'Calibri'},
+    fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FF2A6496'}},
+    alignment:{horizontal:'right'},
+    border:{top:{style:'medium',color:{argb:'FF1B3A6B'}}}
+  },
+  gain: {font:{bold:true,color:{argb:'FF27AE60'},size:10,name:'Calibri'},
+         fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFE8F8F0'}}},
+  loss: {font:{bold:true,color:{argb:'FFC0392B'},size:10,name:'Calibri'},
+         fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FFFDECEA'}}},
+  num:  '€#,##0.00',
+  pct:  '0.0"%"',
+  int:  '0',
+};
+
+function applyStyle(cell, style, numFmt) {
+  if (style.font)      cell.font      = style.font;
+  if (style.fill)      cell.fill      = style.fill;
+  if (style.alignment) cell.alignment = style.alignment;
+  if (style.border)    cell.border    = style.border;
+  if (numFmt)          cell.numFmt    = numFmt;
+}
+
+// ─── Chart XML helpers ───────────────────────────────────────────────────────
+function lineChartXML(series, catRef, nPts, title='') {
+  const nsC='http://schemas.openxmlformats.org/drawingml/2006/chart';
+  const nsA='http://schemas.openxmlformats.org/drawingml/2006/main';
+  const serXML = series.map((s,i)=>`
+  <c:ser><c:idx val="${i}"/><c:order val="${i}"/>
+    <c:tx><c:strRef><c:f>${s.titleRef}</c:f>
+      <c:strCache><c:ptCount val="1"/><c:pt idx="0"><c:v>${s.title}</c:v></c:pt></c:strCache>
+    </c:strRef></c:tx>
+    <c:spPr><a:ln w="28000"${s.dash?' dashDash="1"':''}>
+      <a:solidFill><a:srgbClr val="${s.color}"/></a:solidFill></a:ln></c:spPr>
+    <c:marker><c:symbol val="${s.marker||'none'}"/></c:marker>
+    <c:cat><c:numRef><c:f>${catRef}</c:f>
+      <c:numCache><c:formatCode>General</c:formatCode><c:ptCount val="${nPts}"/></c:numCache>
+    </c:numRef></c:cat>
+    <c:val><c:numRef><c:f>${s.dataRef}</c:f>
+      <c:numCache><c:formatCode>#,##0</c:formatCode><c:ptCount val="${nPts}"/>
+        ${s.data.map((v,j)=>`<c:pt idx="${j}"><c:v>${v.toFixed(0)}</c:v></c:pt>`).join('')}
+      </c:numCache>
+    </c:numRef></c:val>
+    <c:smooth val="${s.smooth?1:0}"/>
+  </c:ser>`).join('');
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<c:chartSpace xmlns:c="${nsC}" xmlns:a="${nsA}"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <c:lang val="it-IT"/>
+  <c:chart>
+    ${title?`<c:title><c:tx><c:rich><a:bodyPr/><a:lstStyle/><a:p><a:r>
+      <a:rPr lang="it-IT" b="1" sz="1200"/><a:t>${title}</a:t></a:r></a:p></c:rich></c:tx>
+      <c:overlay val="0"/></c:title>`:'<c:autoTitleDeleted val="1"/>'}
+    <c:plotArea>
+      <c:layout/>
+      <c:lineChart>
+        <c:barDir val="col"/><c:grouping val="standard"/><c:varyColors val="0"/>
+        ${serXML}
+        <c:axId val="100001"/><c:axId val="100002"/>
+      </c:lineChart>
+      <c:catAx>
+        <c:axId val="100001"/><c:scaling><c:orientation val="minMax"/></c:scaling>
+        <c:delete val="0"/><c:axPos val="b"/>
+        <c:numFmt formatCode="General" sourceLinked="0"/>
+        <c:tickLblPos val="nextTo"/>
+        <c:spPr><a:ln><a:solidFill><a:srgbClr val="CBD5E1"/></a:solidFill></a:ln></c:spPr>
+        <c:crossAx val="100002"/>
+      </c:catAx>
+      <c:valAx>
+        <c:axId val="100002"/><c:scaling><c:orientation val="minMax"/></c:scaling>
+        <c:delete val="0"/><c:axPos val="l"/>
+        <c:numFmt formatCode="#,##0&quot;€&quot;" sourceLinked="0"/>
+        <c:tickLblPos val="nextTo"/>
+        <c:spPr><a:ln><a:solidFill><a:srgbClr val="CBD5E1"/></a:solidFill></a:ln></c:spPr>
+        <c:crossAx val="100001"/>
+      </c:valAx>
+    </c:plotArea>
+    <c:legend><c:legendPos val="b"/><c:overlay val="0"/>
+      <c:spPr><a:noFill/></c:spPr>
+    </c:legend>
+    <c:plotVisOnly val="1"/>
+  </c:chart>
+  <c:spPr>
+    <a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill>
+    <a:ln><a:solidFill><a:srgbClr val="CBD5E1"/></a:solidFill></a:ln>
+  </c:spPr>
+</c:chartSpace>`;
+}
+
+function drawingXML() {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
+  xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"
+  xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart"
+  xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
+  <xdr:twoCellAnchor moveWithCells="0" sizeWithCells="0">
+    <xdr:from><xdr:col>0</xdr:col><xdr:colOff>0</xdr:colOff>
+      <xdr:row>1</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:from>
+    <xdr:to><xdr:col>14</xdr:col><xdr:colOff>0</xdr:colOff>
+      <xdr:row>32</xdr:row><xdr:rowOff>0</xdr:rowOff></xdr:to>
+    <xdr:graphicFrame macro="">
+      <xdr:nvGraphicFramePr>
+        <xdr:cNvPr id="2" name="Grafico"/><xdr:cNvGraphicFramePr>
+          <a:graphicFrameLocks noGrp="1"/></xdr:cNvGraphicFramePr>
+      </xdr:nvGraphicFramePr>
+      <xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm>
+      <a:graphic><a:graphicData
+        uri="http://schemas.openxmlformats.org/drawingml/2006/chart">
+        <c:chart r:id="rId1"/>
+      </a:graphicData></a:graphic>
+    </xdr:graphicFrame><xdr:clientData/>
+  </xdr:twoCellAnchor>
+</xdr:wsDr>`;
+}
+
+function drawingRels(chartFile) {
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1"
+    Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart"
+    Target="../charts/${chartFile}"/>
+</Relationships>`;
+}
+
+async function injectChart(buffer, sheetName, chartXml, chartFile) {
+  const zip   = await window.JSZip.loadAsync(buffer);
+
+  // Trova il path della sheet
+  const wbXml = await zip.file('xl/workbook.xml').async('string');
+  const wbRels= await zip.file('xl/_rels/workbook.xml.rels').async('string');
+  const nameMatch = wbXml.match(new RegExp(`name="${sheetName}"[^>]*r:id="(rId\\d+)"`));
+  const rId = nameMatch?.[1];
+  const targetMatch = rId && wbRels.match(new RegExp(`Id="${rId}"[^>]*Target="([^"]+)"`));
+  const sheetPath = targetMatch ? 'xl/'+targetMatch[1] : null;
+  if (!sheetPath) return buffer;
+
+  const sheetNum = sheetPath.match(/\d+/)?.[0] || '1';
+
+  // Aggiungi chart XML
+  zip.file(`xl/charts/${chartFile}`, chartXml);
+  // Aggiungi drawing XML
+  zip.file(`xl/drawings/drawing${sheetNum}.xml`, drawingXML());
+  zip.file(`xl/drawings/_rels/drawing${sheetNum}.xml.rels`, drawingRels(chartFile));
+
+  // Aggiorna sheet XML con riferimento al drawing
+  let sheetXml = await zip.file(sheetPath).async('string');
+  if (!sheetXml.includes('<drawing')) {
+    sheetXml = sheetXml.replace('</worksheet>',
+      `<drawing r:id="rId_draw"/></worksheet>`);
+    // Aggiunge il namespace r se mancante
+    if (!sheetXml.includes('xmlns:r=')) {
+      sheetXml = sheetXml.replace('<worksheet ', '<worksheet xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" ');
+    }
   }
+  zip.file(sheetPath, sheetXml);
+
+  // Aggiorna _rels della sheet
+  const sheetRelsPath = sheetPath.replace('worksheets/','worksheets/_rels/').replace('.xml','.xml.rels');
+  let sheetRels = '';
+  try { sheetRels = await zip.file(sheetRelsPath).async('string'); } catch(e) {}
+  if (!sheetRels) sheetRels = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>`;
+  sheetRels = sheetRels.replace('</Relationships>',
+    `<Relationship Id="rId_draw" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/drawing${sheetNum}.xml"/></Relationships>`);
+  zip.file(sheetRelsPath, sheetRels);
+
+  // Aggiorna [Content_Types].xml
+  let ct = await zip.file('[Content_Types].xml').async('string');
+  if (!ct.includes(chartFile)) {
+    ct = ct.replace('</Types>',
+      `<Override PartName="/xl/charts/${chartFile}" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>`+
+      `<Override PartName="/xl/drawings/drawing${sheetNum}.xml" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/>`+
+      `</Types>`);
+    zip.file('[Content_Types].xml', ct);
+  }
+
+  return await zip.generateAsync({type:'arraybuffer', compression:'DEFLATE'});
 }
 
-// Cella con formula e valore cached (per Excel interattivo)
-function xfc(f, v, fmt) {
-  const c = { t: typeof v === 'number' ? 'n' : 's', v, f };
-  if (fmt) c.z = fmt;
-  return c;
-}
-// Cella valore
-function xv(v, fmt) {
-  const c = { t: typeof v === 'number' ? 'n' : 's', v };
-  if (fmt) c.z = fmt;
-  return c;
-}
-// Cella header
-function xh(v) { return { t:'s', v, s:{ font:{ bold:true } } }; }
-
+// ════════════════════════════════════════════════════════════════════════
+// EXPORT PROIEZIONE
+// ════════════════════════════════════════════════════════════════════════
 async function exportProjectionExcel() {
-  await loadXLSX();
-  const XU = window.XLSX.utils;
-  const wb = window.XLSX.utils.book_new();
+  await loadLibs();
+  const wb  = new window.ExcelJS.Workbook();
+  wb.creator='Portafoglio BIT'; wb.created=new Date();
 
-  const rates    = Object.assign({}, DEFAULT_PROJ_RATES, ALL.settings.projRates || {});
+  const rates    = Object.assign({}, DEFAULT_PROJ_RATES, ALL.settings.projRates||{});
   const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
   const hlds     = calcPF();
-  const subRates = ALL.settings.projSubRates || {};
-
-  // ── Categorie uniche con valori e tassi
-  const catData = {};
+  const catData  = {};
   hlds.forEach(h => {
-    const c = h.assetClass || UNCATEGORIZED;
-    const v = currentValueAllEUR(h) ?? costBasisAllEUR(h);
-    if (!catData[c]) catData[c] = { val: 0, rate: rates[c] ?? 0, tickers: [] };
-    catData[c].val += v;
-    catData[c].tickers.push({ name: h.name||h.displayTicker, val: v, rate: subRates[h.ticker] });
+    const c=h.assetClass||UNCATEGORIZED;
+    const v=currentValueAllEUR(h)??costBasisAllEUR(h);
+    if(!catData[c]) catData[c]={val:0,rate:rates[c]??0};
+    catData[c].val+=v;
   });
-  if ((S.cashEUR||0) > 0) catData['Liquidità'] = { val: S.cashEUR, rate: 0, tickers: [] };
+  if((S.cashEUR||0)>0) catData['Liquidità']={val:S.cashEUR,rate:0};
+  const cats  = Object.keys(catData);
+  const YRS   = 31;
+  const total0= cats.reduce((s,c)=>s+catData[c].val,0);
 
-  const cats   = Object.keys(catData);
-  const YRS    = 31;
+  // ── Foglio INPUT ─────────────────────────────────────────────────────
+  const wsInp = wb.addWorksheet('Input');
+  wsInp.columns=[{width:32},{width:16},{width:18},{width:18}];
+  // Titolo
+  wsInp.mergeCells('A1:D1');
+  const t1=wsInp.getCell('A1');
+  t1.value='🎯 PARAMETRI PROIEZIONE PORTAFOGLIO';
+  t1.font={bold:true,size:14,color:{argb:'FFFFFFFF'},name:'Calibri'};
+  t1.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1B3A6B'}};
+  t1.alignment={horizontal:'center',vertical:'middle'};
+  wsInp.getRow(1).height=28;
 
-  // ══════════════════════════════════════════
-  // FOGLIO 1 — INPUT
-  // ══════════════════════════════════════════
-  const inp = {};
-  const setCell = (ws, addr, cell) => { ws[addr] = cell; };
-
-  // Titoli
-  inp['A1'] = xh('Categoria');
-  inp['B1'] = xh('Tasso Annuo %');
-  inp['C1'] = xh('Valore Attuale €');
-  inp['D1'] = xh('Tasso Inflazione %');
-
-  cats.forEach((cat, i) => {
-    const r = i + 2;
-    inp[`A${r}`] = xv(cat);
-    inp[`B${r}`] = xv(catData[cat].rate, '0.0"%"');
-    inp[`C${r}`] = xv(parseFloat(catData[cat].val.toFixed(2)), '#,##0.00€');
-    if (i === 0) inp[`D${r}`] = xv(inflRate, '0.0"%"');
+  // Headers tabella tassi
+  ['Categoria','Tasso Annuo %','Valore Attuale €','Shortfall di riallocazione €'].forEach((h,i)=>{
+    const c=wsInp.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr);
   });
+  wsInp.getRow(2).height=22;
 
-  // Totale
-  const rTot = cats.length + 2;
-  inp[`A${rTot}`] = xh('TOTALE PORTAFOGLIO');
-  inp[`B${rTot}`] = xh('');
-  inp[`C${rTot}`] = xfc(`SUM(C2:C${rTot-1})`, parseFloat(cats.reduce((s,c)=>s+catData[c].val,0).toFixed(2)), '#,##0.00€');
-
-  inp['!ref'] = `A1:D${rTot}`;
-  inp['!cols'] = [{wch:28},{wch:14},{wch:18},{wch:18}];
-  XU.book_append_sheet(wb, inp, 'Input');
-
-  // ══════════════════════════════════════════
-  // FOGLIO 2 — TABELLA PROIEZIONE
-  // ══════════════════════════════════════════
-  const tab = {};
-  // Header row
-  tab['A1'] = xh('Anno');
-  cats.forEach((cat, i) => { tab[`${String.fromCharCode(66+i)}1`] = xh(cat); });
-  const colTot  = String.fromCharCode(66 + cats.length);
-  const colInfl = String.fromCharCode(66 + cats.length + 1);
-  const colNet  = String.fromCharCode(66 + cats.length + 2);
-  tab[`${colTot}1`]  = xh('Totale €');
-  tab[`${colInfl}1`] = xh('Base inflazione €');
-  tab[`${colNet}1`]  = xh('Guadagno netto infl. €');
-
-  const total0 = cats.reduce((s,c) => s+catData[c].val, 0);
-
-  for (let y = 0; y < YRS; y++) {
-    const r = y + 2;
-    tab[`A${r}`] = xv(y);
-    cats.forEach((cat, i) => {
-      const col   = String.fromCharCode(66 + i);
-      const inpR  = i + 2;            // riga in Input
-      const rateF = `(1+Input!B${inpR}/100)^${y}`; // tasso dalla cella Input
-      const valF  = `Input!C${inpR}`; // valore iniziale dalla cella Input
-      const formula = y === 0 ? `Input!C${inpR}` : `${valF}*${rateF}`;
-      const cached  = parseFloat((catData[cat].val * Math.pow(1 + catData[cat].rate/100, y)).toFixed(2));
-      tab[`${col}${r}`] = xfc(formula, cached, '#,##0€');
+  cats.forEach((cat,i)=>{
+    const r=i+3;
+    const rowStyle=i%2===0?XL.row0:XL.row1;
+    const cells=[cat, catData[cat].rate, catData[cat].val, 0];
+    cells.forEach((v,j)=>{
+      const c=wsInp.getCell(r,j+1);
+      c.value=v;
+      applyStyle(c,rowStyle, j===1?XL.pct:j>=2?XL.num:null);
     });
-    // Totale
-    const sumF = `SUM(B${r}:${String.fromCharCode(65+cats.length)}${r})`;
-    const cachedTot = parseFloat(cats.reduce((s,c) => s+catData[c].val*Math.pow(1+catData[c].rate/100,y),0).toFixed(2));
-    tab[`${colTot}${r}`]  = xfc(sumF, cachedTot, '#,##0€');
-    // Inflazione: valore base cresciuto a tasso inflazione (da Input!D2)
-    const inflF   = `Input!C${cats.length+2}*(1+Input!D2/100)^${y}`;
-    const cachedInfl = parseFloat((total0 * Math.pow(1+inflRate/100, y)).toFixed(2));
-    tab[`${colInfl}${r}`] = xfc(inflF, cachedInfl, '#,##0€');
-    // Guadagno netto
-    const netF = `${colTot}${r}-${colInfl}${r}`;
-    tab[`${colNet}${r}`] = xfc(netF, parseFloat((cachedTot-cachedInfl).toFixed(2)), '#,##0€');
+  });
+
+  // Sezione parametri
+  wsInp.getRow(cats.length+4).values=[''];
+  wsInp.mergeCells(`A${cats.length+5}:D${cats.length+5}`);
+  const tp=wsInp.getCell(`A${cats.length+5}`);
+  tp.value='⚙ PARAMETRI SCENARIO'; applyStyle(tp,XL.sub);
+
+  [['Inflazione annua stimata (%)',inflRate],['Orizzonte temporale (anni)',30],
+   ['Portafoglio totale attuale (€)',total0]]
+  .forEach(([lbl,val],i)=>{
+    const r=cats.length+6+i;
+    wsInp.getCell(r,1).value=lbl; applyStyle(wsInp.getCell(r,1),XL.row0);
+    const c=wsInp.getCell(r,2); c.value=val;
+    applyStyle(c,XL.row0, val>100?XL.num:XL.pct);
+  });
+
+  // ── Foglio TABELLA ────────────────────────────────────────────────────
+  const wsTab=wb.addWorksheet('Tabella');
+  const tabCols=[{width:8},{width:14},{width:14},{width:14},{width:20}];
+  wsTab.columns=tabCols;
+
+  wsTab.mergeCells('A1:E1');
+  const t2=wsTab.getCell('A1');
+  t2.value='📊 PROIEZIONE 30 ANNI — Valori in €'; applyStyle(t2,XL.hdr);
+  t2.font={...XL.hdr.font,size:13};
+  wsTab.getRow(1).height=26;
+
+  ['Anno','Portafoglio','Base inflazione','Guadagno netto','Rend. cumulato %'].forEach((h,i)=>{
+    const c=wsTab.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr);
+  });
+  wsTab.getRow(2).height=20;
+
+  const projData=[], inflData=[], netData=[];
+  for(let y=0;y<YRS;y++){
+    const tot =cats.reduce((s,c)=>s+catData[c].val*Math.pow(1+catData[c].rate/100,y),0);
+    const infl=total0*Math.pow(1+inflRate/100,y);
+    const net =tot-infl;
+    projData.push(tot); inflData.push(infl); netData.push(net);
+    const r=y+3; const rowStyle=y%2===0?XL.row0:XL.row1;
+    const netStyle=net>=0?{...rowStyle,font:{...rowStyle.font,color:{argb:'FF27AE60'},bold:true}}
+                         :{...rowStyle,font:{...rowStyle.font,color:{argb:'FFC0392B'},bold:true}};
+    const pct=y===0?0:(tot-total0)/total0*100;
+    [y,tot,infl,net,pct].forEach((v,j)=>{
+      const c=wsTab.getCell(r,j+1);
+      c.value=parseFloat(v.toFixed(2));
+      applyStyle(c, j===3?netStyle:rowStyle, j===0?XL.int:j===4?XL.pct:XL.num);
+    });
+  }
+  // Riga totale anno 30
+  wsTab.getRow(YRS+2).height=18;
+
+  // ── Foglio GRAFICO ────────────────────────────────────────────────────
+  const wsGraf=wb.addWorksheet('Grafico');
+  wsGraf.columns=[{width:8},{width:16},{width:16},{width:18}];
+  wsGraf.mergeCells('A1:D1');
+  const tg=wsGraf.getCell('A1');
+  tg.value='📈 DATI GRAFICO (interattivo con Excel)'; applyStyle(tg,XL.hdr);
+
+  ['Anno','Portafoglio €','Base inflazione €','Guadagno netto €'].forEach((h,i)=>{
+    const c=wsGraf.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr);
+  });
+  for(let y=0;y<YRS;y++){
+    const r=y+3;
+    [y,projData[y],inflData[y],netData[y]].forEach((v,j)=>{
+      const c=wsGraf.getCell(r,j+1); c.value=parseFloat(v.toFixed(2));
+      applyStyle(c,y%2===0?XL.row0:XL.row1,j===0?XL.int:XL.num);
+    });
   }
 
-  tab['!ref'] = `A1:${colNet}${YRS+1}`;
-  tab['!cols'] = [{wch:8}, ...cats.map(()=>({wch:18})), {wch:14},{wch:20},{wch:22}];
-  XU.book_append_sheet(wb, tab, 'Tabella');
+  // Genera buffer e inietta grafico
+  const buf0=await wb.xlsx.writeBuffer();
+  const chartXml=lineChartXML([
+    {title:'Portafoglio',titleRef:"Grafico!$B$2",dataRef:`Grafico!$B$3:$B$${YRS+2}`,data:projData,color:'3B82F6',smooth:1},
+    {title:'Inflazione base',titleRef:"Grafico!$C$2",dataRef:`Grafico!$C$3:$C$${YRS+2}`,data:inflData,color:'F59E0B',smooth:1,dash:true},
+    {title:'Guadagno netto',titleRef:"Grafico!$D$2",dataRef:`Grafico!$D$3:$D$${YRS+2}`,data:netData,color:'10B981',smooth:1},
+  ], `Grafico!$A$3:$A$${YRS+2}`, YRS, 'Proiezione Portafoglio 30 Anni');
 
-  // ══════════════════════════════════════════
-  // FOGLIO 3 — DATI GRAFICO
-  // ══════════════════════════════════════════
-  const gRows = [['Anno','Portafoglio','Base inflazione','Guadagno netto']];
-  for (let y = 0; y < YRS; y++) {
-    const tot  = cats.reduce((s,c) => s+catData[c].val*Math.pow(1+catData[c].rate/100,y), 0);
-    const infl = total0 * Math.pow(1+inflRate/100, y);
-    gRows.push([y, parseFloat(tot.toFixed(2)), parseFloat(infl.toFixed(2)), parseFloat((tot-infl).toFixed(2))]);
-  }
-  const wsg = XU.aoa_to_sheet(gRows);
-  wsg['!cols'] = [{wch:8},{wch:16},{wch:18},{wch:16}];
-  XU.book_append_sheet(wb, wsg, 'Grafico');
-
-  window.XLSX.writeFile(wb, `Proiezione_${new Date().toISOString().slice(0,10)}.xlsx`);
-  showToast('📊 File Excel scaricato');
+  const buf1=await injectChart(buf0,'Grafico',chartXml,'chartProj.xml');
+  const blob=new Blob([buf1],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`Proiezione_${new Date().toISOString().slice(0,10)}.xlsx`; a.click();
+  showToast('📊 Excel professionale scaricato!');
 }
 
+// ════════════════════════════════════════════════════════════════════════
+// EXPORT PAC
+// ════════════════════════════════════════════════════════════════════════
 async function exportPACExcel() {
-  await loadXLSX();
-  const XU = window.XLSX.utils;
-
-  const months = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
-  const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value) || 5;
-  const { plan, monthlyAmt, totalFunds, finalTotal } = runPAC(months, maxOps, 500);
+  await loadLibs();
+  const months = parseInt(document.getElementById('pac-months-inp')?.value)||24;
+  const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value)||5;
+  const minOp  = 500;
+  const { plan, monthlyAmt, totalFunds, finalTotal } = runPAC(months, maxOps, minOp);
   if (!plan.length) { alert('Calcola prima il piano PAC.'); return; }
 
-  const wb = window.XLSX.utils.book_new();
-  const totInvested = plan.reduce((s,m) => s+m.amount, 0);
+  // ── Column letter helper ─────────────────────────────────────────────
+  const cl = n => { let s=''; while(n>0){s=String.fromCharCode(64+(n-1)%26+1)+s;n=Math.floor((n-1)/26);} return s; };
+  const f2 = v => parseFloat((v||0).toFixed(2));
 
-  // ══════════════════════════════════════════
-  // FOGLIO 1 — INPUT
-  // ══════════════════════════════════════════
-  const inp = XU.aoa_to_sheet([
-    ['Parametro','Valore',''],
-    ['Portafoglio attuale (€)', parseFloat((finalTotal-totalFunds).toFixed(2)), ''],
-    ['Fondi disponibili (€)', parseFloat(totalFunds.toFixed(2)), ''],
-    ['Portafoglio finale stimato (€)', parseFloat(finalTotal.toFixed(2)), '← attuale + fondi'],
-    ['Durata piano (mesi)', months, ''],
-    ['Max operazioni / mese', maxOps, ''],
-    ['Minimo per operazione (€)', 500, ''],
-    ['Importo mensile stimato (€)', parseFloat(monthlyAmt.toFixed(2)), '← fondi / mesi'],
-    ['Totale investito nel piano (€)', parseFloat(totInvested.toFixed(2)), ''],
-    ['Mesi con operazioni', plan.length, ''],
-  ]);
-  inp['!cols'] = [{wch:30},{wch:18},{wch:28}];
-  XU.book_append_sheet(wb, inp, 'Input');
+  // ── Raccoglie dati ticker con valori correnti e target ───────────────
+  const { tkVals } = calcAvailableFunds();
+  const hlds = calcPF();
+  const SKIP = new Set(['Liquidità', MON_CAT, UNCATEGORIZED]);
+  const tickers = [];
+  Object.entries(S.rebalanceTargets||{}).forEach(([cat, pct]) => {
+    if (SKIP.has(cat)) return;
+    const catV = finalTotal * (Number(pct)||0) / 100;
+    if (!catV) return;
+    const catH = hlds.filter(h => (h.assetClass||UNCATEGORIZED)===cat);
+    const sub  = S.subTargets?.[cat]||{};
+    const subK = Object.keys(sub).filter(tk => catH.find(h=>h.ticker===tk));
+    const add = (key, tgt) => {
+      const h = catH.find(h=>h.ticker===key);
+      tickers.push({ key, cat, name: h?(h.name||h.displayTicker):key,
+        current: f2(tkVals[key]||0), target: f2(tgt) });
+    };
+    if (subK.length>0) subK.forEach(tk => add(tk, catV*(Number(sub[tk])||0)/100));
+    else if (catH.length>0) catH.forEach(h => add(h.ticker, catV/catH.length));
+    else tickers.push({key:'__cat__'+cat,cat,name:cat,current:0,target:f2(catV)});
+  });
 
-  // ══════════════════════════════════════════
-  // FOGLIO 2 — PIANO MENSILE
-  // ══════════════════════════════════════════
-  const tabRows = [['Data','Mese','Categoria','Titolo','Importo €','% del mese','Importo cumulato €']];
-  let cumul = 0;
-  plan.forEach(({ month, amount, allocations }) => {
-    allocations.forEach(a => {
-      cumul += a.amount;
-      tabRows.push([
-        monthLabel(month), month, a.cat, a.name,
-        parseFloat(a.amount.toFixed(2)),
-        parseFloat(((a.amount/amount)*100).toFixed(1)),
-        parseFloat(cumul.toFixed(2))
-      ]);
+  const N = tickers.length;
+  const M = months;
+  const wb = new window.ExcelJS.Workbook();
+  wb.creator='Portafoglio BIT'; wb.created=new Date();
+
+  // ════════════════════════════════════════════════════════════════════
+  // FOGLIO 1 — INPUT  (tutto modificabile → tutto si ricalcola)
+  // Layout:
+  //   Righe 2..N+1 : titolo | corrente € | obiettivo € | shortfall
+  //   Riga N+3     : "PARAMETRI"
+  //   Riga N+4     : mesi
+  //   Riga N+5     : max operazioni/mese
+  //   Riga N+6     : minimo operazione €
+  //   Riga N+7     : fondi totali €
+  //   Riga N+8     : importo mensile (= fondi/mesi, formula)
+  // ════════════════════════════════════════════════════════════════════
+  const pR = N+3;
+  const iMths  = `Input!$B$${pR+1}`;  // mesi
+  const iMaxOp = `Input!$B$${pR+2}`;  // max op
+  const iMinOp = `Input!$B$${pR+3}`;  // min op
+  const iFunds = `Input!$B$${pR+4}`;  // fondi
+  const iAmt   = `Input!$B$${pR+5}`;  // mensile (formula)
+
+  const wsI = wb.addWorksheet('Input');
+  wsI.columns=[{width:34},{width:18},{width:18},{width:16}];
+  wsI.getRow(1).height=28;
+
+  wsI.mergeCells('A1:D1');
+  Object.assign(wsI.getCell('A1'),{
+    value:'🎯  INPUT PIANO PAC  —  Modifica i valori per aggiornare tutto',
+    font:{bold:true,size:13,color:{argb:'FFFFFFFF'},name:'Calibri'},
+    fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FF1B3A6B'}},
+    alignment:{horizontal:'center',vertical:'middle'}
+  });
+
+  // Header colonne
+  ['Titolo / Categoria','Valore Corrente €','Valore Obiettivo €','Shortfall €']
+  .forEach((h,i)=>{
+    const c=wsI.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr);
+  });
+  wsI.getRow(2).height=20;
+
+  tickers.forEach((tk,i)=>{
+    const r=i+2; const rs=i%2===0?XL.row0:XL.row1;
+    wsI.getCell(r,1).value=tk.name; applyStyle(wsI.getCell(r,1),rs);
+    const cB=wsI.getCell(r,2); cB.value=tk.current;
+    applyStyle(cB,{...rs,alignment:{horizontal:'right'}},XL.num);
+    const cC=wsI.getCell(r,3); cC.value=tk.target;
+    applyStyle(cC,{...rs,alignment:{horizontal:'right',bold:true}},XL.num);
+    cC.font={...rs.font,bold:true,color:{argb:'FF1B3A6B'}};
+    const cD=wsI.getCell(r,4);
+    cD.value={formula:`MAX(0,C${r}-B${r})`,result:Math.max(0,tk.target-tk.current)};
+    applyStyle(cD,{...rs,alignment:{horizontal:'right'}},XL.num);
+  });
+
+  wsI.mergeCells(`A${pR}:D${pR}`);
+  const pHdr=wsI.getCell(`A${pR}`);
+  pHdr.value='⚙  PARAMETRI PIANO  (modificabili)';
+  applyStyle(pHdr,XL.sub); pHdr.font={...XL.sub.font,size:12,bold:true};
+  wsI.getRow(pR).height=22;
+
+  [
+    ['Durata piano (mesi)',   M,        false],
+    ['Max operazioni / mese', maxOps,   false],
+    ['Minimo per operazione (€)', minOp,false],
+    ['Fondi totali disponibili (€)', f2(totalFunds), true],
+    ['Importo mensile (€)',  f2(monthlyAmt), true, `${iFunds}/${iMths}`],
+    ['Portafoglio finale stimato (€)', f2(finalTotal), true,`${iFunds}+B${pR+4}`]
+  ].forEach(([lbl,val,euro,fml],i)=>{
+    const r=pR+1+i; const rs=i%2===0?XL.row0:XL.row1;
+    wsI.getCell(r,1).value=lbl; applyStyle(wsI.getCell(r,1),rs);
+    const c=wsI.getCell(r,2);
+    c.value=fml?{formula:fml,result:val}:val;
+    applyStyle(c,{...rs,alignment:{horizontal:'right'}},euro?XL.num:XL.int);
+    if(i<3) c.font={...rs.font,bold:true,color:{argb:'FF1B3A6B'}}; // parametri chiave in blu
+  });
+
+  // ════════════════════════════════════════════════════════════════════
+  // FOGLIO 2 — PAC_Calcolo  (formule interattive LET)
+  //
+  // STRUTTURA RIGHE:
+  //   Riga 1        : intestazioni
+  //   Righe 2..N+1  : ALLOCAZIONI mese×titolo
+  //   Riga N+2      : TOTALE mensile
+  //   Riga N+3      : separatore
+  //   Righe N+4..2N+3: VALORI CORRENTI (helper — inizio di ogni mese)
+  //
+  // STRUTTURA COLONNE:
+  //   A=titolo, B=obiettivo (=Input), C=valore iniziale (=Input)
+  //   D=mese1, E=mese2, F=mese3, ...
+  //
+  // FORMULE:
+  //   Corrente[i][m] = Input[i].corrente + SUM(alloc[i][1..m-1])
+  //   Alloc[i][m]    = LET(sf_all, sf_i, thresh, sum_top, prop → IF(prop≥min,prop,0))
+  // ════════════════════════════════════════════════════════════════════
+  const wsC = wb.addWorksheet('PAC_Calcolo');
+  const aS=2, aE=N+1, totR=N+2, cS=N+4, cE=2*N+3;
+
+  // Larghezze colonne
+  wsC.columns=[{width:28},{width:14},{width:14},...Array(M).fill({wch:11}).map(()=>({width:11}))];
+
+  // Intestazione sezioni
+  wsC.mergeCells(`A1:${cl(3+M)}1`);
+  const ch1=wsC.getCell('A1');
+  ch1.value='📊 ALLOCAZIONI mensili per titolo  (ricalcola automaticamente da "Input")';
+  applyStyle(ch1,XL.hdr); ch1.font={...XL.hdr.font,size:11};
+
+  wsC.getCell(`A${totR}`).value='TOTALE MESE'; applyStyle(wsC.getCell(`A${totR}`),XL.tot);
+  wsC.mergeCells(`A${cS-1}:${cl(3+M)}${cS-1}`);
+  const ch2=wsC.getCell(`A${cS-1}`);
+  ch2.value='📐 VALORI CORRENTI per titolo all\'inizio di ogni mese  (sezione helper — non modificare)';
+  applyStyle(ch2,{...XL.hdr,fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FF2A6496'}}});
+
+  // Header mesi
+  ['Titolo','Obiettivo €','Iniziale €'].forEach((h,i)=>{
+    [wsC.getCell(2,i+1), wsC.getCell(cS,i+1)].forEach(c=>{c.value=h;applyStyle(c,XL.hdr);});
+  });
+  for(let m=1;m<=M;m++){
+    const col=cl(3+m);
+    const mLbl=monthLabel(m);
+    [wsC.getCell(2,3+m), wsC.getCell(cS,3+m)].forEach(c=>{
+      c.value=mLbl; applyStyle(c,XL.hdr);
+    });
+  }
+
+  // Righe titoli (alloc + helper)
+  tickers.forEach((tk,i)=>{
+    const ar=aS+i, cr=cS+i;
+    const rs=i%2===0?XL.row0:XL.row1;
+    [ar,cr].forEach(r=>{
+      wsC.getCell(r,1).value=tk.name; applyStyle(wsC.getCell(r,1),rs);
+      const b=wsC.getCell(r,2);
+      b.value={formula:`Input!$C$${i+2}`,result:tk.target}; applyStyle(b,rs,XL.num);
+      const c=wsC.getCell(r,3);
+      c.value={formula:`Input!$B$${i+2}`,result:tk.current}; applyStyle(c,rs,XL.num);
     });
   });
-  const wst = XU.aoa_to_sheet(tabRows);
-  wst['!cols'] = [{wch:18},{wch:6},{wch:24},{wch:30},{wch:12},{wch:10},{wch:18}];
-  XU.book_append_sheet(wb, wst, 'Piano');
 
-  // ══════════════════════════════════════════
-  // FOGLIO 3 — DATI GRAFICO (per mese)
-  // ══════════════════════════════════════════
-  const gRows = [['Mese','Data','Investito nel mese €','Cumulato €']];
-  let gc = 0;
-  plan.forEach(({ month, amount }) => {
-    gc += amount;
-    gRows.push([month, monthLabel(month), parseFloat(amount.toFixed(2)), parseFloat(gc.toFixed(2))]);
+  // Formule per ogni mese
+  const bRng = `$B$${cS}:$B$${cE}`; // range obiettivi (helper section)
+
+  for(let m=1;m<=M;m++){
+    const col=cl(3+m);
+    const prevCol=cl(3+m-1);
+
+    // 1. Valori correnti (helper) — dipende SOLO dalle alloc dei mesi precedenti → no circolarità
+    tickers.forEach((tk,i)=>{
+      const ar=aS+i, cr=cS+i;
+      const rs=i%2===0?XL.row0:XL.row1;
+      const curF = m===1
+        ? `Input!$B$${i+2}`
+        : `Input!$B$${i+2}+SUM($D${ar}:${prevCol}${ar})`;
+      const cachedCur = tk.current + plan.slice(0,m-1).reduce((s,mo)=>{
+        const a=mo.allocations.find(a=>a.name===tk.name||a.ticker===tk.key?.split('.')?.[0]);
+        return s+(a?.amount||0);
+      },0);
+      const c=wsC.getCell(cr,3+m);
+      c.value={formula:curF,result:f2(cachedCur)};
+      applyStyle(c,rs,XL.num);
+    });
+
+    // 2. Allocazioni — usa i valori correnti della sezione helper (già calcolati)
+    const vRng=`${col}$${cS}:${col}$${cE}`; // valori correnti questo mese
+
+    tickers.forEach((tk,i)=>{
+      const ar=aS+i, cr=cS+i;
+      const rs=i%2===0?XL.row0:XL.row1;
+
+      // LET (Excel 365): sf_all=shortfall tutti, sf_i=shortfall questo titolo,
+      // thresh=LARGE(sf_all,maxOps) se abbastanza titoli, altrimenti 0,
+      // sum_top=sum shortfall top-N, prop=quota proporzionale, IF(prop≥min,prop,0)
+      const letF=`LET(`+
+        `sf_all,MAX(0,${bRng}-${vRng}),`+
+        `sf_i,MAX(0,$B${ar}-${col}${cr}),`+
+        `n,SUMPRODUCT((sf_all>0)*1),`+
+        `thr,IF(n>=${iMaxOp},LARGE(sf_all,${iMaxOp}),0),`+
+        `tot,SUMPRODUCT((sf_all>=thr)*(sf_all>0)*sf_all),`+
+        `prop,IF(AND(sf_i>=thr,sf_i>0,tot>0),${iAmt}*sf_i/tot,0),`+
+        `IF(prop>=${iMinOp},prop,0))`;
+
+      const planMo=plan.find(p=>p.month===m);
+      const ae=planMo?.allocations.find(a=>a.name===tk.name||a.ticker===tk.key?.split('.')?.[0]);
+      const cached=f2(ae?.amount||0);
+
+      const c=wsC.getCell(ar,3+m);
+      c.value={formula:letF,result:cached};
+      applyStyle(c,cached>0?{...rs,font:{...rs.font,color:{argb:'FF1B3A6B'},bold:true}}:rs,XL.num);
+    });
+
+    // 3. Totale mese
+    const totCell=wsC.getCell(totR,3+m);
+    const planMo=plan.find(p=>p.month===m);
+    totCell.value={formula:`SUM(${col}${aS}:${col}${aE})`,result:f2(planMo?.amount||0)};
+    applyStyle(totCell,XL.tot,XL.num);
+  }
+
+  // Riga totale col A-B-C
+  wsC.getCell(totR,2).value={
+    formula:`SUM($B$${aS}:$B$${aE})`,
+    result:f2(tickers.reduce((s,t)=>s+t.target,0))
+  };
+  applyStyle(wsC.getCell(totR,2),XL.tot,XL.num);
+
+  // ════════════════════════════════════════════════════════════════════
+  // FOGLIO 3 — GRAFICO  (formule → PAC_Calcolo totals row → interattivo)
+  // ════════════════════════════════════════════════════════════════════
+  const wsG=wb.addWorksheet('Grafico');
+  wsG.columns=[{width:8},{width:20},{width:16},{width:16}];
+  wsG.mergeCells('A1:D1');
+  const gHdr=wsG.getCell('A1');
+  gHdr.value='📈  ANDAMENTO PAC — Dati aggiornati automaticamente da PAC_Calcolo';
+  applyStyle(gHdr,XL.hdr); gHdr.font={...XL.hdr.font,size:12}; wsG.getRow(1).height=26;
+  ['Mese','Data','Investito €','Cumulato €'].forEach((h,i)=>{
+    const c=wsG.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr);
   });
-  const wsg = XU.aoa_to_sheet(gRows);
-  wsg['!cols'] = [{wch:6},{wch:18},{wch:20},{wch:16}];
-  XU.book_append_sheet(wb, wsg, 'Grafico');
 
-  window.XLSX.writeFile(wb, `PAC_${new Date().toISOString().slice(0,10)}.xlsx`);
-  showToast('📊 File Excel scaricato');
+  const invData=[], cumData=[];
+  let cumul=0;
+  for(let m=1;m<=M;m++){
+    const r=m+2; const rs=m%2===0?XL.row0:XL.row1;
+    const mo=plan.find(p=>p.month===m);
+    const amt=mo?.amount||0; cumul+=amt;
+    invData.push(amt); cumData.push(cumul);
+
+    wsG.getCell(r,1).value=m; applyStyle(wsG.getCell(r,1),rs);
+    wsG.getCell(r,2).value=monthLabel(m); applyStyle(wsG.getCell(r,2),rs);
+
+    // Punta ai totali di PAC_Calcolo → si aggiorna se cambiano Input
+    const col=cl(3+m);
+    const c3=wsG.getCell(r,3);
+    c3.value={formula:`PAC_Calcolo!${col}${totR}`,result:f2(amt)};
+    applyStyle(c3,{...rs,font:{...rs.font,color:{argb:'FF2563EB'},bold:true}},XL.num);
+
+    const c4=wsG.getCell(r,4);
+    c4.value={formula:m===1?`C${r}`:`D${r-1}+C${r}`,result:f2(cumul)};
+    applyStyle(c4,{...rs,font:{...rs.font,color:{argb:'FF16A34A'},bold:true}},XL.num);
+  }
+
+  // Genera xlsx + inietta grafico interattivo
+  const buf0=await wb.xlsx.writeBuffer();
+  const chartXml=lineChartXML([
+    {title:'Investito/mese',titleRef:"Grafico!$C$2",
+     dataRef:`Grafico!$C$3:$C$${M+2}`,data:invData,color:'3B82F6',smooth:0},
+    {title:'Cumulato',titleRef:"Grafico!$D$2",
+     dataRef:`Grafico!$D$3:$D$${M+2}`,data:cumData,color:'10B981',smooth:1},
+  ], `Grafico!$A$3:$A$${M+2}`, M, `Piano PAC — ${M} mesi`);
+
+  const buf1=await injectChart(buf0,'Grafico',chartXml,'chartPAC.xml');
+  const blob=new Blob([buf1],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+  a.download=`PAC_Interattivo_${new Date().toISOString().slice(0,10)}.xlsx`; a.click();
+  showToast('📊 Excel interattivo scaricato — modifica "Input" per ricalcolare tutto!');
 }
 
 function calcAndRenderPAC() {
