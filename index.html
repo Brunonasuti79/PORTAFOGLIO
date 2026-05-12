@@ -2326,39 +2326,40 @@ function runPAC(months, maxOps) {
   const { catVals: cv0, tkVals: tv0, hlds, portfolioTotal } = calcAvailableFunds();
   const catVals = {...cv0}, tkVals = {...tv0};
   let total = portfolioTotal;
+
   const totalFunds = (S.cashEUR||0) + Math.max(0,
-    (cv0[MON_CAT]||0) - total*(Number(S.rebalanceTargets?.[MON_CAT]||0)/100));
+    (cv0[MON_CAT]||0) - total * (Number(S.rebalanceTargets?.[MON_CAT]||0)/100));
   const monthlyAmt = totalFunds / months;
-  let fundsLeft = totalFunds;
+  let fundsLeft    = totalFunds;
 
   const targets = S.rebalanceTargets || {};
-  const subTgts = S.subTargets || {};
+  const subTgts = S.subTargets       || {};
   const SKIP    = new Set(['Liquidità', MON_CAT, UNCATEGORIZED]);
   const plan    = [];
 
-  // Calcola target € per singolo ticker
-  function tkTargets(currentTotal) {
-    const map = {}; // ticker or catKey → targetValue
+  // Costruisce la mappa ticker → valore target
+  // Sub-pesi sono % della categoria (somma 100%) → ticker target = catTarget × sub%/100
+  function buildTargets(currentTotal) {
+    const map = {};
     Object.entries(targets).forEach(([cat, pct]) => {
       if (SKIP.has(cat)) return;
-      const catTargetV = (currentTotal) * (Number(pct)||0) / 100;
-      const catH = hlds.filter(h => (h.assetClass||UNCATEGORIZED) === cat);
-      const sub  = subTgts[cat] || {};
+      const catTargetV = currentTotal * (Number(pct)||0) / 100;
+      if (catTargetV < 0.01) return;
+      const catH    = hlds.filter(h => (h.assetClass||UNCATEGORIZED) === cat);
+      const sub     = subTgts[cat] || {};
       const subKeys = Object.keys(sub).filter(tk => catH.find(h => h.ticker === tk));
+
       if (subKeys.length > 0) {
-        // subKeys sono % della categoria (somma = 100%)
+        // Sub-pesi definiti: % della categoria → valore assoluto
         subKeys.forEach(tk => {
-          const tkAmt = catAmt * (Number(sub[tk])||0) / 100;
-          if (tkAmt < 0.01) return;
-          const h = catHlds.find(x => x.ticker === tk);
-          allocs.push({ cat, ticker: h?.displayTicker||tk, name: h?.name||tk, amount: tkAmt });
-          tkVals[tk] = (tkVals[tk]||0) + tkAmt;
-          catVals[cat] = (catVals[cat]||0) + tkAmt;
+          map[tk] = (map[tk]||0) + catTargetV * (Number(sub[tk])||0) / 100;
         });
       } else if (catH.length > 0) {
-        catH.forEach(h => { map[h.ticker] = catTargetV / catH.length; });
+        // Nessun sub-peso: distribuisce equamente tra i titoli della categoria
+        catH.forEach(h => { map[h.ticker] = (map[h.ticker]||0) + catTargetV / catH.length; });
       } else {
-        map['__cat__'+cat] = catTargetV;
+        // Categoria senza holding: usa chiave categoria
+        map['__cat__'+cat] = (map['__cat__'+cat]||0) + catTargetV;
       }
     });
     return map;
@@ -2369,17 +2370,19 @@ function runPAC(months, maxOps) {
     const amt = Math.min(monthlyAmt, fundsLeft);
     fundsLeft -= amt;
 
-    // Shortfall per ticker
-    const tgtMap = tkTargets(total + amt);
+    // Calcola shortfall per ogni ticker/categoria
+    const tgtMap = buildTargets(total + amt);
     const shortfalls = [];
     Object.entries(tgtMap).forEach(([key, tgtV]) => {
-      const curV = key.startsWith('__cat__') ? (catVals[key.slice(7)]||0) : (tkVals[key]||0);
-      const gap  = Math.max(0, tgtV - curV);
-      if (gap > 0.01) shortfalls.push({ key, gap, tgtV, curV });
+      const curV = key.startsWith('__cat__')
+        ? (catVals[key.slice(7)]||0)
+        : (tkVals[key]||0);
+      const gap = Math.max(0, tgtV - curV);
+      if (gap > 0.01) shortfalls.push({ key, gap, tgtV });
     });
-    // Ordina per shortfall % decrescente
+
+    // Ordina per shortfall % decrescente → prendi top N
     shortfalls.sort((a,b) => (b.gap/b.tgtV) - (a.gap/a.tgtV));
-    // Prendi i top maxOps
     const topN   = shortfalls.slice(0, maxOps);
     const totGap = topN.reduce((s,x) => s+x.gap, 0) || 1;
 
@@ -2392,26 +2395,27 @@ function runPAC(months, maxOps) {
         allocs.push({ cat, ticker: null, name: cat, amount: tkAmt });
         catVals[cat] = (catVals[cat]||0) + tkAmt;
       } else {
-        const h = hlds.find(x => x.ticker === key);
+        const h   = hlds.find(x => x.ticker === key);
         const cat = h?.assetClass || UNCATEGORIZED;
         allocs.push({ cat, ticker: h?.displayTicker||key, name: h?.name||key, amount: tkAmt });
-        tkVals[key] = (tkVals[key]||0) + tkAmt;
+        tkVals[key]  = (tkVals[key]||0)  + tkAmt;
         catVals[cat] = (catVals[cat]||0) + tkAmt;
       }
       total += tkAmt;
     });
 
-    // Scala liquidità / ETF mon.
+    // Scala liquidità e poi ETF monetario
     let rem = amt;
     const cashUsed = Math.min(rem, catVals['Liquidità']||0);
-    catVals['Liquidità'] = (catVals['Liquidità']||0) - cashUsed; rem -= cashUsed;
-    if (rem > 0) catVals[MON_CAT] = Math.max(0, (catVals[MON_CAT]||0) - rem);
+    catVals['Liquidità'] = Math.max(0, (catVals['Liquidità']||0) - cashUsed);
+    rem -= cashUsed;
+    if (rem > 0.01) catVals[MON_CAT] = Math.max(0, (catVals[MON_CAT]||0) - rem);
 
-    plan.push({ month: m, amount: amt, allocations: allocs });
+    if (allocs.length > 0) plan.push({ month: m, amount: amt, allocations: allocs });
   }
+
   return { plan, monthlyAmt, totalFunds };
 }
-
 function monthLabel(offset) {
   const d = new Date();
   d.setDate(1);
