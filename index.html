@@ -538,8 +538,8 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
       </div>
       <div id="pf-switcher"></div>
       <div class="ph-actions">
-        <button class="hbtn" onclick="openQuick()">+ Aggiungi</button>
-        <button class="hbtn" id="btn-ref" onclick="fetchPrices()">⟳ Aggiorna</button>
+        <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
+          style="font-size:14px;font-weight:700;padding:8px 16px;color:#00e878;border-color:rgba(0,232,120,.4);letter-spacing:.5px;text-shadow:0 0 8px rgba(0,232,120,.5)">⟳ Aggiorna</button>
         <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
       </div>
     </div>
@@ -1933,10 +1933,14 @@ function renderPF() {
   const ca = document.getElementById('cash-area');
   if (ca) {
     const cash = S.cashEUR || 0;
-    ca.innerHTML = `<div class="cash-bar" onclick="setCash()">
-      <span class="cash-lbl">💶 Liquidità c/c</span>
-      <span class="cash-val">${cash > 0 ? e2(cash) : '— tocca per inserire'}</span>
-      <span class="cash-edit">✎</span>
+    ca.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:0 14px 6px">
+      <div class="cash-bar" onclick="setCash()" style="flex:1;margin:0">
+        <span class="cash-lbl">💶 Liquidità c/c</span>
+        <span class="cash-val">${cash > 0 ? e2(cash) : '— tocca per inserire'}</span>
+        <span class="cash-edit">✎</span>
+      </div>
+      <button class="hbtn" onclick="openQuick()"
+        style="flex-shrink:0;padding:8px 14px;font-size:13px;font-weight:700;white-space:nowrap">+ Aggiungi</button>
     </div>`;
   }
 
