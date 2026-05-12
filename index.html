@@ -135,7 +135,42 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .proj-table tr:nth-child(5n) td{background:rgba(123,167,255,.03)}
 .proj-table .col-att{color:#7ba7ff}.proj-table .col-obj{color:#22d47e}
 .proj-table .col-net-att{color:var(--text)}.proj-table .col-net-obj{color:var(--green)}
-/* ── P&L ── */
+/* ── RIBILANCIAMENTO sub-target ── */
+.rb-expand-btn{background:none;border:1px solid var(--border2);color:var(--text3);
+  font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;margin-right:5px;
+  line-height:1.4;vertical-align:middle;transition:all .15s}
+.rb-expand-btn.open{color:var(--blue);border-color:var(--blue)}
+.rb-sub-row td{background:rgba(7,11,20,.35);font-size:11px;border-bottom:1px solid rgba(255,255,255,.03)}
+.rb-sub-row td:first-child{padding-left:30px;border-left:3px solid #1a3060}
+.rb-sub-inp{width:48px;background:var(--bg);border:1px solid var(--border2);color:var(--text);
+  font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right;
+  border-radius:4px;padding:2px 4px}
+.rb-sub-sum{font-size:9px;color:var(--text3);margin-top:2px}
+.rb-sub-sum.ok{color:var(--green)}.rb-sub-sum.warn{color:var(--red)}
+/* ── PAC ── */
+.pac-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 14px 6px}
+.pac-input-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.pac-input-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:5px}
+.pac-input-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--blue);margin-bottom:4px}
+.pac-inp{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);
+  font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;
+  border-radius:8px;padding:6px 8px;margin-top:4px}
+.pac-calc-btn{display:block;width:calc(100% - 28px);margin:8px 14px;
+  background:linear-gradient(135deg,#0a3080,#0c4090);border:1px solid #1a5090;
+  color:#c8d8ff;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;
+  padding:11px;border-radius:12px;cursor:pointer;letter-spacing:.5px;transition:all .2s}
+.pac-calc-btn:active{opacity:.8}
+.pac-plan-wrap{margin:6px 14px 80px;overflow-x:auto}
+.pac-table{width:100%;border-collapse:collapse;font-size:11px}
+.pac-table th{font-size:9px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;
+  font-weight:700;padding:7px 8px;border-bottom:2px solid var(--border);
+  border-right:1px solid var(--border);text-align:right;white-space:nowrap;background:var(--bg3)}
+.pac-table th:first-child,.pac-table th:nth-child(2){text-align:left;border-left:1px solid var(--border)}
+.pac-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);
+  border-right:1px solid rgba(255,255,255,.03);text-align:right;white-space:nowrap;font-size:11px}
+.pac-table td:first-child,.pac-table td:nth-child(2){text-align:left;border-left:1px solid rgba(255,255,255,.03);font-family:'Outfit',sans-serif}
+.pac-table tr.pac-month-hdr td{background:rgba(123,167,255,.06);font-weight:700;color:#a8bcd8;font-family:'Outfit',sans-serif}
+.pac-table tbody tr:hover{background:rgba(123,167,255,.04)}
 .pnl-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 14px 6px}
 .pnl-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;text-align:center}
 .pnl-lbl{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-bottom:4px}
@@ -259,6 +294,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .otot{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;white-space:nowrap}
 .otot.buy{color:var(--red)}.otot.sell{color:var(--green)}
 .obts{display:flex;gap:3px;align-items:center;flex-shrink:0}
+.odup{background:none;border:1px solid var(--border2);color:#7ba7ff;
+  font-size:13px;padding:3px 6px;border-radius:6px;cursor:pointer;line-height:1;
+  -webkit-tap-highlight-color:transparent;transition:color .15s}
+.odup:active{opacity:.7}
+.f-locked{opacity:.45;pointer-events:none;cursor:not-allowed;background:rgba(255,255,255,.03)!important}
 .odel{background:none;border:none;color:#2a3d5a;font-size:16px;cursor:pointer;
   padding:2px 4px;line-height:1;transition:color .2s;-webkit-tap-highlight-color:transparent}
 .odel:active{color:var(--red)}
@@ -560,6 +600,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
     </div>
   </div>
 
+  <!-- PAC PAGE -->
+  <div id="pg-pac" class="page">
+    <div class="ph"><div class="ph-left"><div class="pt">PIANO PAC</div><div class="pt-sub">Piano accumulo da liquidità + ETF monetario</div></div></div>
+    <div id="pac-area"></div>
+  </div>
+
   <!-- P&L PAGE -->
   <div id="pg-pnl" class="page">
     <div class="ph"><div class="ph-left"><div class="pt">PROFIT &amp; LOSS</div><div class="pt-sub">Posizioni chiuse — plusvalenze e minusvalenze</div></div></div>
@@ -619,6 +665,12 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
         <line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/>
         <circle cx="3.5" cy="6" r=".8" fill="currentColor"/><circle cx="3.5" cy="12" r=".8" fill="currentColor"/><circle cx="3.5" cy="18" r=".8" fill="currentColor"/>
       </svg><span>Operazioni</span>
+    </button>
+    <button class="nbtn" id="nav-pac" onclick="showPage('pac')">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
+        <line x1="9" y1="4" x2="9" y2="9"/><polyline points="7 15 10 18 17 11"/>
+      </svg><span>PAC</span>
     </button>
     <button class="nbtn" id="nav-pnl" onclick="showPage('pnl')">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -865,6 +917,7 @@ function normalizePortfolio(pf) {
   if (!pf.dailyChanges)     pf.dailyChanges = {};
   if (!pf.priceHistory)     pf.priceHistory = [];
   if (!pf.rebalanceTargets) pf.rebalanceTargets = {};
+  if (!pf.subTargets)       pf.subTargets = {};
   if (pf.cashEUR == null)   pf.cashEUR = 0;
   if (!pf.taxRates)         pf.taxRates = {};
   pf.ops.forEach(op => normalizeOp(op));
@@ -1854,8 +1907,9 @@ function renderOps() {
         <div class="otot ${op.type}">${op.type==='buy'?'−':'+'}${n2(Math.abs(tot))} €</div>
       </div>
       <div class="obts">
+        <button class="odup"  onclick="dupOp('${op.id}')" title="Duplica">⧉</button>
         <button class="oedit" onclick="editOp('${op.id}')">✎</button>
-        <button class="odel" onclick="delOp('${op.id}')">×</button>
+        <button class="odel"  onclick="delOp('${op.id}')">×</button>
       </div>
     </div>`;
   }).join('');
@@ -2135,6 +2189,202 @@ function setCash() {
   S.cashEUR = n;
   save(); renderAll();
 }
+// ════════════════════════════════════════════════════════════════
+//  RIBILANCIAMENTO — sotto-obiettivi per titolo
+// ════════════════════════════════════════════════════════════════
+let rbExpandedCats = new Set();
+
+function toggleRbCat(cat) {
+  rbExpandedCats.has(cat) ? rbExpandedCats.delete(cat) : rbExpandedCats.add(cat);
+  renderRebalance();
+}
+
+function setSubTarget(cat, ticker, val) {
+  const n = parseFloat(val);
+  if (!S.subTargets) S.subTargets = {};
+  if (!S.subTargets[cat]) S.subTargets[cat] = {};
+  if (isNaN(n) || n <= 0) delete S.subTargets[cat][ticker];
+  else S.subTargets[cat][ticker] = n;
+  save();
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PAC — Piano di Accumulo
+// ════════════════════════════════════════════════════════════════
+const MON_CAT = 'ETF Monetario / Fondo Monetario';
+
+function calcAvailableFunds() {
+  const hlds = calcPF();
+  const catVals = {}, tkVals = {};
+  let total = 0;
+  hlds.forEach(h => {
+    const v = currentValueAllEUR(h) ?? costBasisAllEUR(h);
+    const c = h.assetClass || UNCATEGORIZED;
+    catVals[c] = (catVals[c]||0) + v;
+    tkVals[h.ticker] = v;
+    total += v;
+  });
+  const cash = S.cashEUR || 0;
+  catVals['Liquidità'] = (catVals['Liquidità']||0) + cash;
+  total += cash;
+  const monPct  = (Number(S.rebalanceTargets?.[MON_CAT]) || 0) / 100;
+  const monExcess = Math.max(0, (catVals[MON_CAT]||0) - total * monPct);
+  return { cash, monExcess, total: cash + monExcess, catVals, tkVals, hlds, portfolioTotal: total };
+}
+
+function runPAC(monthlyInput, months) {
+  const { catVals: cv0, tkVals: tv0, hlds, portfolioTotal } = calcAvailableFunds();
+  const catVals = {...cv0}, tkVals = {...tv0};
+  let total = portfolioTotal;
+  let funds = (S.cashEUR||0) + Math.max(0, (cv0[MON_CAT]||0) - total * (Number(S.rebalanceTargets?.[MON_CAT]||0)/100));
+  const targets  = S.rebalanceTargets || {};
+  const subTgts  = S.subTargets || {};
+  const plan = [];
+  const SKIP = new Set(['Liquidità', MON_CAT, UNCATEGORIZED]);
+
+  for (let m = 1; m <= months; m++) {
+    if (funds < 0.01) break;
+    const amt = Math.min(monthlyInput, funds);
+    funds -= amt;
+
+    // Calcola shortfall per categoria (escludi Liquidità e ETF mon.)
+    const gaps = {};
+    let totGap = 0;
+    Object.entries(targets).forEach(([cat, pct]) => {
+      if (SKIP.has(cat)) return;
+      const targetV = (total + amt) * (Number(pct)||0) / 100;
+      const gap = Math.max(0, targetV - (catVals[cat]||0));
+      if (gap > 0.01) { gaps[cat] = gap; totGap += gap; }
+    });
+    // Se tutto in target, proporzionale agli obiettivi
+    if (totGap < 0.01) {
+      Object.entries(targets).forEach(([cat, pct]) => {
+        if (SKIP.has(cat)) return;
+        gaps[cat] = Number(pct)||0; totGap += Number(pct)||0;
+      });
+    }
+
+    const allocs = [];
+    Object.entries(gaps).forEach(([cat, gap]) => {
+      const catAmt = totGap > 0 ? amt * gap / totGap : 0;
+      if (catAmt < 0.01) return;
+      const catHlds = hlds.filter(h => (h.assetClass||UNCATEGORIZED) === cat);
+      const sub = subTgts[cat] || {};
+      const subKeys = Object.keys(sub).filter(tk => catHlds.find(h => h.ticker === tk));
+
+      if (subKeys.length > 0) {
+        const subTot = subKeys.reduce((s,tk) => s+(Number(sub[tk])||0), 0);
+        subKeys.forEach(tk => {
+          const tkAmt = subTot > 0 ? catAmt * (Number(sub[tk])||0) / subTot : catAmt / subKeys.length;
+          if (tkAmt < 0.01) return;
+          const h = catHlds.find(x => x.ticker === tk);
+          allocs.push({ cat, ticker: h?.displayTicker||tk, name: h?.name||tk, amount: tkAmt });
+          tkVals[tk] = (tkVals[tk]||0) + tkAmt;
+          catVals[cat] = (catVals[cat]||0) + tkAmt;
+        });
+      } else if (catHlds.length > 0) {
+        catHlds.forEach(h => {
+          const hAmt = catAmt / catHlds.length;
+          if (hAmt < 0.01) return;
+          allocs.push({ cat, ticker: h.displayTicker, name: h.name||h.displayTicker, amount: hAmt });
+          tkVals[h.ticker] = (tkVals[h.ticker]||0) + hAmt;
+          catVals[cat] = (catVals[cat]||0) + hAmt;
+        });
+      } else {
+        allocs.push({ cat, ticker: null, name: cat, amount: catAmt });
+        catVals[cat] = (catVals[cat]||0) + catAmt;
+      }
+      total += catAmt;
+    });
+
+    // Scala ETF monetario e liquidità
+    let rem = amt;
+    const cashUsed = Math.min(rem, catVals['Liquidità']||0);
+    catVals['Liquidità'] = (catVals['Liquidità']||0) - cashUsed; rem -= cashUsed;
+    if (rem > 0) catVals[MON_CAT] = Math.max(0, (catVals[MON_CAT]||0) - rem);
+
+    plan.push({ month: m, amount: amt, allocations: allocs });
+  }
+  return plan;
+}
+
+function renderPAC() {
+  const area = document.getElementById('pac-area');
+  if (!area) return;
+  const { cash, monExcess, total: avail } = calcAvailableFunds();
+  const months = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
+  const monthly = parseFloat(document.getElementById('pac-monthly-inp')?.value) || 0;
+
+  area.innerHTML = `
+  <div class="pac-inputs">
+    <div class="pac-input-card">
+      <div class="pac-input-lbl">Fondi disponibili (auto)</div>
+      <div class="pac-input-val">${e2(avail)}</div>
+      <div style="font-size:10px;color:var(--text3)">Liquidità ${e2(cash)} + Eccesso ETF mon. ${e2(monExcess)}</div>
+    </div>
+    <div class="pac-input-card">
+      <div class="pac-input-lbl">Durata piano</div>
+      <input type="number" id="pac-months-inp" class="pac-inp" value="${months}" min="1" max="120" step="1" inputmode="numeric">
+      <div style="font-size:10px;color:var(--text3);margin-top:3px">mesi</div>
+    </div>
+    <div class="pac-input-card" style="grid-column:span 2">
+      <div class="pac-input-lbl">Importo mensile da investire (€)</div>
+      <input type="number" id="pac-monthly-inp" class="pac-inp" value="${monthly||''}" placeholder="es. 500" min="1" step="10" inputmode="decimal">
+    </div>
+  </div>
+  <button class="pac-calc-btn" onclick="calcAndRenderPAC()">📊 Calcola piano PAC</button>
+  <div id="pac-plan"></div>`;
+}
+
+function calcAndRenderPAC() {
+  const months  = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
+  const monthly = parseFloat(document.getElementById('pac-monthly-inp')?.value) || 0;
+  if (!monthly || monthly < 1) { alert('Inserisci un importo mensile valido.'); return; }
+  if (!Object.keys(S.rebalanceTargets||{}).length) {
+    alert('Imposta prima gli obiettivi % nel Ribilanciamento.'); return; }
+
+  const plan = runPAC(monthly, months);
+  const planEl = document.getElementById('pac-plan');
+  if (!planEl) return;
+
+  if (!plan.length) {
+    planEl.innerHTML = '<div class="empty">Fondi insufficienti o obiettivi non configurati.</div>'; return; }
+
+  const totInvested = plan.reduce((s,m) => s+m.amount, 0);
+  const { avail } = calcAvailableFunds();
+
+  const rows = plan.map(({ month, amount, allocations }) => {
+    const hdrRow = `<tr class="pac-month-hdr">
+      <td>Mese ${month}</td>
+      <td colspan="3">Totale: ${e2(amount)}</td>
+    </tr>`;
+    const allocRows = allocations.map(a =>
+      `<tr>
+        <td style="padding-left:16px;color:var(--text3);font-size:10px">${esc(a.cat)}</td>
+        <td style="font-size:11px">${esc(a.name)}</td>
+        <td style="font-family:'JetBrains Mono',monospace;color:#7ba7ff">${e2(a.amount)}</td>
+        <td style="font-size:10px;color:var(--text3)">${((a.amount/amount)*100).toFixed(0)}%</td>
+      </tr>`).join('');
+    return hdrRow + allocRows;
+  }).join('');
+
+  planEl.innerHTML = `
+  <div class="pnl-summary" style="margin:8px 14px">
+    <div class="pnl-card"><div class="pnl-lbl">Mesi pianificati</div><div class="pnl-val">${plan.length}</div></div>
+    <div class="pnl-card"><div class="pnl-lbl">Totale investito</div><div class="pnl-val" style="color:#7ba7ff">${e2(totInvested)}</div></div>
+  </div>
+  <div class="sdesc" style="margin:0 14px 6px">
+    ${plan.length < months ? `⚠ I fondi disponibili (${e2(avail)}) si esauriscono al mese ${plan.length}.` : `✓ Piano completo su ${months} mesi.`}
+    ${Object.keys(S.subTargets||{}).some(c=>Object.keys(S.subTargets[c]).length) ? '' : ' <em>Suggerimento: imposta i sotto-obiettivi per titolo nel Ribilanciamento per un piano più preciso.</em>'}
+  </div>
+  <div class="pac-plan-wrap">
+    <table class="pac-table">
+      <thead><tr><th>Mese / Categoria</th><th>Titolo</th><th>Importo</th><th>%</th></tr></thead>
+      <tbody>${rows}</tbody>
+    </table>
+  </div>`;
+}
+
 function sortRB(col) {
   if (rbSortCol === col) rbSortDir *= -1;
   else { rbSortCol = col; rbSortDir = col === 'categoria' ? 1 : -1; }
@@ -2216,15 +2466,46 @@ function renderRebalance() {
       <tbody>
         ${rows.map(({cat,val,actual,target,delta,needed}) => {
           const adv = advice(actual,target);
+          const catHlds = hlds.filter(h=>(h.assetClass||UNCATEGORIZED)===cat);
+          const isExpanded = rbExpandedCats.has(cat);
+          const subTgt = S.subTargets?.[cat] || {};
+          const subSum = Object.values(subTgt).reduce((s,v)=>s+(Number(v)||0),0);
+          // Sub-righe per titolo
+          const subRows = isExpanded && catHlds.length ? catHlds.map(h => {
+            const hVal = currentValueAllEUR(h) ?? costBasisAllEUR(h);
+            const hActPct = val>0 ? hVal/val*100 : 0;
+            const hTgt = subTgt[h.ticker] || '';
+            return `<tr class="rb-sub-row">
+              <td>
+                <div style="font-weight:600;font-size:11px;color:#dce8ff">${esc(h.name||h.displayTicker)}</div>
+                <div style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace">${esc(h.displayTicker)}</div>
+              </td>
+              <td class="rb-num">
+                <input type="number" class="rb-sub-inp" value="${hTgt}" placeholder="—"
+                  min="0" max="100" step="1"
+                  onchange="setSubTarget('${jsq(cat)}','${h.ticker}',this.value)">
+                <span style="font-size:9px;color:var(--text3)">% cat.</span>
+              </td>
+              <td class="rb-num">${hActPct.toFixed(1)}%</td>
+              <td class="rb-num">${e2(hVal)}</td>
+              <td colspan="3">—</td>
+            </tr>`;
+          }).join('') + (catHlds.length ? `<tr class="rb-sub-row"><td colspan="7" style="padding-left:30px">
+            <span class="rb-sub-sum ${Math.abs(subSum-100)<1?'ok':subSum>0?'warn':''}">
+              ${subSum>0?`Σ sotto-obiettivi: ${subSum.toFixed(0)}% ${Math.abs(subSum-100)<1?'✓ ok':'⚠ deve fare 100%'}`:'Nessun sotto-obiettivo impostato'}
+            </span></td></tr>` : '') : '';
           return `<tr>
-            <td class="rb-cat">${esc(cat)}</td>
+            <td class="rb-cat">
+              ${catHlds.length?`<button class="rb-expand-btn ${isExpanded?'open':''}" onclick="toggleRbCat('${jsq(cat)}')">${isExpanded?'▼':'▶'}</button>`:''}
+              ${esc(cat)}
+            </td>
             <td class="rb-num">${target>0?target.toFixed(1)+'%':'—'} <button class="rb-edit-btn" onclick="editTarget('${jsq(cat)}')">✎</button></td>
             <td class="rb-num ${actual>0?(delta>2?'rb-over':delta<-2?'rb-under':''):''}">${actual.toFixed(1)}%</td>
             <td class="rb-num">${e2(val)}</td>
             <td class="rb-num ${delta>=0?'rb-over':'rb-under'}">${target>0?(delta>=0?'+':'')+delta.toFixed(1)+'%':'—'}</td>
             <td class="rb-num ${needed!==null?(needed>=0?'rb-under':'rb-over'):''}">${needed!==null?(needed>=0?'+':'')+e2(needed):'—'}</td>
             <td><span class="rb-adv ${adv.cls}">${adv.text}</span></td>
-          </tr>`;
+          </tr>${subRows}`;
         }).join('')}
       </tbody>
       <tfoot><tr>
@@ -2347,7 +2628,7 @@ function renderHistory() {
 //  NAVIGATION
 // ════════════════════════════════════════════════════════════════
 function showPage(pg) {
-  ['portfolio','operations','charts','rebalance','proj','history','pnl','backup','settings'].forEach(p => {
+  ['portfolio','operations','charts','rebalance','proj','history','pac','pnl','backup','settings'].forEach(p => {
     const el  = document.getElementById(`pg-${p}`);
     const nav = document.getElementById(`nav-${p}`);
     if (el)  el.classList.toggle('active', p===pg);
@@ -2356,6 +2637,7 @@ function showPage(pg) {
   if (pg==='charts')     renderCharts();
   if (pg==='rebalance')  renderRebalance();
   if (pg==='proj')       renderProjection();
+  if (pg==='pac')        renderPAC();
   if (pg==='pnl')        renderPnL();
   if (pg==='history')  renderHistory();
   if (pg==='settings') renderSettingsUI();
@@ -2380,6 +2662,7 @@ function openModal() {
 
 function closeModal() {
   editingOpId = null;
+  clearDupLocks();
   document.getElementById('modal').classList.add('hidden');
 }
 
@@ -2411,6 +2694,32 @@ function editOp(id) {
   calcFTotal();
   document.getElementById('modal').classList.remove('hidden');
   setTimeout(() => document.getElementById('f-price')?.focus(), 200);
+}
+
+const DUP_LOCKED = ['f-ticker','f-isin','f-name','f-quote','f-market',
+  'f-titleccy','f-purchccy','f-fxrate','f-cat'];
+
+function dupOp(id) {
+  editOp(id);                         // riempie il form con tutti i dati
+  editingOpId = null;                  // nuova op, non sovrascrive l'originale
+  document.getElementById('modal-title').textContent  = 'DUPLICA OPERAZIONE';
+  document.getElementById('modal-save-btn').textContent = 'Aggiungi copia';
+  // Blocca tutto tranne data, prezzo, quantità, commissioni
+  DUP_LOCKED.forEach(fid => {
+    const el = document.getElementById(fid);
+    if (el) el.classList.add('f-locked');
+  });
+  // Blocca anche il selettore buy/sell
+  document.getElementById('tbuy')?.classList.add('f-locked');
+  document.getElementById('tsell')?.classList.add('f-locked');
+  // Focus sul prezzo
+  setTimeout(() => document.getElementById('f-price')?.select(), 250);
+}
+
+function clearDupLocks() {
+  DUP_LOCKED.forEach(fid => document.getElementById(fid)?.classList.remove('f-locked'));
+  document.getElementById('tbuy')?.classList.remove('f-locked');
+  document.getElementById('tsell')?.classList.remove('f-locked');
 }
 
 function setOpType(t) {
