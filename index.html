@@ -142,19 +142,55 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .proj-table tr:nth-child(5n) td{background:rgba(123,167,255,.03)}
 .proj-table .col-att{color:#7ba7ff}.proj-table .col-obj{color:#22d47e}
 .proj-table .col-net-att{color:var(--text)}.proj-table .col-net-obj{color:var(--green)}
-/* ── RIBILANCIAMENTO sub-target ── */
+/* ── Input obiettivo macro (inline nella tabella) ── */
+.rb-tgt-inp{
+  width:62px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
+  background:rgba(123,167,255,.1);border:1.5px solid rgba(123,167,255,.3);
+  color:#7ba7ff;border-radius:8px;padding:4px 7px;text-align:right;
+  transition:border-color .15s,background .15s}
+.rb-tgt-inp:focus{border-color:var(--blue);background:rgba(123,167,255,.18);outline:none}
+.rb-tgt-inp::placeholder{color:rgba(123,167,255,.3);font-size:12px}
+/* ── Input sotto-obiettivo titolo ── */
+.rb-sub-inp{
+  width:58px;font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;
+  background:rgba(123,167,255,.07);border:1.5px solid rgba(123,167,255,.2);
+  color:#a8bcd8;border-radius:7px;padding:3px 6px;text-align:right;
+  transition:border-color .15s}
+.rb-sub-inp:focus{border-color:var(--blue);outline:none}
+.rb-sub-inp.over{border-color:var(--red)!important;color:var(--red)}
+.pct-suffix{font-size:11px;color:var(--text3);margin-left:3px}
+/* ── Sub-row totale / indicatore ── */
+.rb-sub-total-row td{background:rgba(123,167,255,.04);padding:5px 8px 5px 40px;border-bottom:1px solid var(--border)}
+.rb-sub-bar{height:4px;border-radius:2px;margin-top:4px;background:rgba(255,255,255,.06);overflow:hidden}
+.rb-sub-bar-fill{height:100%;border-radius:2px;transition:width .3s}
+/* ── Projection inputs redesign ── */
+.proj-rates-grid{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.proj-rate-row{
+  display:flex;align-items:center;gap:10px;
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;
+  padding:8px 12px 8px 10px;position:relative}
+.proj-rate-lbl{font-size:12px;color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-rate-inp{
+  width:68px;font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;
+  background:rgba(123,167,255,.1);border:1.5px solid rgba(123,167,255,.25);
+  color:#7ba7ff;border-radius:8px;padding:5px 8px;text-align:right;
+  transition:border-color .15s}
+.proj-rate-inp:focus{border-color:var(--blue);outline:none}
+.proj-sub-row{
+  display:flex;align-items:center;gap:10px;
+  background:rgba(7,11,20,.4);border-left:3px solid #1a3060;
+  padding:6px 12px 6px 22px;gap:8px;border-radius:0 8px 8px 0;margin-top:2px}
+.proj-sub-lbl{display:flex;flex-direction:column;flex:1;min-width:0}
+.proj-sub-lbl span:first-child{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-sub-lbl span:last-child{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+/* ── expand btn (shared) ── */
 .rb-expand-btn{background:none;border:1px solid var(--border2);color:var(--text3);
-  font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;margin-right:5px;
-  line-height:1.4;vertical-align:middle;transition:all .15s}
+  font-size:10px;padding:1px 5px;border-radius:4px;cursor:pointer;
+  line-height:1.4;transition:all .15s;flex-shrink:0}
 .rb-expand-btn.open{color:var(--blue);border-color:var(--blue)}
-.rb-sub-row td{background:rgba(7,11,20,.35);font-size:11px;border-bottom:1px solid rgba(255,255,255,.03)}
-.rb-sub-row td:first-child{padding-left:30px;border-left:3px solid #1a3060}
-.rb-sub-inp{width:48px;background:var(--bg);border:1px solid var(--border2);color:var(--text);
-  font-family:'JetBrains Mono',monospace;font-size:11px;text-align:right;
-  border-radius:4px;padding:2px 4px}
-.rb-sub-sum{font-size:9px;color:var(--text3);margin-top:2px}
-.rb-sub-sum.ok{color:var(--green)}.rb-sub-sum.warn{color:var(--red)}
-/* ── PAC ── */
+/* ── sub-row table cells ── */
+.rb-sub-row td{background:rgba(7,11,20,.35);border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
+.rb-sub-row td:first-child{padding-left:28px;border-left:3px solid #1a3060}
 .pac-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 14px 6px}
 .pac-input-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
 .pac-input-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:5px}
@@ -2085,13 +2121,13 @@ function renderProjection() {
         </div>
       </div>`;
     }).join('') : '';
-    return `<div class="proj-rate-row" style="padding-left:${catH.length?'26px':'8px'}">
-      ${catH.length?`<button class="rb-expand-btn ${isExp?'open':''}" onclick="toggleProjCat('${jsq(cat)}')" style="position:absolute;left:4px">${isExp?'▼':'▶'}</button>`:''}
+    return `<div class="proj-rate-row" style="padding-left:${catH.length?'36px':'12px'}">
+      ${catH.length?`<button class="rb-expand-btn ${isExp?'open':''}" onclick="toggleProjCat('${jsq(cat)}')" style="position:absolute;left:6px">${isExp?'▼':'▶'}</button>`:''}
       <span class="proj-rate-lbl">${esc(cat)}</span>
-      <div style="display:flex;align-items:center;gap:4px">
+      <div style="display:flex;align-items:center;gap:5px">
         <input type="number" class="proj-rate-inp" value="${rates[cat]??0}" step="0.1" min="0" max="50"
           inputmode="decimal" oninput="setProjectionRate('${jsq(cat)}',this.value)">
-        <span style="font-size:11px;color:var(--text3)">%</span>
+        <span style="font-size:12px;color:var(--text3)">%</span>
       </div>
     </div>${subRows}`;
   }).join('');
@@ -2105,8 +2141,8 @@ function renderProjection() {
       <span style="font-size:11px;color:#ff9944;font-weight:700;flex:1">📉 Inflazione annua stimata</span>
       <input type="number" class="proj-rate-inp" value="${inflRate}" step="0.1" min="0" max="20"
         inputmode="decimal"
-        oninput="setProjectionInflation(this.value)" style="border-color:rgba(255,153,68,.4)">
-      <span style="font-size:11px;color:var(--text3)">%</span>
+        oninput="setProjectionInflation(this.value)" style="border-color:rgba(255,153,68,.4);width:68px">
+      <span style="font-size:12px;color:var(--text3)">%</span>
     </div>
   </div>
   <div id="proj-output"></div>`;
@@ -2556,6 +2592,7 @@ function renderRebalance() {
           const isExpanded = rbExpandedCats.has(cat);
           const subTgt = S.subTargets?.[cat] || {};
           const subSum = Object.values(subTgt).reduce((s,v)=>s+(Number(v)||0),0);
+          const subOver = subSum > 100.5;
           // Sub-righe per titolo
           const subRows = isExpanded && catHlds.length ? catHlds.map(h => {
             const hVal = currentValueAllEUR(h) ?? costBasisAllEUR(h);
@@ -2566,26 +2603,41 @@ function renderRebalance() {
                 <div style="font-weight:600;font-size:11px;color:#dce8ff">${esc(h.name||h.displayTicker)}</div>
                 <div style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace">${esc(h.displayTicker)}</div>
               </td>
-              <td class="rb-num">
-                <input type="number" class="rb-sub-inp" value="${hTgt}" placeholder="—"
-                  min="0" max="100" step="1"
-                  onchange="setSubTarget('${jsq(cat)}','${h.ticker}',this.value)">
-                <span style="font-size:9px;color:var(--text3)">% cat.</span>
+              <td class="rb-num" style="text-align:center">
+                <div style="display:inline-flex;align-items:center;gap:4px">
+                  <input type="number" class="rb-sub-inp" value="${hTgt}" placeholder="—"
+                    min="0" max="100" step="0.5"
+                    oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);renderRebalance()">
+                  <span class="pct-suffix">%</span>
+                </div>
               </td>
               <td class="rb-num">${hActPct.toFixed(1)}%</td>
               <td class="rb-num">${e2(hVal)}</td>
               <td colspan="3">—</td>
             </tr>`;
-          }).join('') + (catHlds.length ? `<tr class="rb-sub-row"><td colspan="7" style="padding-left:30px">
-            <span class="rb-sub-sum ${Math.abs(subSum-100)<1?'ok':subSum>0?'warn':''}">
-              ${subSum>0?`Σ sotto-obiettivi: ${subSum.toFixed(0)}% ${Math.abs(subSum-100)<1?'✓ ok':'⚠ deve fare 100%'}`:'Nessun sotto-obiettivo impostato'}
-            </span></td></tr>` : '') : '';
+          }).join('') + (catHlds.length ? `<tr class="rb-sub-total-row">
+            <td colspan="7">
+              <div style="display:flex;align-items:center;gap:8px;padding:0 4px">
+                <div class="rb-sub-bar" style="flex:1"><div class="rb-sub-bar-fill" style="width:${Math.min(subSum,100).toFixed(0)}%;background:${subOver?'var(--red)':Math.abs(subSum-100)<1?'var(--green)':'var(--blue)'}"></div></div>
+                <span style="font-size:10px;font-weight:700;white-space:nowrap;color:${subOver?'var(--red)':Math.abs(subSum-100)<1?'var(--green)':'var(--text3)'}">
+                  ${subSum>0?subSum.toFixed(0)+'%  '+(subOver?'⚠ eccede 100%':Math.abs(subSum-100)<1?'✓ ok':'su 100%'):'Espandi ▶ per impostare i pesi sui singoli titoli'}
+                </span>
+              </div>
+            </td>
+          </tr>` : '') : '';
           return `<tr>
             <td class="rb-cat">
-              ${catHlds.length?`<button class="rb-expand-btn ${isExpanded?'open':''}" onclick="toggleRbCat('${jsq(cat)}')">${isExpanded?'▼':'▶'}</button>`:''}
+              ${catHlds.length?`<button class="rb-expand-btn ${isExpanded?'open':''}" onclick="toggleRbCat('${jsq(cat)}')" style="margin-right:6px">${isExpanded?'▼':'▶'}</button>`:''}
               ${esc(cat)}
             </td>
-            <td class="rb-num">${target>0?target.toFixed(1)+'%':'—'} <button class="rb-edit-btn" onclick="editTarget('${jsq(cat)}')">✎</button></td>
+            <td class="rb-num" style="text-align:center">
+              <div style="display:inline-flex;align-items:center;gap:4px">
+                <input type="number" class="rb-tgt-inp" value="${target||''}" placeholder="0"
+                  min="0" max="100" step="0.5"
+                  oninput="saveTargetInline('${jsq(cat)}',this.value)">
+                <span class="pct-suffix">%</span>
+              </div>
+            </td>
             <td class="rb-num ${actual>0?(delta>2?'rb-over':delta<-2?'rb-under':''):''}">${actual.toFixed(1)}%</td>
             <td class="rb-num">${e2(val)}</td>
             <td class="rb-num ${delta>=0?'rb-over':'rb-under'}">${target>0?(delta>=0?'+':'')+delta.toFixed(1)+'%':'—'}</td>
@@ -2616,6 +2668,13 @@ function renderRebalance() {
   </div>`;
 }
 
+function saveTargetInline(cat, val) {
+  if (!S.rebalanceTargets) S.rebalanceTargets = {};
+  const n = parseFloat(String(val).replace(',','.'));
+  if (isNaN(n) || n < 0) delete S.rebalanceTargets[cat];
+  else S.rebalanceTargets[cat] = n;
+  save();
+}
 function editTarget(cat) {
   if (!S.rebalanceTargets) S.rebalanceTargets = {};
   const current = S.rebalanceTargets[cat] || '';
