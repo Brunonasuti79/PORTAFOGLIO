@@ -2813,126 +2813,222 @@ async function injectChart(buffer, sheetName, chartXml, chartFile) {
 // ════════════════════════════════════════════════════════════════════════
 async function exportProjectionExcel() {
   await loadLibs();
-  const wb  = new window.ExcelJS.Workbook();
-  wb.creator='Portafoglio BIT'; wb.created=new Date();
 
   const rates    = Object.assign({}, DEFAULT_PROJ_RATES, ALL.settings.projRates||{});
   const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
   const hlds     = calcPF();
-  const catData  = {};
+  const subRates = ALL.settings.projSubRates || {};
+  const targets  = S.rebalanceTargets || {};
+  const subTgts  = S.subTargets || {};
+  const f2 = v => parseFloat((v||0).toFixed(2));
+  const cl = n => { let s=''; while(n>0){s=String.fromCharCode(64+(n-1)%26+1)+s;n=Math.floor((n-1)/26);} return s; };
+
+  // Raccoglie dati per categoria
+  const catData = {};
   hlds.forEach(h => {
-    const c=h.assetClass||UNCATEGORIZED;
-    const v=currentValueAllEUR(h)??costBasisAllEUR(h);
-    if(!catData[c]) catData[c]={val:0,rate:rates[c]??0};
-    catData[c].val+=v;
+    const c = h.assetClass||UNCATEGORIZED;
+    const v = currentValueAllEUR(h)??costBasisAllEUR(h);
+    if (!catData[c]) catData[c] = { val:0, rate:rates[c]??0, tickers:[] };
+    catData[c].val += v;
+    catData[c].tickers.push({name:h.name||h.displayTicker, val:v,
+      rate:subRates[h.ticker]??null, ticker:h.ticker});
   });
-  if((S.cashEUR||0)>0) catData['Liquidità']={val:S.cashEUR,rate:0};
-  const cats  = Object.keys(catData);
-  const YRS   = 31;
-  const total0= cats.reduce((s,c)=>s+catData[c].val,0);
+  if ((S.cashEUR||0)>0) catData['Liquidità'] = {val:S.cashEUR, rate:0, tickers:[]};
 
-  // ── Foglio INPUT ─────────────────────────────────────────────────────
-  const wsInp = wb.addWorksheet('Input');
-  wsInp.columns=[{width:32},{width:16},{width:18},{width:18}];
-  // Titolo
-  wsInp.mergeCells('A1:D1');
-  const t1=wsInp.getCell('A1');
-  t1.value='🎯 PARAMETRI PROIEZIONE PORTAFOGLIO';
-  t1.font={bold:true,size:14,color:{argb:'FFFFFFFF'},name:'Calibri'};
-  t1.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF1B3A6B'}};
-  t1.alignment={horizontal:'center',vertical:'middle'};
-  wsInp.getRow(1).height=28;
+  const cats   = Object.keys(catData);
+  const N      = cats.length;
+  const YRS    = 31;
+  const total0 = cats.reduce((s,c)=>s+catData[c].val, 0);
 
-  // Headers tabella tassi
-  ['Categoria','Tasso Annuo %','Valore Attuale €','Shortfall di riallocazione €'].forEach((h,i)=>{
-    const c=wsInp.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr);
+  const wb = new window.ExcelJS.Workbook();
+  wb.creator='Portafoglio BIT'; wb.created=new Date();
+
+  // ════════════════════════════════════════════════════════════════════
+  // FOGLIO 1 — INPUT  (tutto modificabile → Tabella e Grafico si aggiornano)
+  //
+  // Layout:
+  //   Riga 1        : titolo
+  //   Riga 2        : intestazioni colonne
+  //   Righe 3..N+2  : categoria | tasso % | valore attuale €
+  //   Riga N+3      : separatore parametri
+  //   Riga N+4      : inflazione %
+  //   Riga N+5      : orizzonte (anni) — info
+  //   Riga N+6      : totale portafoglio (formula)
+  // ════════════════════════════════════════════════════════════════════
+  const wsI = wb.addWorksheet('Input');
+  wsI.columns=[{width:32},{width:16},{width:18},{width:14}];
+  wsI.getRow(1).height=28;
+
+  wsI.mergeCells('A1:D1');
+  Object.assign(wsI.getCell('A1'), {
+    value:'🎯  INPUT PROIEZIONE  —  Modifica tassi e valori per aggiornare tutto',
+    font:{bold:true,size:13,color:{argb:'FFFFFFFF'},name:'Calibri'},
+    fill:{type:'pattern',pattern:'solid',fgColor:{argb:'FF1B3A6B'}},
+    alignment:{horizontal:'center',vertical:'middle'}
   });
-  wsInp.getRow(2).height=22;
+
+  ['Categoria','Tasso Annuo %','Valore Attuale €','Peso % ptf']
+  .forEach((h,i)=>{ const c=wsI.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr); });
+  wsI.getRow(2).height=20;
 
   cats.forEach((cat,i)=>{
-    const r=i+3;
-    const rowStyle=i%2===0?XL.row0:XL.row1;
-    const cells=[cat, catData[cat].rate, catData[cat].val, 0];
-    cells.forEach((v,j)=>{
-      const c=wsInp.getCell(r,j+1);
-      c.value=v;
-      applyStyle(c,rowStyle, j===1?XL.pct:j>=2?XL.num:null);
-    });
+    const r=i+3; const rs=i%2===0?XL.row0:XL.row1;
+    wsI.getCell(r,1).value=cat; applyStyle(wsI.getCell(r,1),rs);
+    const cB=wsI.getCell(r,2);
+    cB.value=catData[cat].rate;
+    applyStyle(cB,{...rs,font:{...rs.font,bold:true,color:{argb:'FF1B3A6B'}},
+      alignment:{horizontal:'right'}},XL.pct);
+    const cC=wsI.getCell(r,3);
+    cC.value=f2(catData[cat].val);
+    applyStyle(cC,{...rs,alignment:{horizontal:'right'}},XL.num);
+    // Peso %
+    const cD=wsI.getCell(r,4);
+    cD.value={formula:`IF($C$${N+6}>0,C${r}/$C$${N+6},0)`,result:total0>0?catData[cat].val/total0:0};
+    applyStyle(cD,{...rs,alignment:{horizontal:'right'}},'0.0"%"');
   });
 
-  // Sezione parametri
-  wsInp.getRow(cats.length+4).values=[''];
-  wsInp.mergeCells(`A${cats.length+5}:D${cats.length+5}`);
-  const tp=wsInp.getCell(`A${cats.length+5}`);
-  tp.value='⚙ PARAMETRI SCENARIO'; applyStyle(tp,XL.sub);
+  // Parametri
+  const pR=N+3;
+  wsI.mergeCells(`A${pR}:D${pR}`);
+  const ph=wsI.getCell(`A${pR}`);
+  ph.value='⚙  PARAMETRI SCENARIO  (modificabili)'; applyStyle(ph,XL.sub);
+  ph.font={...XL.sub.font,size:12,bold:true}; wsI.getRow(pR).height=22;
 
-  [['Inflazione annua stimata (%)',inflRate],['Orizzonte temporale (anni)',30],
-   ['Portafoglio totale attuale (€)',total0]]
-  .forEach(([lbl,val],i)=>{
-    const r=cats.length+6+i;
-    wsInp.getCell(r,1).value=lbl; applyStyle(wsInp.getCell(r,1),XL.row0);
-    const c=wsInp.getCell(r,2); c.value=val;
-    applyStyle(c,XL.row0, val>100?XL.num:XL.pct);
-  });
+  wsI.getCell(`A${pR+1}`).value='Inflazione annua %'; applyStyle(wsI.getCell(`A${pR+1}`),XL.row0);
+  const inflCell=wsI.getCell(`B${pR+1}`); inflCell.value=inflRate;
+  applyStyle(inflCell,{...XL.row0,font:{...XL.row0.font,bold:true,color:{argb:'FFF59E0B'}},
+    alignment:{horizontal:'right'}},XL.pct);
 
-  // ── Foglio TABELLA ────────────────────────────────────────────────────
-  const wsTab=wb.addWorksheet('Tabella');
-  const tabCols=[{width:8},{width:14},{width:14},{width:14},{width:20}];
-  wsTab.columns=tabCols;
+  wsI.getCell(`A${pR+2}`).value='Orizzonte temporale (anni)'; applyStyle(wsI.getCell(`A${pR+2}`),XL.row1);
+  const yrsCell=wsI.getCell(`B${pR+2}`); yrsCell.value=30;
+  applyStyle(yrsCell,{...XL.row1,alignment:{horizontal:'right'}},XL.int);
 
-  wsTab.mergeCells('A1:E1');
-  const t2=wsTab.getCell('A1');
-  t2.value='📊 PROIEZIONE 30 ANNI — Valori in €'; applyStyle(t2,XL.hdr);
-  t2.font={...XL.hdr.font,size:13};
-  wsTab.getRow(1).height=26;
+  wsI.getCell(`A${N+6}`).value='Totale portafoglio attuale €'; applyStyle(wsI.getCell(`A${N+6}`),XL.tot);
+  const totCell=wsI.getCell(`C${N+6}`);
+  totCell.value={formula:`SUM(C3:C${N+2})`,result:f2(total0)};
+  applyStyle(totCell,XL.tot,XL.num);
 
-  ['Anno','Portafoglio','Base inflazione','Guadagno netto','Rend. cumulato %'].forEach((h,i)=>{
-    const c=wsTab.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr);
-  });
-  wsTab.getRow(2).height=20;
+  // Riferimenti utili per le formule
+  const iInfl  = `Input!$B$${pR+1}`;   // inflazione %
+  const iTot   = `Input!$C$${N+6}`;    // totale portafoglio
+  // Tasso categoria c (row i+3): Input!$B${i+3}
+  // Valore categoria c (row i+3): Input!$C${i+3}
 
+  // ════════════════════════════════════════════════════════════════════
+  // FOGLIO 2 — TABELLA  (formule interattive che puntano a Input)
+  //
+  // Struttura colonne:
+  //   A=Anno, B..B+N-1=una col per categoria, B+N=Totale, B+N+1=Inflazione, B+N+2=Guadagno netto
+  //
+  // Formula categoria c, anno y (riga y+3):
+  //   = Input!$C${catRow} * (1 + Input!$B${catRow}/100) ^ $A${row}
+  //
+  // Totale = SUM(categoria cols)
+  // Inflazione = Input!$C${totRow} * (1 + Input!$B${inflRow}/100) ^ $A${row}
+  // Guadagno netto = Totale - Inflazione
+  // ════════════════════════════════════════════════════════════════════
+  const wsT = wb.addWorksheet('Tabella');
+  const lastDataCol = N+4; // A + N categorie + Totale + Inflazione + Guadagno
+  wsT.columns=[{width:7},...cats.map(()=>({width:16})),{width:14},{width:18},{width:20},{width:14}];
+  wsT.getRow(1).height=28;
+
+  wsT.mergeCells(`A1:${cl(lastDataCol)}1`);
+  const th=wsT.getCell('A1');
+  th.value='📊  PROIEZIONE 30 ANNI  —  Aggiorna automaticamente al cambio di tassi in "Input"';
+  applyStyle(th,XL.hdr); th.font={...XL.hdr.font,size:12};
+
+  // Intestazioni colonne
+  const tabHeaders=['Anno',...cats,'Totale €','Base inflazione €','Guadagno netto €','Rend. %'];
+  tabHeaders.forEach((h,i)=>{ const c=wsT.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr); });
+  wsT.getRow(2).height=22;
+
+  // Dati (formule per ogni anno)
   const projData=[], inflData=[], netData=[];
   for(let y=0;y<YRS;y++){
-    const tot =cats.reduce((s,c)=>s+catData[c].val*Math.pow(1+catData[c].rate/100,y),0);
-    const infl=total0*Math.pow(1+inflRate/100,y);
-    const net =tot-infl;
-    projData.push(tot); inflData.push(infl); netData.push(net);
-    const r=y+3; const rowStyle=y%2===0?XL.row0:XL.row1;
-    const netStyle=net>=0?{...rowStyle,font:{...rowStyle.font,color:{argb:'FF27AE60'},bold:true}}
-                         :{...rowStyle,font:{...rowStyle.font,color:{argb:'FFC0392B'},bold:true}};
-    const pct=y===0?0:(tot-total0)/total0*100;
-    [y,tot,infl,net,pct].forEach((v,j)=>{
-      const c=wsTab.getCell(r,j+1);
-      c.value=parseFloat(v.toFixed(2));
-      applyStyle(c, j===3?netStyle:rowStyle, j===0?XL.int:j===4?XL.pct:XL.num);
+    const r=y+3; const rs=y%2===0?XL.row0:XL.row1;
+
+    // Anno
+    const cA=wsT.getCell(r,1); cA.value=y; applyStyle(cA,{...rs,alignment:{horizontal:'center'}},XL.int);
+
+    // Una colonna per categoria — formula: Valore × (1+Tasso/100)^Anno
+    let catTots = 0;
+    cats.forEach((cat,ci)=>{
+      const catInputRow = ci+3; // riga in Input per questa categoria
+      const valRef  = `Input!$C$${catInputRow}`;
+      const rateRef = `Input!$B$${catInputRow}`;
+      const formula = y===0 ? valRef : `${valRef}*(1+${rateRef}/100)^$A${r}`;
+      const cached  = f2(catData[cat].val * Math.pow(1+catData[cat].rate/100, y));
+      catTots += catData[cat].val * Math.pow(1+catData[cat].rate/100, y);
+      const c=wsT.getCell(r,ci+2);
+      c.value={formula,result:cached}; applyStyle(c,rs,XL.num);
     });
+
+    // Totale (formula SUM delle colonne categoria)
+    const sumRange=`${cl(2)}${r}:${cl(N+1)}${r}`;
+    const cTot=wsT.getCell(r,N+2);
+    const cachedTot=f2(catTots);
+    cTot.value={formula:`SUM(${sumRange})`,result:cachedTot};
+    applyStyle(cTot,{...rs,font:{...rs.font,bold:true,color:{argb:'FF1B3A6B'}}},XL.num);
+    projData.push(cachedTot);
+
+    // Inflazione
+    const inflF=y===0?iTot:`${iTot}*(1+${iInfl}/100)^$A${r}`;
+    const cachedInfl=f2(total0*Math.pow(1+inflRate/100,y));
+    const cInfl=wsT.getCell(r,N+3);
+    cInfl.value={formula:inflF,result:cachedInfl};
+    applyStyle(cInfl,{...rs,font:{...rs.font,color:{argb:'FFD97706'}}},XL.num);
+    inflData.push(cachedInfl);
+
+    // Guadagno netto
+    const net=cachedTot-cachedInfl;
+    const cNet=wsT.getCell(r,N+4);
+    cNet.value={formula:`${cl(N+2)}${r}-${cl(N+3)}${r}`,result:f2(net)};
+    const netStyle=net>=0
+      ? {...rs,font:{...rs.font,bold:true,color:{argb:'FF16A34A'}}}
+      : {...rs,font:{...rs.font,bold:true,color:{argb:'FFDC2626'}}};
+    applyStyle(cNet,netStyle,XL.num);
+    netData.push(f2(net));
+
+    // Rendimento cumulato %
+    const cPct=wsT.getCell(r,N+5);
+    const pctF=y===0?`0`:`(${cl(N+2)}${r}-${cl(N+2)}3)/${cl(N+2)}3*100`;
+    const cachedPct=y===0?0:(cachedTot-projData[0])/projData[0]*100;
+    cPct.value={formula:pctF,result:f2(cachedPct)};
+    applyStyle(cPct,rs,'0.0"%"');
   }
-  // Riga totale anno 30
-  wsTab.getRow(YRS+2).height=18;
 
-  // ── Foglio GRAFICO ────────────────────────────────────────────────────
-  const wsGraf=wb.addWorksheet('Grafico');
-  wsGraf.columns=[{width:8},{width:16},{width:16},{width:18}];
-  wsGraf.mergeCells('A1:D1');
-  const tg=wsGraf.getCell('A1');
-  tg.value='📈 DATI GRAFICO (interattivo con Excel)'; applyStyle(tg,XL.hdr);
+  // ════════════════════════════════════════════════════════════════════
+  // FOGLIO 3 — GRAFICO  (formula → Tabella, interattivo)
+  // ════════════════════════════════════════════════════════════════════
+  const wsG = wb.addWorksheet('Grafico');
+  wsG.columns=[{width:8},{width:16},{width:16},{width:18}];
+  wsG.mergeCells('A1:D1');
+  const gh=wsG.getCell('A1');
+  gh.value='📈  DATI GRAFICO — Si aggiorna automaticamente da "Tabella"';
+  applyStyle(gh,XL.hdr); gh.font={...XL.hdr.font,size:12}; wsG.getRow(1).height=26;
+  ['Anno','Portafoglio €','Base inflazione €','Guadagno netto €']
+  .forEach((h,i)=>{ const c=wsG.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr); });
 
-  ['Anno','Portafoglio €','Base inflazione €','Guadagno netto €'].forEach((h,i)=>{
-    const c=wsGraf.getCell(2,i+1); c.value=h; applyStyle(c,XL.hdr);
-  });
   for(let y=0;y<YRS;y++){
-    const r=y+3;
-    [y,projData[y],inflData[y],netData[y]].forEach((v,j)=>{
-      const c=wsGraf.getCell(r,j+1); c.value=parseFloat(v.toFixed(2));
-      applyStyle(c,y%2===0?XL.row0:XL.row1,j===0?XL.int:XL.num);
-    });
+    const r=y+3; const tabRow=y+3; const rs=y%2===0?XL.row0:XL.row1;
+    wsG.getCell(r,1).value=y; applyStyle(wsG.getCell(r,1),rs,XL.int);
+    // Punta alla Tabella → si aggiorna automaticamente
+    const c2=wsG.getCell(r,2);
+    c2.value={formula:`Tabella!${cl(N+2)}${tabRow}`,result:projData[y]};
+    applyStyle(c2,{...rs,font:{...rs.font,color:{argb:'FF2563EB'},bold:true}},XL.num);
+    const c3=wsG.getCell(r,3);
+    c3.value={formula:`Tabella!${cl(N+3)}${tabRow}`,result:inflData[y]};
+    applyStyle(c3,{...rs,font:{...rs.font,color:{argb:'FFD97706'}}},XL.num);
+    const c4=wsG.getCell(r,4);
+    c4.value={formula:`Tabella!${cl(N+4)}${tabRow}`,result:netData[y]};
+    applyStyle(c4,{...rs,font:{...rs.font,color:{argb:'FF16A34A'},bold:true}},XL.num);
   }
 
-  // Genera buffer e inietta grafico
+  // Genera xlsx + inietta grafico
   const buf0=await wb.xlsx.writeBuffer();
   const chartXml=lineChartXML([
-    {title:'Portafoglio',titleRef:"Grafico!$B$2",dataRef:`Grafico!$B$3:$B$${YRS+2}`,data:projData,color:'3B82F6',smooth:1},
-    {title:'Inflazione base',titleRef:"Grafico!$C$2",dataRef:`Grafico!$C$3:$C$${YRS+2}`,data:inflData,color:'F59E0B',smooth:1,dash:true},
+    {title:'Portafoglio',  titleRef:"Grafico!$B$2",dataRef:`Grafico!$B$3:$B$${YRS+2}`,data:projData,color:'3B82F6',smooth:1},
+    {title:'Inflazione',   titleRef:"Grafico!$C$2",dataRef:`Grafico!$C$3:$C$${YRS+2}`,data:inflData,color:'F59E0B',smooth:1},
     {title:'Guadagno netto',titleRef:"Grafico!$D$2",dataRef:`Grafico!$D$3:$D$${YRS+2}`,data:netData,color:'10B981',smooth:1},
   ], `Grafico!$A$3:$A$${YRS+2}`, YRS, 'Proiezione Portafoglio 30 Anni');
 
@@ -2940,12 +3036,9 @@ async function exportProjectionExcel() {
   const blob=new Blob([buf1],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'});
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
   a.download=`Proiezione_${new Date().toISOString().slice(0,10)}.xlsx`; a.click();
-  showToast('📊 Excel professionale scaricato!');
+  showToast('📊 Excel interattivo scaricato — modifica "Input" per aggiornare tutto!');
 }
 
-// ════════════════════════════════════════════════════════════════════════
-// EXPORT PAC
-// ════════════════════════════════════════════════════════════════════════
 async function exportPACExcel() {
   await loadLibs();
   const months = parseInt(document.getElementById('pac-months-inp')?.value)||24;
