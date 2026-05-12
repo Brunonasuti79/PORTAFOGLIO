@@ -162,6 +162,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   transition:border-color .15s}
 .rb-sub-inp:focus{border-color:var(--blue);outline:none}
 .rb-sub-inp.over{border-color:var(--red)!important;color:var(--red)}
+.rb-sub-inp.complete{border-color:var(--green)!important;color:var(--green)}
 .pct-suffix{font-size:11px;color:var(--text3);margin-left:3px}
 /* ── Sub-row totale / indicatore ── */
 .rb-sub-total-row td{background:rgba(123,167,255,.04);padding:5px 8px 5px 40px;border-bottom:1px solid var(--border)}
@@ -2513,6 +2514,49 @@ function sortRB(col) {
   else { rbSortCol = col; rbSortDir = col === 'categoria' ? 1 : -1; }
   renderRebalance();
 }
+// Classe CSS per sub-input in base alla somma categoria
+function subInputClass(subSum, val) {
+  if (!val && val !== 0) return '';
+  const isOk = Math.abs(subSum - 100) < 0.5;
+  const over  = subSum > 100.5;
+  return isOk ? ' complete' : over ? ' over' : '';
+}
+
+// Aggiorna solo l'indicatore somma senza ricostruire il DOM
+function liveSubSum(cat) {
+  if (!S.subTargets) return;
+  const sub = S.subTargets[cat] || {};
+  const subSum = Object.values(sub).reduce((s,v) => s+(Number(v)||0), 0);
+  const subOver = subSum > 100.5;
+  const isOk    = Math.abs(subSum-100) < 0.5;
+
+  // Aggiorna colore di tutti gli input della categoria
+  document.querySelectorAll(`[data-rb-cat]`).forEach(inp => {
+    if (inp.dataset.rbCat !== cat) return;
+    inp.classList.remove('over','complete');
+    if (isOk)    inp.classList.add('complete');
+    else if (subOver) inp.classList.add('over');
+  });
+
+  // Aggiorna barra e testo indicatore
+  const rows = document.querySelectorAll('[data-rb-sum]');
+  let target = null;
+  rows.forEach(r => { if (r.dataset.rbSum === cat) target = r; });
+  if (!target) return;
+  const fill = target.querySelector('.rb-sub-bar-fill');
+  const txt  = target.querySelector('.rb-sum-text');
+  if (fill) {
+    fill.style.width = Math.min(subSum,120).toFixed(0)+'%';
+    fill.style.background = subOver?'var(--red)':isOk?'var(--green)':'var(--blue)';
+  }
+  if (txt) {
+    txt.style.color = subOver?'var(--red)':isOk?'var(--green)':'var(--text3)';
+    txt.textContent = subSum>0
+      ? subSum.toFixed(1)+'% / 100%  '+(subOver?'⚠ supera 100%!':isOk?'✓ perfetto':'della categoria')
+      : 'Espandi ▶ e assegna le % ai titoli (devono sommare 100%)';
+  }
+}
+
 function renderRebalance() {
   const area = document.getElementById('rebalance-area');
   if (!area) return;
@@ -2608,9 +2652,10 @@ function renderRebalance() {
               </td>
               <td class="rb-num" style="text-align:center">
                 <div style="display:inline-flex;align-items:center;gap:4px">
-                  <input type="number" class="rb-sub-inp${hOver?' over':''}" value="${hTgt}" placeholder="0"
-                    min="0" max="100" step="0.5"
-                    oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);renderRebalance()">
+                  <input type="number" class="rb-sub-inp${subInputClass(subSum,hTgt)}" value="${hTgt}" placeholder="0"
+                    min="0" max="100" step="0.5" data-rb-cat="${esc(cat)}"
+                    oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);liveSubSum('${jsq(cat)}')"
+                    onchange="renderRebalance()">
                   <span class="pct-suffix">% cat.</span>
                 </div>
               </td>
@@ -2620,15 +2665,11 @@ function renderRebalance() {
             </tr>`;
           }).join('') + (catHlds.length ? `<tr class="rb-sub-total-row">
             <td colspan="7">
-              <div style="display:flex;align-items:center;gap:8px;padding:0 4px">
+              <div style="display:flex;align-items:center;gap:8px;padding:0 4px" data-rb-sum="${esc(cat)}">
                 <div class="rb-sub-bar" style="flex:1;max-width:120px">
                   <div class="rb-sub-bar-fill" style="width:${subFill.toFixed(0)}%;background:${subOver?'var(--red)':Math.abs(subSum-100)<0.5?'var(--green)':'var(--blue)'}"></div>
                 </div>
-                <span style="font-size:10px;font-weight:700;white-space:nowrap;color:${subOver?'var(--red)':Math.abs(subSum-100)<0.5?'var(--green)':'var(--text3)'}">
-                  ${subSum>0
-                    ? subSum.toFixed(1)+'% / 100%  '+(subOver?'⚠ supera 100%!':Math.abs(subSum-100)<0.5?'✓ perfetto':'della categoria')
-                    : 'Espandi ▶ e assegna le % ai titoli (devono sommare 100%)'}
-                </span>
+                <span class="rb-sum-text" style="font-size:10px;font-weight:700;white-space:nowrap;color:${subOver?'var(--red)':Math.abs(subSum-100)<0.5?'var(--green)':'var(--text3)'}">${subSum>0?subSum.toFixed(1)+'% / 100%  '+(subOver?'⚠ supera 100%!':Math.abs(subSum-100)<0.5?'✓ perfetto':'della categoria'):'Espandi ▶ e assegna le % ai titoli (devono sommare 100%)'}</span>
               </div>
             </td>
           </tr>` : '') : '';
