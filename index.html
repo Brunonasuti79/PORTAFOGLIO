@@ -688,14 +688,14 @@ html.light .pf-dl{color:var(--text3)}
         <div class="pt" id="port-title">PORTAFOGLIO</div>
       </div>
       <div id="pf-switcher"></div>
-      <div class="ph-actions" style="flex-direction:column;align-items:flex-end;gap:4px">
-        <div style="display:flex;gap:6px;align-items:center">
-          <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
+      <div class="ph-actions">
+        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
             style="font-size:14px;font-weight:700;padding:8px 16px;color:#ffffff;border-color:rgba(255,255,255,.25);letter-spacing:.5px;text-shadow:0 0 12px rgba(255,255,255,.9),0 0 4px rgba(255,255,255,.6)">⟳ Aggiorna</button>
-          <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
+          <div id="lupd" class="lupd"></div>
         </div>
-        <div id="lupd" class="lupd"></div>
+        <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
       </div>
     </div>
     <div id="ebar" class="ebar" style="display:none"></div>
@@ -1845,6 +1845,25 @@ async function fetchPrices() {
     let note = Object.entries(srcGroups).map(([s,l]) => ` · ${s}: ${l.join(', ')}`).join('');
     if (rejected.length) note += ` · Scartati: ${rejected.join(', ')}`;
     if (errors.length)   note += ` · Non trovati: ${errors.join(', ')}`;
+    // Extra pass: recupera dati pre/post market da Yahoo per ticker USD
+    // (nel caso in cui il prezzo sia stato preso da Finnhub/Stooq che non hanno extended data)
+    if (isExtendedHours().active) {
+      const usdHlds = hlds.filter(h => h.titleCcy==='USD' || h.buyCcy==='USD');
+      await Promise.all(usdHlds.map(async h => {
+        const dc = S.dailyChanges[h.ticker];
+        if (dc && dc.prePct==null && dc.postPct==null) {
+          // prova a recuperare i dati extended da Yahoo
+          for (const sym of candidatesForHolding(h)) {
+            const yq = await fetchYahooQuote(sym);
+            if (yq) {
+              if (yq.prePct  != null) dc.prePct  = yq.prePct;
+              if (yq.postPct != null) dc.postPct = yq.postPct;
+              break;
+            }
+          }
+        }
+      }));
+    }
     document.getElementById('lupd').textContent = `Aggiornato alle ${now}`;
 
     if (errors.length) {
