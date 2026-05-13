@@ -1824,7 +1824,7 @@ async function fetchPrices() {
         const pct = num(q?.dailyPct);
         if (pct !== null && Math.abs(pct) < 25)
           S.dailyChanges[h.ticker] = { pct, value:num(q.dailyValue)||0, source:q.source||'', price,
-            marketState: q.marketState || null,
+            marketState: q.marketState || null,  // sarà aggiornato dall'extra pass se USD+extended
             prePct:  (q.prePct !=null&&Number.isFinite(q.prePct )) ? q.prePct  : null,
             postPct: (q.postPct!=null&&Number.isFinite(q.postPct)) ? q.postPct : null };
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
@@ -1863,15 +1863,18 @@ async function fetchPrices() {
     if (errors.length)   note += ` · Non trovati: ${errors.join(', ')}`;
     // Extra pass: recupera dati pre/post market da Yahoo per ticker USD
     // (nel caso in cui il prezzo sia stato preso da Finnhub/Stooq che non hanno extended data)
-    if (isExtendedHours().active) {
-      // Sempre aggiorna pre/post per ticker USD — usa endpoint dedicato
+    const _extH = isExtendedHours();
+    if (_extH.active) {
+      const _forceMs = _extH.type==='AH' ? 'POST' : 'PRE';
       const usdHlds = hlds.filter(h => h.titleCcy==='USD' || h.buyCcy==='USD');
       await Promise.all(usdHlds.map(async h => {
         const dc = S.dailyChanges[h.ticker];
         if (!dc) return;
+        dc.marketState = _forceMs; // forza sempre — isExtendedHours() è affidabile
         for (const sym of candidatesForHolding(h)) {
           const ext = await fetchYahooExtended(sym);
           if (ext) {
+            if (ext.marketState) dc.marketState = ext.marketState;
             dc.prePct  = ext.prePct;
             dc.postPct = ext.postPct;
             break;
