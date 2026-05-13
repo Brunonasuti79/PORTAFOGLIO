@@ -4116,11 +4116,19 @@ function renderHistoryChart(ticker, th, hlds, period) {
   </div>`;
 
   const allTh = (S.tickerHistory||{})[ticker]||{};
+  // CAGR helper
+  const calcCAGR = (p0, pCur, years) => {
+    if (p0<=0||years<=0) return null;
+    return (Math.pow(pCur/p0, 1/years) - 1) * 100;
+  };
+  // Anni per periodo fisso
+  const periodYears = {'1M':1/12,'3M':3/12,'6M':0.5,'YTD':null,'1A':1,'2A':2,'5A':5,'MAX':null};
+
   const perfRows = Object.entries(PERIOD_CFG).map(([p,cfg])=>{
     const d = allTh[p];
     if (!d?.pts?.length) return `<tr>
       <td style="padding:7px 12px;font-size:11px;color:var(--text2)">${cfg.label}</td>
-      <td colspan="3" style="padding:7px 12px;text-align:right">
+      <td colspan="4" style="padding:7px 12px;text-align:right">
         <button onclick="S._histPeriod='${p}';loadSingleTickerHistory()"
           style="font-size:10px;padding:2px 8px;cursor:pointer;background:none;
             border:1px solid var(--border2);border-radius:6px;color:var(--text3)">Carica ↻</button>
@@ -4128,11 +4136,27 @@ function renderHistoryChart(ticker, th, hlds, period) {
     const p0=d.pts[0].c, cur=d.pts[d.pts.length-1].c;
     const diff=cur-p0, pct=p0>0?diff/p0*100:0;
     const cls=diff>=0?'gain':'loss', pfx=diff>=0?'+':'';
+
+    // Calcola anni reali (per YTD e MAX dai dati, per gli altri dal config)
+    let yrs = periodYears[p];
+    if (p==='YTD') {
+      const jan1 = new Date(new Date().getFullYear(),0,1).getTime();
+      yrs = (d.pts[d.pts.length-1].t - jan1) / (365.25*24*3600*1000);
+    } else if (p==='MAX') {
+      yrs = (d.pts[d.pts.length-1].t - d.pts[0].t) / (365.25*24*3600*1000);
+    }
+    const showCAGR = yrs >= 1;
+    const cagr     = showCAGR ? calcCAGR(p0, cur, yrs) : null;
+    const cagrStr  = cagr!==null
+      ? `<span class="${cagr>=0?'gain':'loss'}" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700">${cagr>=0?'+':''}${cagr.toFixed(2)}%</span>`
+      : `<span style="color:var(--text3);font-size:10px">—</span>`;
+
     return `<tr style="${p===period?'background:rgba(123,167,255,.06)':''}">
       <td style="padding:7px 12px;font-size:11px;color:var(--text2)">${cfg.label}</td>
       <td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">${n3(p0)} ${sym}</td>
       <td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px" class="${cls}">${pfx}${n3(diff)} ${sym}</td>
       <td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700" class="${cls}">${pfx}${pct.toFixed(2)}%</td>
+      <td style="padding:7px 12px;text-align:right">${cagrStr}</td>
     </tr>`;
   }).join('');
 
@@ -4148,6 +4172,17 @@ function renderHistoryChart(ticker, th, hlds, period) {
   const kpiSign  = pDiff >= 0 ? '+' : '';
   const kpiLabel = PERIOD_CFG[period]?.label || period;
 
+  // CAGR per KPI bar
+  let kpiYrs = ({'1M':1/12,'3M':3/12,'6M':0.5,'1A':1,'2A':2,'5A':5})[period];
+  if (period==='YTD') { const j=new Date(new Date().getFullYear(),0,1).getTime(); kpiYrs=(last.t-j)/(365.25*24*3600*1000); }
+  if (period==='MAX') { kpiYrs=(last.t-pts[0].t)/(365.25*24*3600*1000); }
+  const kpiCAGR     = kpiYrs>=1 && p0>0 ? (Math.pow(pCur/p0,1/kpiYrs)-1)*100 : null;
+  const kpiCAGRStr  = kpiCAGR!==null
+    ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
+        <span style="font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700">CAGR medio/anno </span>
+        <span class="${kpiCAGR>=0?'gain':'loss'}" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700">${kpiCAGR>=0?'+':''}${kpiCAGR.toFixed(2)}%</span>
+      </div>` : '';
+
   const kpiBar = `<div style="display:flex;align-items:center;gap:12px;
     padding:8px 14px;background:var(--bg2);border:1px solid var(--border);
     border-radius:10px;margin-bottom:8px;flex-wrap:wrap">
@@ -4162,6 +4197,7 @@ function renderHistoryChart(ticker, th, hlds, period) {
       <div class="${kpiCls}" style="font-family:'JetBrains Mono',monospace;font-size:11px">
         ${kpiSign}${n3(Math.abs(pDiff))} ${sym}
       </div>
+      ${kpiCAGRStr}
     </div>
   </div>`;
 
@@ -4177,8 +4213,8 @@ function renderHistoryChart(ticker, th, hlds, period) {
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
         <table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:var(--bg3)">
-            ${['Periodo','Inizio','Variazione','Rendimento'].map((h,i)=>
-              `<th style="padding:6px 12px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);text-align:${i===0?'left':'right'}">${h}</th>`
+            ${['Periodo','Inizio','Variazione','Rend. totale','CAGR (medio/anno)'].map((h,i)=>
+              `<th style="padding:6px 12px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);text-align:${i===0?'left':'right'};${i===4?'color:var(--blue)':''}">${h}</th>`
             ).join('')}
           </tr></thead>
           <tbody>${perfRows}</tbody>
