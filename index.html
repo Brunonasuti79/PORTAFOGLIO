@@ -402,8 +402,28 @@ html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
 }
 
 /* ──────────────────────── OPERATIONS ──────────────────────── */
-.opcard{background:var(--bg2);margin:0 14px 4px;border-radius:10px;padding:7px 10px;
-  border:1px solid var(--border);display:flex;align-items:center;gap:8px;animation:fu .2s ease both}
+.ops-group{margin:0 14px 6px}
+.ops-group-hdr{display:flex;align-items:center;gap:8px;padding:9px 12px;
+  background:var(--bg3);border:1px solid var(--border);border-radius:10px;
+  cursor:pointer;user-select:none;-webkit-tap-highlight-color:transparent;
+  transition:background .15s}
+.ops-group-hdr:hover{background:var(--border)}
+.ops-group-hdr.open{border-radius:10px 10px 0 0;border-bottom-color:transparent}
+.ops-group-arrow{font-size:10px;color:var(--text3);transition:transform .2s;flex-shrink:0}
+.ops-group-hdr.open .ops-group-arrow{transform:rotate(90deg)}
+.ops-group-name{font-weight:700;font-size:12px;color:var(--text);flex:1}
+.ops-group-meta{font-size:10px;color:var(--text3);white-space:nowrap}
+.ops-group-tot{font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;
+  color:var(--blue);white-space:nowrap}
+.ops-group-body{display:none;border:1px solid var(--border);border-top:none;
+  border-radius:0 0 10px 10px;overflow:hidden}
+.ops-group-body.open{display:block}
+.opcard{background:var(--bg2);padding:7px 10px;
+  border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;animation:fu .2s ease both}
+.opcard:last-child{border-bottom:none}
+html.light .ops-group-hdr{background:var(--bg3)}
+html.light .ops-group-hdr:hover{background:var(--border)}
+html.light .ops-group-body{border-color:var(--border)}
 .otb{width:22px;height:22px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0}
 .otb.buy{background:var(--green-bg)}.otb.sell{background:var(--red-bg)}
 .om{flex:1;min-width:0;display:flex;align-items:center;gap:5px;overflow:hidden}
@@ -999,6 +1019,7 @@ let opType = 'buy';
 let editingOpId = null;
 let expandedHoldings = {};
 let pfFilterCategory = 'Tutte';
+let expandedOpGroups = new Set();
 let pfSortCol = 'name';  // 'name'|'gain'|'gainpct'|'oggi'|'prezzo'
 let pfSortDir = 1;       // 1=ASC, -1=DESC
 let rbSortCol  = '';   // colonna attiva ribilancia
@@ -2118,6 +2139,12 @@ function renderPF() {
 // ════════════════════════════════════════════════════════════════
 //  RENDER — OPERATIONS
 // ════════════════════════════════════════════════════════════════
+function toggleOpGroup(cat) {
+  if (expandedOpGroups.has(cat)) expandedOpGroups.delete(cat);
+  else expandedOpGroups.add(cat);
+  renderOps();
+}
+
 function renderOps() {
   const ops = [...(S.ops||[])].sort((a,b) => b.date.localeCompare(a.date));
   document.getElementById('ops-sub').textContent = `${ops.length} registrat${ops.length===1?'a':'e'}`;
@@ -2126,28 +2153,66 @@ function renderOps() {
     ol.innerHTML = `<div class="empty">Nessuna operazione.<br>Tocca <strong>+ Nuova</strong> per iniziare.</div>`;
     return;
   }
-  ol.innerHTML = ops.map((op,i) => {
-    const imp = op.price * op.qty;
-    const tot = imp + (op.type==='buy'?1:-1)*(op.commissions||0);
-    return `<div class="opcard" style="animation-delay:${i*.03}s">
-      <div class="otb ${op.type}">${op.type==='buy'?'▲':'▼'}</div>
-      <div class="om">
-        <span class="otk">${esc(op.displayTicker||op.ticker)}</span>
-        <span class="osep">·</span>
-        <span class="otn">${esc(op.name||'')}</span>
-        <span class="cat-pill" style="flex-shrink:0">${esc(categoryOf(op))}</span>
-        <span class="osep">·</span>
-        <span class="od">${fdate(op.date)}</span>
-        <span class="osep">·</span>
-        <span class="odet">${op.qty} × ${n3(op.price)} ${op.titleCcy==='USD'?'$':'€'}${op.commissions?` · comm. ${n2(op.commissions)} €`:''}</span>
+
+  // Raggruppa per categoria
+  const groups = {};
+  ops.forEach(op => {
+    const cat = categoryOf(op) || UNCATEGORIZED;
+    if (!groups[cat]) groups[cat] = [];
+    groups[cat].push(op);
+  });
+
+  // Ordina: categorie con nome, poi "Senza categoria" in fondo
+  const catOrder = Object.keys(groups).sort((a,b) => {
+    if (a === UNCATEGORIZED) return 1;
+    if (b === UNCATEGORIZED) return -1;
+    return a.localeCompare(b,'it');
+  });
+
+  ol.innerHTML = catOrder.map(cat => {
+    const catOps = groups[cat];
+    const isOpen = expandedOpGroups.has(cat);
+    const totInv = catOps.filter(o=>o.type==='buy')
+                         .reduce((s,o)=>s+o.price*o.qty+(o.commissions||0),0);
+    const totDis = catOps.filter(o=>o.type==='sell')
+                         .reduce((s,o)=>s+o.price*o.qty-(o.commissions||0),0);
+
+    const opRows = catOps.map((op,i) => {
+      const tot = op.price*op.qty + (op.type==='buy'?1:-1)*(op.commissions||0);
+      return `<div class="opcard">
+        <div class="otb ${op.type}">${op.type==='buy'?'▲':'▼'}</div>
+        <div class="om">
+          <span class="otk">${esc(op.displayTicker||op.ticker)}</span>
+          <span class="osep">·</span>
+          <span class="otn">${esc(op.name||'')}</span>
+          <span class="osep">·</span>
+          <span class="od">${fdate(op.date)}</span>
+          <span class="osep">·</span>
+          <span class="odet">${op.qty} × ${n3(op.price)} ${op.titleCcy==='USD'?'$':'€'}${op.commissions?` · comm. ${n2(op.commissions)} €`:''}</span>
+        </div>
+        <div class="ort">
+          <div class="otot ${op.type}">${op.type==='buy'?'−':'+'}${n2(Math.abs(tot))} €</div>
+        </div>
+        <div class="obts">
+          <button class="odup"  onclick="dupOp('${op.id}')" title="Duplica">⧉</button>
+          <button class="oedit" onclick="editOp('${op.id}')">✎</button>
+          <button class="odel"  onclick="delOp('${op.id}')">×</button>
+        </div>
+      </div>`;
+    }).join('');
+
+    const metaParts = [`${catOps.length} op.`];
+    if (totInv > 0) metaParts.push(`inv. ${e2(totInv)}`);
+    if (totDis > 0) metaParts.push(`dis. ${e2(totDis)}`);
+
+    return `<div class="ops-group">
+      <div class="ops-group-hdr${isOpen?' open':''}" onclick="toggleOpGroup('${jsq(cat)}')">
+        <span class="ops-group-arrow">▶</span>
+        <span class="ops-group-name">${esc(cat)}</span>
+        <span class="ops-group-meta">${metaParts.join(' · ')}</span>
       </div>
-      <div class="ort">
-        <div class="otot ${op.type}">${op.type==='buy'?'−':'+'}${n2(Math.abs(tot))} €</div>
-      </div>
-      <div class="obts">
-        <button class="odup"  onclick="dupOp('${op.id}')" title="Duplica">⧉</button>
-        <button class="oedit" onclick="editOp('${op.id}')">✎</button>
-        <button class="odel"  onclick="delOp('${op.id}')">×</button>
+      <div class="ops-group-body${isOpen?' open':''}">
+        ${opRows}
       </div>
     </div>`;
   }).join('');
