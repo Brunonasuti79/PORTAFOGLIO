@@ -5397,7 +5397,7 @@ async function showExtDebug() {
   for (const h of usd) {
     const dc = S.dailyChanges?.[h.ticker] || {};
     msg += `--- ${h.displayTicker} ---\n`;
-    msg += `cache: ms=${dc.marketState||'null'} post=${dc.postPct} src=${dc.source}\n`;
+    msg += `cache: ms=${dc.marketState} post=${dc.postPct} postPrice=${dc.postPrice} src=${dc.source}\n`;
     // Test live: Yahoo Chart v8 with prePost=true
     try {
       const sym = candidatesForHolding(h)[0];
@@ -5416,9 +5416,16 @@ async function showExtDebug() {
           lastPostClose=cls2[i]; break;
         }
       }
-      // Call fetchYahooExtended directly
+      // Dump raw Yahoo v7 response
+      try {
+        const url7 = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}`;
+        const d7 = await fetchJsonWithProxies(url7);
+        const q7 = d7?.quoteResponse?.result?.[0] || {};
+        msg += `v7 fields: marketState=${q7.marketState} postMarketPrice=${q7.postMarketPrice} postMarketChangePercent=${q7.postMarketChangePercent} postMarketChange=${q7.postMarketChange}\n`;
+        msg += `v7 pre: preMarketPrice=${q7.preMarketPrice} preMarketChangePercent=${q7.preMarketChangePercent}\n`;
+      } catch(e) { msg += `v7 ERROR: ${e.message}\n`; }
+      // Also show fetchYahooExtended result
       const extResult = await fetchYahooExtended(sym);
-      msg += `chart-v8: regP=${regP2} candles=${ts2.length}\n`;
       msg += `fetchYahooExtended: ${JSON.stringify(extResult)}\n`;
     } catch(e) { msg += `chart-v8-prePost: ERROR ${e.message}\n`; }
     msg += '\n';
