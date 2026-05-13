@@ -693,7 +693,7 @@ html.light .pf-dl{color:var(--text3)}
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
           <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
             style="font-size:14px;font-weight:700;padding:8px 16px;color:#ffffff;border-color:rgba(255,255,255,.25);letter-spacing:.5px;text-shadow:0 0 12px rgba(255,255,255,.9),0 0 4px rgba(255,255,255,.6)">⟳ Aggiorna</button>
-          <div id="lupd" class="lupd"></div>
+          <div id="lupd" class="lupd" onclick="showExtDebug()" style="cursor:pointer" title="Debug extended hours"></div>
         </div>
         <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
       </div>
@@ -5380,6 +5380,23 @@ function startAutoRefresh() {
 
 function stopAutoRefresh() {
   if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer=null; }
+}
+
+function showExtDebug() {
+  const hlds = calcPF();
+  const usd  = hlds.filter(h => h.titleCcy==='USD' || h.buyCcy==='USD');
+  const ext  = isExtendedHours();
+  const ny   = getTZTime('America/New_York');
+  let msg = `NY ora: ${ny.h}:${String(ny.m).padStart(2,'0')}  isWeekend:${ny.isWeekend}\n`;
+  msg += `isExtendedHours: active=${ext.active} type=${ext.type||'-'}\n\n`;
+  usd.forEach(h => {
+    const dc = S.dailyChanges?.[h.ticker] || {};
+    msg += `${h.displayTicker}:\n`;
+    msg += `  marketState=${dc.marketState||'null'}\n`;
+    msg += `  postPct=${dc.postPct}  prePct=${dc.prePct}\n`;
+    msg += `  source=${dc.source||'?'}\n\n`;
+  });
+  alert(msg);
 }
 
 function renderAll() {
