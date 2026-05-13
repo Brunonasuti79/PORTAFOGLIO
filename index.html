@@ -21,6 +21,48 @@
   --green-bg:#0a2e1e;--red-bg:#2e0a15;
   --nav-h:64px;--safe-b:env(safe-area-inset-bottom,0px);
 }
+/* ── Light theme ── */
+html.light{
+  --bg:#f8fafc;--bg2:#ffffff;--bg3:#f1f5f9;
+  --border:#e2e8f0;--border2:#cbd5e1;
+  --text:#0f172a;--text2:#334155;--text3:#94a3b8;
+  --blue:#2563eb;--green:#16a34a;--red:#dc2626;
+  --green-bg:#f0fdf4;--red-bg:#fef2f2;
+}
+html.light body{background:var(--bg);color:var(--text)}
+html.light .ph{background:var(--bg2);border-bottom-color:var(--border)}
+html.light #bnav{background:var(--bg2);border-top-color:var(--border)}
+html.light #subtabs-bar{background:var(--bg2);border-bottom-color:var(--border)}
+html.light .hbtn{background:var(--bg3);border-color:var(--border2);color:var(--blue)}
+html.light .nbtn{color:#94a3b8}
+html.light .nbtn.active{color:var(--green)}
+html.light .page{background:var(--bg)}
+html.light .card,html.light .ssec{background:var(--bg2);border-color:var(--border)}
+html.light .ocard{background:var(--bg2);border-color:var(--border)}
+html.light .holding-row{background:var(--bg2);border-color:var(--border)}
+html.light .sum-card{background:var(--bg2);border-color:var(--border)}
+html.light .cash-bar{background:var(--bg2);border-color:var(--border2)}
+html.light .rb-table th{background:var(--bg3)}
+html.light .pnl-card{background:var(--bg2);border-color:var(--border)}
+html.light .pac-input-card{background:var(--bg2);border-color:var(--border)}
+html.light .pac-inp{background:var(--bg3);border-color:var(--border2);color:var(--text)}
+html.light input[type=number],html.light input[type=text],html.light input[type=date],html.light select{
+  background:var(--bg3)!important;border-color:var(--border2)!important;color:var(--text)!important}
+html.light .rb-tgt-inp,html.light .rb-sub-inp,html.light .proj-rate-inp,html.light .taxrate-inp{
+  background:rgba(37,99,235,.08)!important;border-color:rgba(37,99,235,.25)!important;color:var(--blue)!important}
+html.light .stab{background:var(--bg3);border-color:var(--border2);color:var(--text2)}
+html.light .stab.active{background:var(--green);color:#fff}
+html.light .mov{background:rgba(0,0,0,.4)}
+html.light .msh{background:var(--bg2)}
+html.light .fld label{color:var(--text2)}
+html.light .proj-rate-row{background:var(--bg2);border-color:var(--border)}
+html.light .pnl-table th{background:var(--bg3)}
+html.light .pnl-table td,html.light .rb-table td{border-color:rgba(0,0,0,.06)}
+/* toggle button */
+.theme-toggle{background:none;border:1.5px solid var(--border2);border-radius:20px;
+  padding:4px 10px;font-size:13px;cursor:pointer;color:var(--text2);
+  transition:all .2s;-webkit-tap-highlight-color:transparent}
+.theme-toggle:active{opacity:.7}
 html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   font-family:'Outfit',sans-serif;-webkit-font-smoothing:antialiased;touch-action:manipulation}
 #app{height:100%;display:flex;flex-direction:column;overflow:hidden}
@@ -537,6 +579,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
       </div>
       <div id="pf-switcher"></div>
       <div class="ph-actions">
+        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
         <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
           style="font-size:14px;font-weight:700;padding:8px 16px;color:#00e878;border-color:rgba(0,232,120,.4);letter-spacing:.5px;text-shadow:0 0 8px rgba(0,232,120,.5)">⟳ Aggiorna</button>
         <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
@@ -561,7 +604,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   <div id="pg-operations" class="page">
     <div class="ph">
       <div class="ph-left"><div class="pt">OPERAZIONI</div><div class="pt-sub" id="ops-sub">0 registrate</div></div>
-      <button class="hbtn" onclick="openModal()">+ Nuova</button>
+      <div class="ph-actions">
+        <button class="hbtn" onclick="document.getElementById('import-csv-file').click()" style="font-size:12px">📤 Importa</button>
+        <input type="file" id="import-csv-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(this)">
+        <button class="hbtn" onclick="openModal()">+ Nuova</button>
+      </div>
     </div>
     <div id="ops-list"></div>
   </div>
@@ -719,6 +766,19 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
       </svg><span>Gestione</span>
     </button>
   </nav>
+</div>
+
+<!-- IMPORT MODAL -->
+<div id="import-modal" class="mov hidden" onclick="if(event.target.id==='import-modal')closeImport()">
+  <div class="msh" style="max-height:90vh;display:flex;flex-direction:column">
+    <div class="mtit">📤 IMPORTA OPERAZIONI</div>
+    <div class="sdesc" style="margin-bottom:10px" id="import-broker-label">Rilevamento formato...</div>
+    <div id="import-preview" style="flex:1;overflow-y:auto;min-height:0"></div>
+    <div style="margin-top:10px;display:flex;gap:8px;justify-content:flex-end">
+      <button class="bbtn" onclick="closeImport()">Annulla</button>
+      <button class="bsave" id="import-confirm-btn" onclick="confirmImport()" style="display:none">Importa</button>
+    </div>
+  </div>
 </div>
 
 <!-- TOAST -->
@@ -4665,6 +4725,214 @@ function confirmReset() {
 // ════════════════════════════════════════════════════════════════
 //  MAIN RENDER
 // ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+//  TEMA CHIARO / SCURO
+// ════════════════════════════════════════════════════════════════
+function applyTheme(t) {
+  document.documentElement.classList.toggle('light', t==='light');
+  const btn = document.getElementById('theme-btn');
+  if (btn) btn.textContent = t==='light' ? '🌞' : '🌙';
+}
+function toggleTheme() {
+  const cur = ALL.settings?.theme || 'dark';
+  const nxt = cur==='dark' ? 'light' : 'dark';
+  if (!ALL.settings) ALL.settings = {};
+  ALL.settings.theme = nxt;
+  save(); applyTheme(nxt);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  IMPORTA OPERAZIONI DA CSV / EXCEL (Degiro, Fineco, Directa, Generic)
+// ════════════════════════════════════════════════════════════════
+let _importOps = [];
+
+async function handleImportFile(input) {
+  if (!input.files?.length) return;
+  const file = input.files[0];
+  input.value = '';
+  let rows = [];
+  try {
+    if (file.name.match(/\.xlsx?$/i)) {
+      await loadLibs();
+      const buf = await file.arrayBuffer();
+      const wb  = window.XLSX.read(buf, {type:'array'});
+      const ws  = wb.Sheets[wb.SheetNames[0]];
+      rows = window.XLSX.utils.sheet_to_json(ws, {header:1,raw:false});
+    } else {
+      const txt = await file.text();
+      const sep = txt.includes(';') ? ';' : txt.includes('\t') ? '\t' : ',';
+      rows = txt.trim().split(/\r?\n/).map(l => l.split(sep).map(c=>c.replace(/^"|"$/g,'').trim()));
+    }
+  } catch(e) { alert('Errore lettura file: '+e.message); return; }
+  if (!rows.length) { alert('File vuoto o non leggibile.'); return; }
+  const header = rows[0].map(h => (h||'').toLowerCase().trim());
+  const {broker, ops} = parseImportRows(header, rows.slice(1));
+  if (!ops.length) {
+    alert('Nessuna operazione riconosciuta.\nVerifica che il file sia esportato correttamente dal broker.');
+    return;
+  }
+  _importOps = ops;
+  showImportPreview(broker, ops);
+}
+
+function detectBroker(header) {
+  const h = header.join('|');
+  if (h.includes('product') && h.includes('isin') && h.includes('exchange')) return 'degiro';
+  if (h.includes('tipo operazione') || h.includes('tipo op.') || h.includes('tipo op')) return 'fineco';
+  if (h.includes('cod. isin') || h.includes("qta'") || h.includes('qta')) return 'directa';
+  return 'generic';
+}
+
+function parseImpDate(s) {
+  if (!s) return '';
+  s = String(s).trim();
+  let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})$/);
+  if (m) { const y=m[3].length===2?'20'+m[3]:m[3]; return `${y}-${m[2].padStart(2,'0')}-${m[1].padStart(2,'0')}`; }
+  m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[1]}-${m[2]}-${m[3]}`;
+  return '';
+}
+function parseImpNum(s) {
+  if (s==null) return 0;
+  const str = String(s).replace(/\s/g,'');
+  if (str.match(/\d+\.\d{3},\d/)) return parseFloat(str.replace(/\./g,'').replace(',','.'));
+  return parseFloat(str.replace(',','.')) || 0;
+}
+function impCol(row, header, ...names) {
+  for (const n of names) {
+    const idx = header.findIndex(h=>h.includes(n.toLowerCase()));
+    if (idx>=0 && row[idx]!=null && String(row[idx]).trim()!=='') return String(row[idx]).trim();
+  }
+  return '';
+}
+
+function parseImportRows(header, rows) {
+  const broker = detectBroker(header);
+  const ops    = [];
+  const uid    = () => Date.now().toString(36)+Math.random().toString(36).slice(2,6)+(ops.length);
+
+  rows.forEach(row => {
+    if (!row.length || !row.some(c=>c)) return;
+    let op = null;
+    if (broker==='degiro') {
+      const qty=parseImpNum(impCol(row,header,'quantity','quantit')); if(!qty) return;
+      const price=parseImpNum(impCol(row,header,'price','prezzo'));
+      const comm=Math.abs(parseImpNum(impCol(row,header,'transaction costs','costos','transactiekosten','kosten')));
+      const name=impCol(row,header,'product','prodotto','descrizione');
+      const isin=impCol(row,header,'isin');
+      const exch=impCol(row,header,'exchange','borsa');
+      const ccy=impCol(row,header,'local value','valore locale','currency')||'EUR';
+      const date=parseImpDate(impCol(row,header,'date','data'));
+      if (!date||!price||!name) return;
+      op={id:uid(),date,type:qty>0?'buy':'sell',name,ticker:isin||name.slice(0,8).toUpperCase(),
+        displayTicker:isin||name.slice(0,8).toUpperCase(),quoteTicker:'',isin,market:exch,
+        qty:Math.abs(qty),price,commissions:comm,assetClass:'',
+        titleCcy:ccy.includes('USD')?'USD':'EUR',purchCcy:'EUR',fxRate:null};
+    }
+    else if (broker==='fineco') {
+      const tipo=(impCol(row,header,'tipo','type')||'').toLowerCase();
+      if (!tipo.includes('acqu')&&!tipo.includes('vend')&&!tipo.includes('buy')&&!tipo.includes('sell')) return;
+      const type=(tipo.includes('acqu')||tipo.includes('buy'))?'buy':'sell';
+      const qty=parseImpNum(impCol(row,header,'quantit','qty','pezzi'));
+      const price=parseImpNum(impCol(row,header,'prezzo','price'));
+      const comm=parseImpNum(impCol(row,header,'commissioni','commission'));
+      const name=impCol(row,header,'descrizione','titolo','strumento','nome');
+      const ccy=impCol(row,header,'divisa','valuta','currency')||'EUR';
+      const date=parseImpDate(impCol(row,header,'data ordine','data','date'));
+      if (!date||!qty||!price||!name) return;
+      op={id:uid(),date,type,name,ticker:name.slice(0,8).toUpperCase(),
+        displayTicker:name.slice(0,8).toUpperCase(),quoteTicker:'',isin:'',market:'',
+        qty,price,commissions:comm,assetClass:'',
+        titleCcy:ccy==='USD'?'USD':'EUR',purchCcy:'EUR',fxRate:null};
+    }
+    else if (broker==='directa') {
+      const tipo=(impCol(row,header,'tipo')||'').toLowerCase();
+      if (!tipo.includes('acq')&&!tipo.includes('ven')&&!tipo.includes('buy')&&!tipo.includes('sel')) return;
+      const type=tipo.includes('acq')||tipo.includes('buy')?'buy':'sell';
+      const qty=parseImpNum(impCol(row,header,"qta","qtà","quantit","qta'"));
+      const price=parseImpNum(impCol(row,header,'prezzo','price'));
+      const comm=parseImpNum(impCol(row,header,'commissioni','commission','comm'));
+      const name=impCol(row,header,'descrizione','titolo','nome');
+      const isin=impCol(row,header,'isin','cod. isin');
+      const ccy=impCol(row,header,'divisa','valuta','currency')||'EUR';
+      const date=parseImpDate(impCol(row,header,'data'));
+      if (!date||!qty||!price) return;
+      op={id:uid(),date,type,name:name||isin,ticker:isin||name?.slice(0,8)||'',
+        displayTicker:isin||name?.slice(0,8)||'',quoteTicker:'',isin,market:'',
+        qty,price,commissions:comm,assetClass:'',
+        titleCcy:ccy==='USD'?'USD':'EUR',purchCcy:'EUR',fxRate:null};
+    }
+    else {
+      const date=parseImpDate(impCol(row,header,'date','data','data ordine'));
+      if (!date) return;
+      const qty=parseImpNum(impCol(row,header,'qty','quantity','quantit','pezzi'));
+      if (!qty) return;
+      const price=parseImpNum(impCol(row,header,'price','prezzo'));
+      const comm=parseImpNum(impCol(row,header,'commission','commissioni'));
+      const name=impCol(row,header,'name','product','descrizione','titolo');
+      const isin=impCol(row,header,'isin');
+      const ccy=impCol(row,header,'currency','valuta','divisa')||'EUR';
+      if (!price) return;
+      op={id:uid(),date,type:qty>0?'buy':'sell',name:name||isin||'',
+        ticker:isin||name?.slice(0,8)||'',displayTicker:isin||name?.slice(0,8)||'',
+        quoteTicker:'',isin,market:'',qty:Math.abs(qty),price,commissions:comm||0,
+        assetClass:'',titleCcy:ccy.includes('USD')?'USD':'EUR',purchCcy:'EUR',fxRate:null};
+    }
+    if (op&&op.qty>0&&op.price>0&&op.date) { op.name=op.name||op.ticker; ops.push(op); }
+  });
+  return {broker, ops};
+}
+
+function showImportPreview(broker, ops) {
+  const bNames={degiro:'Degiro',fineco:'Fineco',directa:'Directa SIM',generic:'Generico'};
+  document.getElementById('import-broker-label').innerHTML =
+    `Broker rilevato: <strong>${bNames[broker]||broker}</strong> · <strong>${ops.length}</strong> operazioni · verifica e conferma prima di importare`;
+  const rows=ops.map(op=>`<tr>
+    <td style="padding:5px 8px">${op.date}</td>
+    <td style="padding:5px 8px"><span style="color:${op.type==='buy'?'var(--green)':'var(--red)'}">
+      ${op.type==='buy'?'Acq.':'Vend.'}</span></td>
+    <td style="padding:5px 8px;font-size:11px;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(op.name)}</td>
+    <td style="padding:5px 8px;text-align:right">${op.qty}</td>
+    <td style="padding:5px 8px;text-align:right">${n3(op.price)} ${op.titleCcy==='USD'?'$':'€'}</td>
+    <td style="padding:5px 8px;text-align:right;color:var(--text3)">${op.commissions>0?n2(op.commissions)+'€':'—'}</td>
+  </tr>`).join('');
+  document.getElementById('import-preview').innerHTML=`
+    <div style="font-size:11px;color:var(--text3);margin-bottom:8px;padding:6px 8px;background:rgba(251,191,36,.1);border-radius:6px;border:1px solid rgba(251,191,36,.2)">
+      ⚠ Dopo l'importazione verifica <strong>ticker</strong>, <strong>mercato</strong>, <strong>categoria</strong> e <strong>valuta</strong> per ogni operazione nella pagina Operazioni.
+    </div>
+    <div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px">
+      <thead><tr style="background:var(--bg3)">${['Data','Tipo','Nome','Qtà','Prezzo','Comm.'].map(h=>
+        `<th style="padding:6px 8px;text-align:left;border-bottom:2px solid var(--border);font-size:10px;color:var(--text2);white-space:nowrap">${h}</th>`
+      ).join('')}</tr></thead>
+      <tbody>${rows}</tbody>
+    </table></div>`;
+  const btn=document.getElementById('import-confirm-btn');
+  btn.textContent=`✓ Importa ${ops.length} operazioni`;
+  btn.style.display='inline-block';
+  document.getElementById('import-modal').classList.remove('hidden');
+}
+
+function closeImport() {
+  document.getElementById('import-modal').classList.add('hidden');
+  _importOps=[];
+}
+
+function confirmImport() {
+  if (!_importOps.length) return;
+  const snap=calcPF();
+  _importOps.forEach(op=>{
+    const sameDisp=(S.ops||[]).find(o=>fc(o.displayTicker||o.ticker)===fc(op.displayTicker||'')&&o.quoteTicker);
+    if (sameDisp) op.quoteTicker=sameDisp.quoteTicker;
+    normalizeOp(op);
+    S.ops.push(op);
+    if (op.type==='buy') updateCashForOp(op, snap);
+  });
+  const n=_importOps.length;
+  _importOps=[];
+  save(); closeImport(); renderAll();
+  showToast(`✓ Importate ${n} operazioni — verifica ticker e categorie`);
+}
+
 function renderAll() {
   renderSwitcher();
   renderPF();
@@ -4706,6 +4974,7 @@ function setupPWA() {
 // ════════════════════════════════════════════════════════════════
 load();
 setupPWA();
+applyTheme(ALL.settings?.theme || 'dark');
 renderAll();
 showPage('portfolio');  // inizializza stato subtabs bar
 </script>
