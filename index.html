@@ -1559,8 +1559,9 @@ function makeQuote(price, prevClose, source) {
 }
 
 async function fetchYahooQuote(sym) {
-  // v7/finance/quote → restituisce regularMarketChangePercent in tempo reale
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose`;
+  // v7/finance/quote → regularMarket + pre/postMarket
+  const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,preMarketChangePercent,preMarketChange,postMarketChangePercent,postMarketChange';
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&fields=${fields}`;
   try {
     const data = await fetchJsonWithProxies(url);
     const q = data?.quoteResponse?.result?.[0];
@@ -1569,6 +1570,9 @@ async function fetchYahooQuote(sym) {
     if (out) {
       if (q.regularMarketChangePercent != null) out.dailyPct   = q.regularMarketChangePercent;
       if (q.regularMarketChange != null)        out.dailyValue = q.regularMarketChange;
+      // Pre/post market (solo ticker USA)
+      if (q.postMarketChangePercent != null)    out.postPct  = q.postMarketChangePercent;
+      if (q.preMarketChangePercent  != null)    out.prePct   = q.preMarketChangePercent;
     }
     return out;
   } catch(e) { return null; }
@@ -1801,7 +1805,7 @@ async function fetchPrices() {
         sources[h.ticker] = q.source || 'Fonte prezzi';
         const pct = num(q?.dailyPct);
         if (pct !== null && Math.abs(pct) < 25)
-          S.dailyChanges[h.ticker] = { pct, value:num(q.dailyValue)||0, source:q.source||'', price };
+          S.dailyChanges[h.ticker] = { pct, value:num(q.dailyValue)||0, source:q.source||'', price, prePct:q.prePct??null, postPct:q.postPct??null };
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
@@ -2182,7 +2186,18 @@ function renderPF() {
       </td>
       <td class="pf-col-g ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
       <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
-      <td class="${dCls}">${dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>'}</td>
+      <td class="${dCls}">${(()=>{
+        const mainPct = dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>';
+        const ext = isExtendedHours();
+        if(!ext.active) return mainPct;
+        const extPct = ext.type==='PRE' ? day?.prePct : day?.postPct;
+        if(extPct==null||!Number.isFinite(Number(extPct))) return mainPct;
+        const ep  = Number(extPct);
+        const arr = ep>=0?'▲':'▼';
+        const col = ep>=0?'#22d47e':'#ff4d6d';
+        const ext2= '<div style="font-size:9px;color:'+col+';margin-top:1px;font-family:monospace">'+arr+' '+ext.type+' '+(ep>=0?'+':'')+ep.toFixed(2)+'%</div>';
+        return mainPct+ext2;
+      })()}</td>
       <td style="color:var(--text)">${hp?n3(p)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
     </tr>${detail}`;
   }).join('');
@@ -5237,6 +5252,18 @@ function isMarketOpen() {
   const euIsOpen = mins >= euOpen  && mins < euClose;
   const usIsOpen = nyMins >= usOpen && nyMins < usClose;
   return euIsOpen || usIsOpen;
+}
+
+function isExtendedHours() {
+  // Pre-market USA: 04:00–09:30 NY   After-hours: 16:00–20:00 NY
+  const nyStr = new Date().toLocaleString('en-US', {timeZone:'America/New_York'});
+  const ny    = new Date(nyStr);
+  const day   = ny.getDay();
+  if (day===0||day===6) return {active:false};
+  const mins  = ny.getHours()*60+ny.getMinutes();
+  if (mins >= 4*60   && mins < 9*60+30)  return {active:true, type:'PRE'};
+  if (mins >= 16*60  && mins < 20*60)    return {active:true, type:'AH'};
+  return {active:false};
 }
 
 function startAutoRefresh() {
