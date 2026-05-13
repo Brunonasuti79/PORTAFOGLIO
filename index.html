@@ -1563,8 +1563,8 @@ function makeQuote(price, prevClose, source) {
 
 async function fetchYahooQuote(sym) {
   // v7/finance/quote → regularMarket + pre/postMarket
-  const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,preMarketChangePercent,preMarketChange,postMarketChangePercent,postMarketChange';
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&fields=${fields}`;
+  // Nessun filtro fields - Yahoo v7 restituisce tutti i campi disponibili
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}`;
   try {
     const data = await fetchJsonWithProxies(url);
     const q = data?.quoteResponse?.result?.[0];
@@ -1848,18 +1848,17 @@ async function fetchPrices() {
     // Extra pass: recupera dati pre/post market da Yahoo per ticker USD
     // (nel caso in cui il prezzo sia stato preso da Finnhub/Stooq che non hanno extended data)
     if (isExtendedHours().active) {
+      // Sempre aggiorna pre/post per ticker USD — usa endpoint dedicato
       const usdHlds = hlds.filter(h => h.titleCcy==='USD' || h.buyCcy==='USD');
       await Promise.all(usdHlds.map(async h => {
         const dc = S.dailyChanges[h.ticker];
-        if (dc && dc.prePct==null && dc.postPct==null) {
-          // prova a recuperare i dati extended da Yahoo
-          for (const sym of candidatesForHolding(h)) {
-            const yq = await fetchYahooQuote(sym);
-            if (yq) {
-              if (yq.prePct  != null) dc.prePct  = yq.prePct;
-              if (yq.postPct != null) dc.postPct = yq.postPct;
-              break;
-            }
+        if (!dc) return;
+        for (const sym of candidatesForHolding(h)) {
+          const ext = await fetchYahooExtended(sym);
+          if (ext) {
+            dc.prePct  = ext.prePct;
+            dc.postPct = ext.postPct;
+            break;
           }
         }
       }));
@@ -4001,6 +4000,48 @@ const PERIOD_CFG = {
   '5A':  {interval:'1wk', range:'5y',  label:'5 anni'},
   'MAX': {interval:'1mo', range:'max', label:'Massimo storico'},
 };
+
+// ── Dedicated fetch per dati pre/post market ─────────────────────
+async function fetchYahooExtended(sym) {
+  // Prova 1: Yahoo v7 senza filtro fields
+  try {
+    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}`;
+    const data = await fetchJsonWithProxies(url);
+    const q    = data?.quoteResponse?.result?.[0];
+    if (q) {
+      const regP  = q.regularMarketPrice;
+      let postPct = q.postMarketChangePercent ?? null;
+      let prePct  = q.preMarketChangePercent  ?? null;
+      // Se % non c'è ma c'è il prezzo, calcolalo
+      if (postPct==null && q.postMarketPrice!=null && regP>0)
+        postPct = (q.postMarketPrice - regP) / regP * 100;
+      if (prePct==null && q.preMarketPrice!=null && regP>0)
+        prePct  = (q.preMarketPrice  - regP) / regP * 100;
+      if (postPct!=null || prePct!=null)
+        return { prePct: Number.isFinite(prePct)?prePct:null,
+                 postPct: Number.isFinite(postPct)?postPct:null };
+    }
+  } catch(e) {}
+
+  // Prova 2: Yahoo v11 quoteSummary (modulo price)
+  try {
+    const url2 = `https://query1.finance.yahoo.com/v11/finance/quoteSummary/${encodeURIComponent(sym)}?modules=price`;
+    const data2 = await fetchJsonWithProxies(url2);
+    const pr = data2?.quoteSummary?.result?.[0]?.price;
+    if (pr) {
+      const regP  = pr.regularMarketPrice?.raw;
+      let postPct = pr.postMarketChangePercent?.raw ?? null;
+      let prePct  = pr.preMarketChangePercent?.raw  ?? null;
+      if (postPct==null && pr.postMarketPrice?.raw!=null && regP>0)
+        postPct = (pr.postMarketPrice.raw - regP) / regP * 100;
+      if (prePct==null && pr.preMarketPrice?.raw!=null && regP>0)
+        prePct  = (pr.preMarketPrice.raw  - regP) / regP * 100;
+      return { prePct: Number.isFinite(prePct)?prePct:null,
+               postPct: Number.isFinite(postPct)?postPct:null };
+    }
+  } catch(e) {}
+  return null;
+}
 
 async function loadTickerHistories() {
   // carica storico 2A settimanale per tutti i ticker (usato da vecchio sistema)
