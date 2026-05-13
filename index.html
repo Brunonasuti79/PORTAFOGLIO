@@ -2241,7 +2241,7 @@ function renderPF() {
         const arr = ep>=0?'▲':'▼';
         const col = ep>=0?'#22d47e':'#ff4d6d';
         const lbl = isPre?'PRE':'AH';
-        const ext2= '<div style="font-size:9px;color:'+col+';margin-top:1px;font-family:monospace">'+arr+' '+lbl+' '+(ep>=0?'+':'')+ep.toFixed(2)+'%</div>';
+        const ext2= '<div style="font-size:12px;font-weight:700;color:'+col+';margin-top:3px;font-family:monospace">'+arr+' '+lbl+' '+(ep>=0?'+':'')+ep.toFixed(2)+'%</div>';
         return mainPct+ext2;
       })()}</td>
       <td style="color:var(--text)">${hp?n3(p)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
