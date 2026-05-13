@@ -5382,20 +5382,27 @@ function stopAutoRefresh() {
   if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer=null; }
 }
 
-function showExtDebug() {
+async function showExtDebug() {
   const hlds = calcPF();
   const usd  = hlds.filter(h => h.titleCcy==='USD' || h.buyCcy==='USD');
-  const ext  = isExtendedHours();
   const ny   = getTZTime('America/New_York');
-  let msg = `NY ora: ${ny.h}:${String(ny.m).padStart(2,'0')}  isWeekend:${ny.isWeekend}\n`;
-  msg += `isExtendedHours: active=${ext.active} type=${ext.type||'-'}\n\n`;
-  usd.forEach(h => {
+  let msg = `NY: ${ny.h}:${String(ny.m).padStart(2,'0')} weekend:${ny.isWeekend}\n`;
+  msg += `isExtendedHours: ${JSON.stringify(isExtendedHours())}\n\n`;
+
+  for (const h of usd) {
     const dc = S.dailyChanges?.[h.ticker] || {};
-    msg += `${h.displayTicker}:\n`;
-    msg += `  marketState=${dc.marketState||'null'}\n`;
-    msg += `  postPct=${dc.postPct}  prePct=${dc.prePct}\n`;
-    msg += `  source=${dc.source||'?'}\n\n`;
-  });
+    msg += `--- ${h.displayTicker} ---\n`;
+    msg += `cache: ms=${dc.marketState||'null'} post=${dc.postPct} src=${dc.source}\n`;
+    // Test live: Yahoo Chart v8 with prePost=true
+    try {
+      const sym = candidatesForHolding(h)[0];
+      const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1m&range=1d&prePost=true`;
+      const d = await fetchJsonWithProxies(url);
+      const meta = d?.chart?.result?.[0]?.meta;
+      msg += `chart-v8-prePost: ms=${meta?.marketState||'null'} postP=${meta?.postMarketPrice||'null'} regP=${meta?.regularMarketPrice||'null'}\n`;
+    } catch(e) { msg += `chart-v8-prePost: ERROR ${e.message}\n`; }
+    msg += '\n';
+  }
   alert(msg);
 }
 
