@@ -5208,6 +5208,48 @@ async function loadChartModalData() {
 }
 
 
+// ════════════════════════════════════════════════════════════════
+//  AUTO-REFRESH — ogni 60s durante orari di mercato
+// ════════════════════════════════════════════════════════════════
+let _autoRefreshTimer = null;
+
+function isMarketOpen() {
+  // Usa l'ora locale del browser convertita in orario italiano (CET/CEST)
+  const now   = new Date();
+  const itStr = now.toLocaleString('en-US', {timeZone:'Europe/Rome'});
+  const it    = new Date(itStr);
+  const day   = it.getDay(); // 0=dom, 6=sab
+  if (day === 0 || day === 6) return false;
+  const h = it.getHours(), m = it.getMinutes();
+  const mins = h * 60 + m;
+
+  // Borsa europea: 09:00 – 17:30 ora italiana
+  const euOpen  = 9*60, euClose = 17*60+30;
+  // Borsa USA: 14:30 – 21:00 ora italiana (ora solare)
+  //            15:30 – 22:00 ora italiana (ora legale USA, mar–nov)
+  // JavaScript calcola l'offset automaticamente — usiamo NY
+  const nyStr = now.toLocaleString('en-US', {timeZone:'America/New_York'});
+  const ny    = new Date(nyStr);
+  const nyH   = ny.getHours(), nyM = ny.getMinutes();
+  const nyMins= nyH*60+nyM;
+  const usOpen= 9*60+30, usClose=16*60; // NYSE 09:30–16:00 NY
+
+  const euIsOpen = mins >= euOpen  && mins < euClose;
+  const usIsOpen = nyMins >= usOpen && nyMins < usClose;
+  return euIsOpen || usIsOpen;
+}
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  _autoRefreshTimer = setInterval(() => {
+    if (isMarketOpen()) fetchPrices();
+  }, 60000);
+}
+
+function stopAutoRefresh() {
+  if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer=null; }
+}
+
 function renderAll() {
   renderSwitcher();
   renderPF();
@@ -5252,6 +5294,7 @@ setupPWA();
 applyTheme(ALL.settings?.theme || 'dark');
 renderAll();
 showPage('portfolio');  // inizializza stato subtabs bar
+startAutoRefresh();
 </script>
 </body>
 </html>
