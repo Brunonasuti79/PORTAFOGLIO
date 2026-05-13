@@ -4035,6 +4035,7 @@ const PERIOD_CFG = {
 
 // ── Dedicated fetch per dati pre/post market ─────────────────────
 async function fetchYahooExtended(sym) {
+  // Chiamata solo quando isExtendedHours().active — l'ultimo candle è quello extended
   for (const base of ['https://query1','https://query2']) {
     try {
       const url  = `${base}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1m&range=1d&prePost=true`;
@@ -4045,10 +4046,9 @@ async function fetchYahooExtended(sym) {
       const ts     = r.timestamp || [];
       const closes = r.indicators?.quote?.[0]?.close || [];
       const regP   = num(meta.regularMarketPrice);
-      const regEnd = meta.currentTradingPeriod?.regular?.end || 0;
       if (!regP || !ts.length) continue;
 
-      // Strategia: prendi l'ULTIMO candle valido — con prePost=true è il prezzo più recente
+      // Prendi l'ultimo candle valido — con prePost=true è il prezzo più recente
       let lastClose = null, lastTs = 0;
       for (let i = ts.length-1; i >= 0; i--) {
         if (closes[i]!=null && Number.isFinite(closes[i]) && closes[i]>0) {
@@ -4057,30 +4057,33 @@ async function fetchYahooExtended(sym) {
       }
       if (!lastClose) continue;
 
-      // Se l'ultimo candle è DOPO la chiusura regolare → è after-hours
-      // Se è PRIMA dell'apertura → è pre-market
-      const preStart = meta.currentTradingPeriod?.pre?.start || 0;
+      // Determina se è after o pre-market
+      const regEnd   = meta.currentTradingPeriod?.regular?.end  || 0;
       const regStart = meta.currentTradingPeriod?.regular?.start || 0;
-      const isAfter  = regEnd  && lastTs > regEnd;
-      const isPre    = preStart && lastTs < regStart && lastTs >= preStart;
+      const postStart= meta.currentTradingPeriod?.post?.start   || 0;
+      const preStart = meta.currentTradingPeriod?.pre?.start    || 0;
+      const preEnd   = meta.currentTradingPeriod?.pre?.end      || 0;
 
-      let postPct = null, prePct = null;
-      if (isAfter) postPct = (lastClose - regP) / regP * 100;
-      if (isPre)   prePct  = (lastClose - regP) / regP * 100;
+      // isAfter: timestamp > fine sessione regolare (o > postStart se regEnd manca)
+      const cutoff  = regEnd || postStart;
+      const isAfter = cutoff > 0 ? lastTs >= cutoff : lastTs > regStart + 6.5*3600;
+      const isPre   = preStart>0 && preEnd>0 && lastTs>=preStart && lastTs<=preEnd;
 
-      // Fallback meta prezzi
-      if (postPct==null && meta.postMarketPrice)
-        postPct = (num(meta.postMarketPrice) - regP) / regP * 100;
-      if (prePct==null && meta.preMarketPrice)
-        prePct  = (num(meta.preMarketPrice)  - regP) / regP * 100;
+      const postPct   = isAfter ? (lastClose-regP)/regP*100 : null;
+      const prePct    = isPre   ? (lastClose-regP)/regP*100 : null;
+      const postPrice = isAfter ? lastClose : null;
+      const prePrice  = isPre   ? lastClose : null;
+
+      // Fallback: usa meta.postMarketPrice se lastClose == regP (nessun trade)
+      const fallbackPost = meta.postMarketPrice ? num(meta.postMarketPrice) : null;
+      const fallbackPre  = meta.preMarketPrice  ? num(meta.preMarketPrice)  : null;
 
       return {
         marketState: meta.marketState || null,
-        postPct:   (postPct!=null && Number.isFinite(postPct)) ? postPct : null,
-        prePct:    (prePct !=null && Number.isFinite(prePct))  ? prePct  : null,
-        postPrice: isAfter ? lastClose : null,
-        prePrice:  isPre   ? lastClose : null,
-        _debug: `lastClose=${lastClose} lastTs=${lastTs} regEnd=${regEnd} isAfter=${isAfter}`
+        postPct:   postPct!=null ? postPct : (fallbackPost ? (fallbackPost-regP)/regP*100 : null),
+        prePct:    prePct !=null ? prePct  : (fallbackPre  ? (fallbackPre -regP)/regP*100 : null),
+        postPrice: postPrice || fallbackPost,
+        prePrice:  prePrice  || fallbackPre,
       };
     } catch(e) {}
   }
