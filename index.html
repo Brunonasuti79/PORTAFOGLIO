@@ -4035,7 +4035,32 @@ const PERIOD_CFG = {
 
 // ── Dedicated fetch per dati pre/post market ─────────────────────
 async function fetchYahooExtended(sym) {
-  // Chiamata solo quando isExtendedHours().active — l'ultimo candle è quello extended
+  // Usa Finnhub: durante AH/PRE, c = prezzo corrente, dp = % da chiusura regolare
+  const ak = ALL.settings?.ak || '';
+  if (ak) {
+    const mkt   = marketFromSymbol(sym);
+    const exch  = FH_EXCH[mkt];
+    const base  = baseTicker(sym);
+    const syms  = exch ? [exch+':'+base, base] : [sym, base];
+    for (const s of syms) {
+      try {
+        const url  = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(s)}&token=${encodeURIComponent(ak)}`;
+        const data = await fetchWithTimeout(url, 7000);
+        if (!data?.c || !data?.pc) continue;
+        const extPct   = data.dp ?? ((data.c - data.pc) / data.pc * 100);
+        const extPrice = data.c;
+        const ext      = isExtendedHours();
+        return {
+          marketState: null,
+          postPct:   ext.type==='AH'  ? extPct  : null,
+          prePct:    ext.type==='PRE' ? extPct  : null,
+          postPrice: ext.type==='AH'  ? extPrice: null,
+          prePrice:  ext.type==='PRE' ? extPrice: null,
+        };
+      } catch(e) {}
+    }
+  }
+  // Fallback: Yahoo Chart v8 (ultimo candle)
   for (const base of ['https://query1','https://query2']) {
     try {
       const url  = `${base}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1m&range=1d&prePost=true`;
@@ -4047,43 +4072,24 @@ async function fetchYahooExtended(sym) {
       const closes = r.indicators?.quote?.[0]?.close || [];
       const regP   = num(meta.regularMarketPrice);
       if (!regP || !ts.length) continue;
-
-      // Prendi l'ultimo candle valido — con prePost=true è il prezzo più recente
       let lastClose = null, lastTs = 0;
       for (let i = ts.length-1; i >= 0; i--) {
         if (closes[i]!=null && Number.isFinite(closes[i]) && closes[i]>0) {
           lastClose = closes[i]; lastTs = ts[i]; break;
         }
       }
-      if (!lastClose) continue;
-
-      // Determina se è after o pre-market
-      const regEnd   = meta.currentTradingPeriod?.regular?.end  || 0;
-      const regStart = meta.currentTradingPeriod?.regular?.start || 0;
-      const postStart= meta.currentTradingPeriod?.post?.start   || 0;
-      const preStart = meta.currentTradingPeriod?.pre?.start    || 0;
-      const preEnd   = meta.currentTradingPeriod?.pre?.end      || 0;
-
-      // isAfter: timestamp > fine sessione regolare (o > postStart se regEnd manca)
-      const cutoff  = regEnd || postStart;
-      const isAfter = cutoff > 0 ? lastTs >= cutoff : lastTs > regStart + 6.5*3600;
-      const isPre   = preStart>0 && preEnd>0 && lastTs>=preStart && lastTs<=preEnd;
-
-      const postPct   = isAfter ? (lastClose-regP)/regP*100 : null;
-      const prePct    = isPre   ? (lastClose-regP)/regP*100 : null;
-      const postPrice = isAfter ? lastClose : null;
-      const prePrice  = isPre   ? lastClose : null;
-
-      // Fallback: usa meta.postMarketPrice se lastClose == regP (nessun trade)
-      const fallbackPost = meta.postMarketPrice ? num(meta.postMarketPrice) : null;
-      const fallbackPre  = meta.preMarketPrice  ? num(meta.preMarketPrice)  : null;
-
+      if (!lastClose || lastClose === regP) continue; // nessun trade AH reale
+      const cutoff = meta.currentTradingPeriod?.regular?.end ||
+                     meta.currentTradingPeriod?.post?.start  || 0;
+      const isAH   = !cutoff || lastTs >= cutoff;
+      const ext    = isExtendedHours();
+      const pct    = (lastClose - regP) / regP * 100;
       return {
-        marketState: meta.marketState || null,
-        postPct:   postPct!=null ? postPct : (fallbackPost ? (fallbackPost-regP)/regP*100 : null),
-        prePct:    prePct !=null ? prePct  : (fallbackPre  ? (fallbackPre -regP)/regP*100 : null),
-        postPrice: postPrice || fallbackPost,
-        prePrice:  prePrice  || fallbackPre,
+        marketState: null,
+        postPct:   (ext.type==='AH'  && isAH) ? pct       : null,
+        prePct:    (ext.type==='PRE' && !isAH)? pct       : null,
+        postPrice: (ext.type==='AH'  && isAH) ? lastClose : null,
+        prePrice:  (ext.type==='PRE' && !isAH)? lastClose : null,
       };
     } catch(e) {}
   }
@@ -5416,17 +5422,13 @@ async function showExtDebug() {
           lastPostClose=cls2[i]; break;
         }
       }
-      // Dump raw Yahoo v7 response
+      // Dump RAW Yahoo v8 meta — tutti i campi
       try {
-        const url7 = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}`;
-        const d7 = await fetchJsonWithProxies(url7);
-        const q7 = d7?.quoteResponse?.result?.[0] || {};
-        msg += `v7 fields: marketState=${q7.marketState} postMarketPrice=${q7.postMarketPrice} postMarketChangePercent=${q7.postMarketChangePercent} postMarketChange=${q7.postMarketChange}\n`;
-        msg += `v7 pre: preMarketPrice=${q7.preMarketPrice} preMarketChangePercent=${q7.preMarketChangePercent}\n`;
-      } catch(e) { msg += `v7 ERROR: ${e.message}\n`; }
-      // Also show fetchYahooExtended result
-      const extResult = await fetchYahooExtended(sym);
-      msg += `fetchYahooExtended: ${JSON.stringify(extResult)}\n`;
+        const urlV8 = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=1d`;
+        const dV8 = await fetchJsonWithProxies(urlV8);
+        const meta = dV8?.chart?.result?.[0]?.meta || {};
+        msg += `Yahoo v8 meta completo:\n${JSON.stringify(meta, null, 2)}\n`;
+      } catch(e) { msg += `Yahoo v8 ERROR: ${e.message}\n`; }
     } catch(e) { msg += `chart-v8-prePost: ERROR ${e.message}\n`; }
     msg += '\n';
   }
