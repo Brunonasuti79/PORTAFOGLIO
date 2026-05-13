@@ -195,6 +195,46 @@ html.light .pf-detail-row td{background:#f1f5f9}
 html.light .pf-cat-tag{background:rgba(37,99,235,.1);color:var(--blue)}
 html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
 
+.proj-section{margin:12px 14px 6px}
+.proj-rates-grid{display:flex;flex-direction:column;gap:4px;margin-top:8px}
+.proj-rate-row{display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:7px 10px;gap:8px}
+.proj-rate-lbl{font-size:11px;color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-rate-inp{
+  width:90px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
+  text-align:right;background:rgba(123,167,255,.1);border:1.5px solid rgba(123,167,255,.3);
+  color:#7ba7ff;border-radius:8px;padding:5px 8px;
+  transition:border-color .15s,background .15s}
+.proj-rate-inp:focus{border-color:var(--blue);background:rgba(123,167,255,.18);outline:none}
+.proj-infl-row{display:flex;align-items:center;gap:10px;margin-top:8px;
+  background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.25);border-radius:10px;padding:8px 12px}
+.proj-sub-row{display:flex;align-items:center;justify-content:space-between;
+  background:rgba(7,11,20,.35);border-left:3px solid #1a3060;
+  padding:5px 8px 5px 20px;gap:8px;margin-top:2px;border-radius:0 8px 8px 0}
+.proj-sub-lbl{display:flex;flex-direction:column;flex:1;min-width:0}
+.proj-sub-lbl span:first-child{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.proj-sub-lbl span:last-child{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+.proj-rate-row{position:relative}
+.proj-rate-row .rb-expand-btn{position:absolute;left:-2px;top:50%;transform:translateY(-50%);font-size:9px;padding:1px 4px}
+.proj-chart-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 0 6px}
+.proj-legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:4px 0 10px;font-size:11px}
+.proj-leg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
+.proj-table-wrap{margin:6px 14px 80px;overflow-x:auto}
+.proj-table{width:100%;border-collapse:collapse;font-size:11px}
+.proj-table th{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;
+  font-weight:700;padding:7px 10px;border-bottom:2px solid var(--border);
+  border-right:1px solid var(--border);text-align:right;white-space:nowrap;background:var(--bg3)}
+.proj-table th:first-child{text-align:left;border-left:1px solid var(--border)}
+.proj-table td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.05);
+  border-right:1px solid rgba(255,255,255,.04);
+  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);text-align:right;white-space:nowrap}
+.proj-table td:first-child{color:var(--text3);text-align:left;font-family:'Outfit',sans-serif;
+  border-left:1px solid rgba(255,255,255,.04);font-weight:600}
+.proj-table tbody tr:hover{background:rgba(123,167,255,.06)}
+.proj-table tr:nth-child(5n) td{background:rgba(123,167,255,.03)}
+.proj-table .col-att{color:#7ba7ff}.proj-table .col-obj{color:#22d47e}
+.proj-table .col-net-att{color:var(--text)}.proj-table .col-net-obj{color:var(--green)}
+
 /* ── Input obiettivo macro ── */
 .rb-tgt-inp{
   width:90px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
