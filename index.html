@@ -4145,7 +4145,7 @@ function renderHistoryChart(ticker, th, hlds, period) {
     } else if (p==='MAX') {
       yrs = (d.pts[d.pts.length-1].t - d.pts[0].t) / (365.25*24*3600*1000);
     }
-    const showCAGR = yrs >= 1;
+    const showCAGR = yrs > 1;
     const cagr     = showCAGR ? calcCAGR(p0, cur, yrs) : null;
     const cagrStr  = cagr!==null
       ? `<span class="${cagr>=0?'gain':'loss'}" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700">${cagr>=0?'+':''}${cagr.toFixed(2)}%</span>`
@@ -4176,26 +4176,21 @@ function renderHistoryChart(ticker, th, hlds, period) {
   let kpiYrs = ({'1M':1/12,'3M':3/12,'6M':0.5,'1A':1,'2A':2,'5A':5})[period];
   if (period==='YTD') { const j=new Date(new Date().getFullYear(),0,1).getTime(); kpiYrs=(last.t-j)/(365.25*24*3600*1000); }
   if (period==='MAX') { kpiYrs=(last.t-pts[0].t)/(365.25*24*3600*1000); }
-  const kpiCAGR     = kpiYrs>=1 && p0>0 ? (Math.pow(pCur/p0,1/kpiYrs)-1)*100 : null;
-  const kpiCAGRStr  = kpiCAGR!==null
-    ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid var(--border)">
-        <span style="font-size:9px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;font-weight:700">CAGR medio/anno </span>
-        <span class="${kpiCAGR>=0?'gain':'loss'}" style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700">${kpiCAGR>=0?'+':''}${kpiCAGR.toFixed(2)}%</span>
+  // Interesse composto (CAGR) — solo per periodi > 1 anno
+  const kpiCAGR    = kpiYrs>1 && p0>0 ? (Math.pow(pCur/p0,1/kpiYrs)-1)*100 : null;
+  const kpiCAGRStr = kpiCAGR!==null
+    ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+        <span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700">Interesse composto</span>
+        <span class="${kpiCAGR>=0?'gain':'loss'}" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${kpiCAGR>=0?'+':''}${kpiCAGR.toFixed(2)}%</span>
       </div>` : '';
 
-  const kpiBar = `<div style="display:flex;align-items:center;gap:12px;
-    padding:8px 14px;background:var(--bg2);border:1px solid var(--border);
-    border-radius:10px;margin-bottom:8px;flex-wrap:wrap">
-    <div style="flex:1;min-width:120px">
-      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:2px">Performance · ${esc(kpiLabel)}</div>
-      <div style="font-size:9px;color:var(--text3)">Da ${n3(p0)} ${sym} → ${n3(pCur)} ${sym}</div>
-    </div>
-    <div style="text-align:right">
-      <div class="${kpiCls}" style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;line-height:1">
-        ${kpiSign}${pPct.toFixed(2)}%
-      </div>
-      <div class="${kpiCls}" style="font-family:'JetBrains Mono',monospace;font-size:11px">
-        ${kpiSign}${n3(Math.abs(pDiff))} ${sym}
+  const kpiBar = `<div style="padding:10px 14px;background:var(--bg2);border:1px solid var(--border);
+    border-radius:10px;margin-bottom:8px">
+    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:8px">${esc(kpiLabel)}</div>
+    <div style="display:flex;gap:16px;justify-content:flex-end;align-items:flex-end;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+        <span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700">Interesse totale</span>
+        <span class="${kpiCls}" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${kpiSign}${pPct.toFixed(2)}%</span>
       </div>
       ${kpiCAGRStr}
     </div>
@@ -4213,7 +4208,7 @@ function renderHistoryChart(ticker, th, hlds, period) {
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
         <table style="width:100%;border-collapse:collapse">
           <thead><tr style="background:var(--bg3)">
-            ${['Periodo','Inizio','Variazione','Rend. totale','CAGR (medio/anno)'].map((h,i)=>
+            ${['Periodo','Inizio','Variazione','Interesse totale','Interesse composto'].map((h,i)=>
               `<th style="padding:6px 12px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);text-align:${i===0?'left':'right'};${i===4?'color:var(--blue)':''}">${h}</th>`
             ).join('')}
           </tr></thead>
