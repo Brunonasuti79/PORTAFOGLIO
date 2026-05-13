@@ -139,55 +139,55 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .stl{font-size:10px;color:var(--text3);letter-spacing:1.5px;text-transform:uppercase;font-weight:600}
 
 /* ──────────────────────── PORTFOLIO FILTER/SORT ──────────────────────── */
-.pf-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 14px 10px}
-.pf-ctrl{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:9px 10px}
-.pf-ctrl label{display:block;font-size:9px;color:#6f83ad;text-transform:uppercase;
-  letter-spacing:1px;font-weight:700;margin-bottom:5px;text-align:center}
-.pf-ctrl select{width:100%;background:var(--bg);border:1px solid var(--border2);
-  color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;
-  padding:7px 8px;border-radius:8px;outline:none;text-align:center}
-.pf-ctrl select:focus{border-color:#3d6aaa}
+/* ── PORTAFOGLIO — category pills ── */
+.pf-cats{display:flex;gap:6px;padding:8px 14px 6px;overflow-x:auto;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none;flex-shrink:0}
+.pf-cats::-webkit-scrollbar{display:none}
+.pf-cat{font-size:11px;font-weight:600;padding:4px 12px;border-radius:14px;
+  border:1px solid var(--border2);background:var(--bg2);color:var(--text3);
+  cursor:pointer;white-space:nowrap;flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:all .15s}
+.pf-cat.active{background:var(--blue);border-color:var(--blue);color:#fff}
+html.light .pf-cat{background:var(--bg3)}
+html.light .pf-cat.active{background:var(--blue);color:#fff}
+/* ── PORTAFOGLIO — sortable table ── */
+.pf-table-wrap{overflow-x:auto;margin-bottom:80px}
+.pf-table{width:100%;border-collapse:collapse;font-size:12px}
+.pf-table thead tr{position:sticky;top:0;z-index:2}
+.pf-table th{padding:9px 10px;font-size:9px;font-weight:700;letter-spacing:.7px;
+  text-transform:uppercase;color:var(--text3);border-bottom:2px solid var(--border2);
+  background:var(--bg3);cursor:pointer;user-select:none;text-align:right;
+  white-space:nowrap;transition:color .15s}
+.pf-table th:first-child{text-align:left;padding-left:14px}
+.pf-table th:hover{color:var(--text)}
+.pf-table th.pf-sort-asc::after{content:' ▲';color:var(--blue)}
+.pf-table th.pf-sort-desc::after{content:' ▼';color:var(--blue)}
+.pf-table th.pf-sort-none::after{content:' ⇅';opacity:.3}
+.pf-row{cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border)}
+.pf-row:hover,.pf-row.pf-row-open{background:rgba(123,167,255,.05)}
+.pf-row td{padding:9px 10px;text-align:right;font-family:'JetBrains Mono',monospace;
+  font-size:12px;vertical-align:middle}
+.pf-row td:first-child{text-align:left;padding-left:14px;font-family:'Outfit',sans-serif}
+.pf-name{font-weight:700;font-size:13px;color:var(--text);line-height:1.3}
+.pf-ticker{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:1px}
+.pf-cat-tag{display:inline-block;font-size:8px;font-weight:700;padding:1px 5px;border-radius:3px;
+  background:rgba(123,167,255,.12);color:var(--blue);margin-left:5px;vertical-align:middle;
+  white-space:nowrap;letter-spacing:.3px}
+html.light .pf-cat-tag{background:rgba(37,99,235,.1)}
+.pf-no-price{color:var(--text3);font-style:italic;font-size:10px}
+.pf-detail-row td{padding:0;background:rgba(0,0,0,.25);border-bottom:2px solid var(--border2)}
+html.light .pf-detail-row td{background:#f1f5f9}
+.pf-detail-inner{padding:10px 14px 14px;display:grid;grid-template-columns:repeat(4,1fr);gap:8px 12px}
+@media(max-width:480px){.pf-detail-inner{grid-template-columns:repeat(2,1fr)}}
+.pf-dl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;
+  font-weight:700;margin-bottom:3px}
+.pf-dv{font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace;color:var(--text2)}
+@media(max-width:400px){.pf-table .pf-col-g{display:none}}
+/* shared colors */
+.gain{color:var(--green)}.loss{color:var(--red)}.neutral{color:var(--blue)}
+.cat-pill{display:inline-flex;align-items:center;background:#0a1a2e;border:1px solid #1a3060;
+  color:var(--blue);font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
+  padding:2px 6px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
 
-/* ──────────────────────── HOLDING CARD ──────────────────────── */
-.proj-section{margin:12px 14px 6px}
-.proj-rates-grid{display:flex;flex-direction:column;gap:4px;margin-top:8px}
-.proj-rate-row{display:flex;align-items:center;justify-content:space-between;
-  background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:7px 10px;gap:8px}
-.proj-rate-lbl{font-size:11px;color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.proj-rate-inp{
-  width:90px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
-  text-align:right;background:rgba(123,167,255,.1);border:1.5px solid rgba(123,167,255,.3);
-  color:#7ba7ff;border-radius:8px;padding:5px 8px;
-  transition:border-color .15s,background .15s}
-.proj-rate-inp:focus{border-color:var(--blue);background:rgba(123,167,255,.18);outline:none}
-.proj-infl-row{display:flex;align-items:center;gap:10px;margin-top:8px;
-  background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.25);border-radius:10px;padding:8px 12px}
-.proj-sub-row{display:flex;align-items:center;justify-content:space-between;
-  background:rgba(7,11,20,.35);border-left:3px solid #1a3060;
-  padding:5px 8px 5px 20px;gap:8px;margin-top:2px;border-radius:0 8px 8px 0}
-.proj-sub-lbl{display:flex;flex-direction:column;flex:1;min-width:0}
-.proj-sub-lbl span:first-child{font-size:11px;color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.proj-sub-lbl span:last-child{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace}
-.proj-rate-row{position:relative}
-.proj-rate-row .rb-expand-btn{position:absolute;left:-2px;top:50%;transform:translateY(-50%);font-size:9px;padding:1px 4px}
-.proj-chart-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 0 6px}
-.proj-legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:4px 0 10px;font-size:11px}
-.proj-leg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
-.proj-table-wrap{margin:6px 14px 80px;overflow-x:auto}
-.proj-table{width:100%;border-collapse:collapse;font-size:11px}
-.proj-table th{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;
-  font-weight:700;padding:7px 10px;border-bottom:2px solid var(--border);
-  border-right:1px solid var(--border);text-align:right;white-space:nowrap;background:var(--bg3)}
-.proj-table th:first-child{text-align:left;border-left:1px solid var(--border)}
-.proj-table td{padding:6px 10px;border-bottom:1px solid rgba(255,255,255,.05);
-  border-right:1px solid rgba(255,255,255,.04);
-  font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);text-align:right;white-space:nowrap}
-.proj-table td:first-child{color:var(--text3);text-align:left;font-family:'Outfit',sans-serif;
-  border-left:1px solid rgba(255,255,255,.04);font-weight:600}
-.proj-table tbody tr:hover{background:rgba(123,167,255,.06)}
-.proj-table tr:nth-child(5n) td{background:rgba(123,167,255,.03)}
-.proj-table .col-att{color:#7ba7ff}.proj-table .col-obj{color:#22d47e}
-.proj-table .col-net-att{color:var(--text)}.proj-table .col-net-obj{color:var(--green)}
 /* ── Input obiettivo macro ── */
 .rb-tgt-inp{
   width:90px;font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;
@@ -948,7 +948,8 @@ let opType = 'buy';
 let editingOpId = null;
 let expandedHoldings = {};
 let pfFilterCategory = 'Tutte';
-let pfSortMode = 'name';
+let pfSortCol = 'name'; // 'name'|'gain'|'gainpct'|'oggi'|'prezzo'
+let pfSortDir = 1;     // 1=ASC -1=DESC
 let rbSortCol  = '';   // colonna attiva ribilancia
 let rbSortDir  = 1;    // 1 = asc, -1 = desc
 let bestProxy = 0; // index into PROXIES
@@ -1834,7 +1835,7 @@ function switchPortfolio(id) {
   S = pf;
   expandedHoldings = {};
   pfFilterCategory = 'Tutte';
-  pfSortMode = 'name';
+  pfSortCol = 'name'; pfSortDir = 1;
   save();
   renderAll();
 }
@@ -1889,20 +1890,21 @@ function renderSwitcher() {
 //  RENDER — PORTFOLIO
 // ════════════════════════════════════════════════════════════════
 
+function pfSort(col) {
+  if (pfSortCol === col) pfSortDir *= -1;
+  else { pfSortCol = col; pfSortDir = col==='name' ? 1 : -1; }
+  renderPF();
+}
+
 function sortHoldings(list) {
-  const oggi = h => S.dailyChanges?.[h.ticker]?.pct ?? null;
-  const prezzo = h => S.prices[h.ticker] ?? null;
+  const d = pfSortDir;
   return [...list].sort((a,b) => {
-    switch(pfSortMode) {
-      case 'gain_eur_desc': return (gainBuyCcy(b)??-Infinity)    - (gainBuyCcy(a)??-Infinity);
-      case 'gain_eur_asc':  return (gainBuyCcy(a)??Infinity)     - (gainBuyCcy(b)??Infinity);
-      case 'gain_pct_desc': return (gainPctBuyCcy(b)??-Infinity) - (gainPctBuyCcy(a)??-Infinity);
-      case 'gain_pct_asc':  return (gainPctBuyCcy(a)??Infinity)  - (gainPctBuyCcy(b)??Infinity);
-      case 'oggi_desc':     return (oggi(b)??-Infinity)           - (oggi(a)??-Infinity);
-      case 'oggi_asc':      return (oggi(a)??Infinity)            - (oggi(b)??Infinity);
-      case 'prezzo_desc':   return (prezzo(b)??-Infinity)         - (prezzo(a)??-Infinity);
-      case 'prezzo_asc':    return (prezzo(a)??Infinity)          - (prezzo(b)??Infinity);
-      default: return (a.name||a.displayTicker).localeCompare(b.name||b.displayTicker,'it');
+    switch(pfSortCol) {
+      case 'gain':    return d*((gainBuyCcy(b)??-Infinity)-(gainBuyCcy(a)??-Infinity));
+      case 'gainpct': return d*((gainPctBuyCcy(b)??-Infinity)-(gainPctBuyCcy(a)??-Infinity));
+      case 'oggi':    return d*((Number(S.dailyChanges?.[b.ticker]?.pct)??-Infinity)-(Number(S.dailyChanges?.[a.ticker]?.pct)??-Infinity));
+      case 'prezzo':  return d*((currentPriceBuyCcy(b)??-Infinity)-(currentPriceBuyCcy(a)??-Infinity));
+      default: return d*(a.name||a.displayTicker).localeCompare(b.name||b.displayTicker,'it');
     }
   });
 }
@@ -1915,90 +1917,47 @@ function toggleHolding(ticker) {
 function renderPF() {
   const allHlds = calcPF();
 
-  // Header
   const titleEl = document.getElementById('port-title');
-  if (titleEl) titleEl.innerHTML = `PORTAFOGLIO${S?.name ? `<span class="pt-name"> · ${esc(S.name)}</span>` : ''}`;
-  
+  if (titleEl) titleEl.innerHTML = `PORTAFOGLIO${S?.name?`<span class="pt-name"> · ${esc(S.name)}</span>`:''}`;
 
-  // Filter/sort tools
   const toolsEl = document.getElementById('port-tools');
-  if (!allHlds.length) {
-    toolsEl.style.display = 'none';
-    toolsEl.innerHTML = '';
-  } else {
-    const cats = [...new Set(allHlds.map(h => h.assetClass||UNCATEGORIZED))];
-    toolsEl.style.display = 'grid';
-    toolsEl.innerHTML = `
-      <div class="pf-ctrl"><label>Filtra categoria</label>
-        <select id="pf-filter-sel" onchange="pfFilterCategory=this.value;renderPF()">
-          <option value="Tutte"${pfFilterCategory==='Tutte'?'selected':''}>Tutte</option>
-          ${cats.map(c=>`<option value="${esc(c)}"${pfFilterCategory===c?'selected':''}>${esc(c)}</option>`).join('')}
-        </select></div>
-      <div class="pf-ctrl"><label>Ordina per</label>
-        <select onchange="pfSortMode=this.value;renderPF()">
-          <option value="name"             ${pfSortMode==='name'            ?'selected':''}>Nome A→Z</option>
-          <option value="gain_eur_desc"    ${pfSortMode==='gain_eur_desc'   ?'selected':''}>Gain € — migliore</option>
-          <option value="gain_eur_asc"     ${pfSortMode==='gain_eur_asc'    ?'selected':''}>Gain € — peggiore</option>
-          <option value="gain_pct_desc"    ${pfSortMode==='gain_pct_desc'   ?'selected':''}>Gain % — migliore</option>
-          <option value="gain_pct_asc"     ${pfSortMode==='gain_pct_asc'    ?'selected':''}>Gain % — peggiore</option>
-          <option value="oggi_desc"        ${pfSortMode==='oggi_desc'       ?'selected':''}>Oggi % — migliore</option>
-          <option value="oggi_asc"         ${pfSortMode==='oggi_asc'        ?'selected':''}>Oggi % — peggiore</option>
-          <option value="prezzo_desc"      ${pfSortMode==='prezzo_desc'     ?'selected':''}>Prezzo — più alto</option>
-          <option value="prezzo_asc"       ${pfSortMode==='prezzo_asc'      ?'selected':''}>Prezzo — più basso</option>
-        </select></div>`;
-  }
+  if (toolsEl) { toolsEl.style.display='none'; toolsEl.innerHTML=''; }
 
   // Summary
   const sum = pfSummary(allHlds);
   const sa  = document.getElementById('sum-area');
   if (sum.hasData) {
-    const rGc = sum.rendimento >= 0 ? 'gain' : 'loss';
+    const rGc  = sum.rendimento>=0?'gain':'loss';
     const fmtU = v => Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';
-    const fE = v => `<div class="sum-tot">${e2(v)}</div>`;
-    const fU = v => `<div class="sum-tot usd">${fmtU(v)}</div>`;
-    const gE = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':''}${e2(v)}</div>`;
-    const gU = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':v<0?'-':''}${fmtU(v)}</div>`;
-    sa.innerHTML = `<div class="sum-card">
-      <div class="sum-top">
-        <div>
-          <div class="sum-lbl">Valore Portafoglio</div>
-          ${sum.eur ? fE(sum.eur.tv) : ''}
-          ${sum.usd ? fU(sum.usd.tv) : ''}
-        </div>
-        <div>
-          <div class="sum-lbl">Investito</div>
-          ${sum.eur ? `<div class="sum-tot neutral">${e2(sum.eur.tc)}</div>` : ''}
-          ${sum.usd ? `<div class="sum-tot usd neutral">${sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>` : ''}
-        </div>
+    const gE   = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':''}${e2(v)}</div>`;
+    const gU   = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':v<0?'-':''}${fmtU(v)}</div>`;
+    sa.innerHTML = `<div class="sum-card"><div class="sum-row">
+      <div class="sum-metric"><div class="sum-sl">Valore Portafoglio</div>
+        ${sum.eur?`<div class="sum-tot">${e2(sum.eur.tc)}</div>`:''}
+        ${sum.usd?`<div class="sum-tot usd">${sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}
       </div>
-      <div class="sum-row">
-        <div class="sum-metric">
-          <div class="sum-sl">Gain / Loss</div>
-          ${sum.eur ? gE(sum.eur.g) : ''}
-          ${sum.usd ? gU(sum.usd.g) : ''}
-        </div>
-        <div class="sum-metric">
-          <div class="sum-sl">Rendimento</div>
-          <div class="sum-sv ${rGc}" style="font-size:20px">${pct(sum.rendimento)}</div>
-        </div>
+      <div class="sum-metric"><div class="sum-sl">Gain / Loss</div>
+        ${sum.eur?gE(sum.eur.g):''}${sum.usd?gU(sum.usd.g):''}
       </div>
-    </div>`;
+      <div class="sum-metric"><div class="sum-sl">Rendimento</div>
+        <div class="sum-sv ${rGc}" style="font-size:20px">${pct(sum.rendimento)}</div>
+      </div>
+    </div></div>`;
   } else {
-    sa.innerHTML = `<div class="sum-card">
-      <div class="sum-lbl">Valore Portafoglio</div>
-      <div class="sum-tot" style="color:#1a2a4a;font-size:${allHlds.length?'20px':'18px'}">
-        ${allHlds.length ? 'Premi ⟳ Aggiorna per i prezzi' : 'Aggiungi operazioni per iniziare'}
+    sa.innerHTML = `<div class="sum-card"><div class="sum-lbl">Valore Portafoglio</div>
+      <div class="sum-tot" style="color:var(--text3);font-size:18px">
+        ${allHlds.length?'Premi ⟳ Aggiorna per i prezzi':'Aggiungi operazioni per iniziare'}
       </div></div>`;
   }
 
-  // Widget liquidità
+  // Liquidità + Aggiungi
   const ca = document.getElementById('cash-area');
   if (ca) {
-    const cash = S.cashEUR || 0;
+    const cash = S.cashEUR||0;
     ca.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:0 14px 6px">
       <div class="cash-bar" onclick="setCash()" style="flex:1;margin:0">
         <span class="cash-lbl">💶 Liquidità c/c</span>
-        <span class="cash-val">${cash > 0 ? e2(cash) : '— tocca per inserire'}</span>
+        <span class="cash-val">${cash>0?e2(cash):'— tocca per inserire'}</span>
         <span class="cash-edit">✎</span>
       </div>
       <button class="hbtn" onclick="openQuick()"
@@ -2008,73 +1967,88 @@ function renderPF() {
 
   const pl = document.getElementById('port-list');
   if (!allHlds.length) {
-    pl.innerHTML = `<div class="empty">Nessun titolo in portafoglio.<br>Vai su <strong>Operazioni</strong> e registra il tuo primo acquisto.</div>`;
+    pl.innerHTML = `<div class="empty">Nessun titolo in portafoglio.<br>Vai su <strong>Operazioni</strong> per iniziare.</div>`;
     document.getElementById('port-cnt').textContent = '';
     return;
   }
 
+  // Category pills
+  const cats = [...new Set(allHlds.map(h=>h.assetClass||UNCATEGORIZED))].sort();
+  const pills = ['Tutte',...cats].map(c=>
+    `<button class="pf-cat${pfFilterCategory===c?' active':''}"
+      onclick="pfFilterCategory=${JSON.stringify(c)};renderPF()">${esc(c)}</button>`
+  ).join('');
+
+  // Sort + filter
   const visible = sortHoldings(
-    pfFilterCategory === 'Tutte' ? allHlds : allHlds.filter(h => (h.assetClass||UNCATEGORIZED) === pfFilterCategory)
+    pfFilterCategory==='Tutte' ? allHlds : allHlds.filter(h=>(h.assetClass||UNCATEGORIZED)===pfFilterCategory)
   );
-  document.getElementById('port-cnt').textContent = `${visible.length} di ${allHlds.length} titol${allHlds.length===1?'o':'i'}`;
+  document.getElementById('port-cnt').textContent =
+    `${visible.length} di ${allHlds.length} titol${allHlds.length===1?'o':'i'}`;
 
-  if (!visible.length) {
-    pl.innerHTML = `<div class="empty">Nessun titolo per questa categoria.</div>`;
-    return;
-  }
+  // Column header helper
+  const thCls = col => pfSortCol!==col ? 'pf-sort-none' : pfSortDir===1 ? 'pf-sort-asc' : 'pf-sort-desc';
+  const th    = (col,lbl,cls='') =>
+    `<th class="${thCls(col)}${cls?' '+cls:''}" onclick="pfSort('${col}')">${lbl}</th>`;
 
-  pl.innerHTML = visible.map((h, i) => {
+  // Table rows
+  const rows = visible.map((h,i) => {
     const p      = currentPriceBuyCcy(h);
     const hp     = p != null;
     const gain   = hp ? gainBuyCcy(h) : null;
-    const pp     = hp ? gainPctBuyCcy(h) : null;
-    const gc     = gain !== null ? (gain >= 0 ? 'gain' : 'loss') : '';
+    const gainP  = hp ? gainPctBuyCcy(h) : null;
+    const gc     = gain!==null ? (gain>=0?'gain':'loss') : '';
     const sym    = buySym(h);
     const day    = S.dailyChanges?.[h.ticker];
     const dayPct = day && Number.isFinite(Number(day.pct)) ? Number(day.pct) : null;
-    const dayCls = dayPct === null ? 'neutral' : (dayPct >= 0 ? 'gain' : 'loss');
+    const dCls   = dayPct===null ? 'neutral' : (dayPct>=0?'gain':'loss');
     const isOpen = !!expandedHoldings[h.ticker];
-    const totalComm = (S.ops||[]).filter(o=>fc(o.quoteTicker||o.ticker)===h.ticker&&o.type==='buy').reduce((a,o)=>a+(o.commissions||0),0);
+    const totalComm=(S.ops||[]).filter(o=>fc(o.quoteTicker||o.ticker)===h.ticker&&o.type==='buy')
+                               .reduce((a,o)=>a+(o.commissions||0),0);
 
-    return `<div class="hcard ${isOpen?'open':'closed'} ${gain!==null?(gain>=0?'is-gain':'is-loss'):''}" style="animation-delay:${i*.04}s">
-      <div class="hct">
-        <div class="hleft">
-          <button class="hexp ${isOpen?'open':''}" onclick="toggleHolding('${jsq(h.ticker)}')" title="${isOpen?'Chiudi':'Apri'} dettagli">${isOpen?'−':'+'}</button>
-          <div class="h-main">
-            <div class="h-topline">
-              <span class="htk">${esc(h.name||h.displayTicker)}</span>
-              <span class="cat-pill">${esc(h.assetClass||UNCATEGORIZED)}</span>
-            </div>
-            <div class="hn">${esc(h.displayTicker)}${h.isin?` · ${h.isin}`:''}</div>
-          </div>
-        </div>
-        <div class="h-metrics">
-          ${hp
-            ? `<div class="h-metric"><div class="h-mlbl">Gain ${sym}</div><div class="h-mval ${gc}">${gain>=0?'+':''}${n2(Math.abs(gain))} ${sym}</div></div>
-               <div class="h-metric"><div class="h-mlbl">Gain %</div><div class="h-mval ${gc}">${pct(pp)}</div></div>
-               <div class="h-metric"><div class="h-mlbl">Oggi</div><div class="h-mval ${dayCls}">${dayPct!==null?pct(dayPct):'—'}</div></div>`
-            : `<div class="h-metric" style="grid-column:span 3"><div class="h-mval" style="color:var(--border2)">—</div></div>`
-          }
-        </div>
-        <div class="h-price">
-          ${hp
-            ? `<div class="h-plbl">Prezzo</div><div class="hpr">${n3(p)} ${sym}</div>`
-            : `<div class="hpend">— Aggiorna</div>`
-          }
-        </div>
-      </div>
-      ${isOpen ? `<div class="hdetails"><div class="cgrid">
-        <div><div class="ml">Quantità</div><div class="mv">${h.qty%1===0?h.qty:n2(h.qty)}</div></div>
-        <div><div class="ml">P.M. Carico</div><div class="mv">${n3(h.avgPriceBuyCcy||h.avgPrice)} ${sym}</div></div>
-        <div><div class="ml">Gain ${sym}</div><div class="mv ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'—'}</div></div>
-        <div><div class="ml">Val. Attuale</div><div class="mv">${hp?n2(p*h.qty)+' '+sym:'—'}</div></div>
-        <div><div class="ml">Val. Carico</div><div class="mv">${n2((h.avgPriceBuyCcy||h.avgPrice)*h.qty)+' '+sym}</div></div>
-        <div><div class="ml">Commissioni</div><div class="mv">${e2(totalComm)}</div></div>
-        <div><div class="ml">Simbolo prezzo</div><div class="mv" style="font-size:11px">${esc(h.ticker)}</div></div>
-        ${h.isin?`<div><div class="ml">ISIN</div><div class="mv" style="font-size:11px">${esc(h.isin)}</div></div>`:''}
-      </div></div>` : ''}
-    </div>`;
+    const detail = isOpen ? `<tr class="pf-detail-row">
+      <td colspan="5"><div class="pf-detail-inner">
+        <div><div class="pf-dl">Quantità</div><div class="pf-dv">${h.qty%1===0?h.qty:n2(h.qty)}</div></div>
+        <div><div class="pf-dl">P.M. Carico</div><div class="pf-dv">${n3(h.avgPriceBuyCcy||h.avgPrice)} ${sym}</div></div>
+        <div><div class="pf-dl">Val. Attuale</div><div class="pf-dv">${hp?n2(p*h.qty)+' '+sym:'—'}</div></div>
+        <div><div class="pf-dl">Val. Carico</div><div class="pf-dv">${n2((h.avgPriceBuyCcy||h.avgPrice)*h.qty)+' '+sym}</div></div>
+        <div><div class="pf-dl">Commissioni</div><div class="pf-dv">${e2(totalComm)}</div></div>
+        <div><div class="pf-dl">Ticker</div><div class="pf-dv" style="font-size:10px">${esc(h.ticker)}</div></div>
+        ${h.isin?`<div><div class="pf-dl">ISIN</div><div class="pf-dv" style="font-size:10px">${esc(h.isin)}</div></div>`:''}
+        <div><div class="pf-dl">Mercato</div><div class="pf-dv" style="font-size:10px">${esc(h.market||'—')}</div></div>
+      </div></td>
+    </tr>` : '';
+
+    const arrow = isOpen
+      ? `<span style="color:var(--text3);font-size:10px;margin-left:4px">▲</span>`
+      : `<span style="color:var(--border2);font-size:10px;margin-left:4px">▼</span>`;
+
+    return `<tr class="pf-row${isOpen?' pf-row-open':''}" onclick="toggleHolding('${jsq(h.ticker)}')" style="animation-delay:${i*.03}s">
+      <td>
+        <div class="pf-name">${esc(h.name||h.displayTicker)}${arrow}</div>
+        <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
+      </td>
+      <td class="pf-col-g ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
+      <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
+      <td class="${dCls}">${dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>'}</td>
+      <td style="color:var(--text)">${hp?n3(p)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
+    </tr>${detail}`;
   }).join('');
+
+  pl.innerHTML = `
+    <div class="pf-cats">${pills}</div>
+    <div class="pf-table-wrap">
+      <table class="pf-table">
+        <thead><tr>
+          <th class="${thCls('name')}" onclick="pfSort('name')" style="text-align:left;padding-left:14px">Titolo</th>
+          ${th('gain','Gain','pf-col-g')}
+          ${th('gainpct','Gain %')}
+          ${th('oggi','Oggi')}
+          ${th('prezzo','Prezzo')}
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
 }
 
 // ════════════════════════════════════════════════════════════════
