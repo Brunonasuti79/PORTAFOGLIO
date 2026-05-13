@@ -482,6 +482,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 .rb-table th{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;
   font-weight:700;padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;
   cursor:pointer;user-select:none}
+.rb-table th.rb-th-r{text-align:right}
 .rb-table th:hover{color:var(--text2)}
 .rb-table th.rb-sort-asc::after{content:' ▲';color:var(--blue)}
 .rb-table th.rb-sort-desc::after{content:' ▼';color:var(--blue)}
@@ -3634,11 +3635,12 @@ function renderRebalance() {
     <table class="rb-table">
       <thead><tr>
         <th class="${thCls('categoria')}" onclick="sortRB('categoria')">Categoria</th>
-        <th class="${thCls('obiettivo')}" onclick="sortRB('obiettivo')">Obiettivo %</th>
-        <th class="${thCls('attuale')}"   onclick="sortRB('attuale')">Attuale %</th>
-        <th class="${thCls('importo')}"   onclick="sortRB('importo')">Valore €</th>
-        <th class="${thCls('delta')}"     onclick="sortRB('delta')">Delta %</th>
-        <th class="${thCls('mancante')}"  onclick="sortRB('mancante')">Da ribilanciare</th>
+        <th class="${thCls('obiettivo')} rb-th-r" onclick="sortRB('obiettivo')">Obiettivo %</th>
+        <th class="${thCls('attuale')} rb-th-r"   onclick="sortRB('attuale')">Attuale %</th>
+        <th class="${thCls('importo')} rb-th-r"   onclick="sortRB('importo')">Valore € attuale</th>
+        <th class="rb-th-r">Valore € obiettivo</th>
+        <th class="${thCls('delta')} rb-th-r"     onclick="sortRB('delta')">Delta %</th>
+        <th class="${thCls('mancante')} rb-th-r"  onclick="sortRB('mancante')">Da ribilanciare</th>
         <th>Consiglio</th>
       </tr></thead>
       <tbody>
@@ -3678,12 +3680,13 @@ function renderRebalance() {
               </td>
               <td class="rb-num">${hActPct.toFixed(1)}%</td>
               <td class="rb-num">${e2(hVal)}</td>
+              <td class="rb-num">${hTgt !== '' ? e2(hTgtPtfPct/100*totalValue) : '—'}</td>
               <td class="rb-num ${hTgt !== '' ? dCls : ''}">${hTgt !== '' ? (deltaPct>=0?'+':'')+deltaPct.toFixed(1)+'%' : '—'}</td>
               <td class="rb-num ${hTgt !== '' ? dCls : ''}">${hTgt !== '' ? (deltaEur>=0?'+':'')+e2(deltaEur) : '—'}</td>
               <td>—</td>
             </tr>`;
           }).join('') + (catHlds.length ? `<tr class="rb-sub-total-row">
-            <td colspan="7">
+            <td colspan="8">
               <div style="display:flex;align-items:center;gap:8px;padding:0 4px" data-rb-sum="${esc(cat)}">
                 <div class="rb-sub-bar" style="flex:1;max-width:120px">
                   <div class="rb-sub-bar-fill" style="width:${subFill.toFixed(0)}%;background:${subOver?'var(--red)':Math.abs(subSum-100)<0.5?'var(--green)':'var(--blue)'}"></div>
@@ -3707,6 +3710,7 @@ function renderRebalance() {
             </td>
             <td class="rb-num ${actual>0?(delta>2?'rb-over':delta<-2?'rb-under':''):''}">${actual.toFixed(1)}%</td>
             <td class="rb-num">${e2(val)}</td>
+            <td class="rb-num">${target>0?e2(target/100*totalValue):'—'}</td>
             <td class="rb-num ${delta>=0?'rb-over':'rb-under'}">${target>0?(delta>=0?'+':'')+delta.toFixed(1)+'%':'—'}</td>
             <td class="rb-num ${needed!==null?(needed>=0?'rb-under':'rb-over'):''}">${needed!==null?(needed>=0?'+':'')+e2(needed):'—'}</td>
             <td><span class="rb-adv ${adv.cls}">${adv.text}</span></td>
@@ -3718,6 +3722,7 @@ function renderRebalance() {
         <td class="rb-num">${totalTarget>0?`<strong>${totalTarget.toFixed(1)}%</strong>`:'—'}</td>
         <td class="rb-num"><strong>100%</strong></td>
         <td class="rb-num"><strong>${e2(totalValue)}</strong></td>
+        <td class="rb-num">${totalTarget>0?`<strong>${e2(totalTarget/100*totalValue)}</strong>`:'—'}</td>
         <td>—</td>
         <td>—</td>
         <td>—</td>
