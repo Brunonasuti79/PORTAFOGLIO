@@ -3962,101 +3962,198 @@ function calcPortfolioHistory() {
 function renderHistory() {
   const area = document.getElementById('history-area');
   if (!area) return;
-  const th = S.tickerHistory || {};
-  const hasHistory = Object.keys(th).length > 0;
-
-  const pts = calcPortfolioHistory();
-
-  // Vecchio sistema snapshot (fallback se storico non disponibile)
-  const snaps = (S.priceHistory||[]).sort((a,b)=>a.date.localeCompare(b.date));
-  const useSnaps = !pts.length && snaps.length >= 2;
-
-  if (!hasHistory && snaps.length < 2) {
-    area.innerHTML = `
-    <div style="padding:20px 14px">
-      <div class="sdesc" style="margin-bottom:12px">
-        📊 Premi <strong>Carica storico 2 anni</strong> per vedere l'andamento reale del portafoglio settimana per settimana.
-      </div>
-      <button class="bbtn" onclick="loadTickerHistories()" style="background:rgba(0,232,120,.1);border-color:rgba(0,232,120,.3);color:#00e878;font-weight:700">
-        📈 Carica storico 2 anni (candele settimanali)
-      </button>
-      <div id="history-log" class="sdesc" style="margin-top:8px"></div>
-    </div>`;
+  const hlds = calcPF();
+  if (!hlds.length) {
+    area.innerHTML = `<div class="empty">Nessun titolo in portafoglio.</div>`;
     return;
   }
+  const sel = S._histSel || hlds[0].ticker;
+  const th  = (S.tickerHistory||{})[sel];
 
-  const data = pts.length ? pts : snaps.map(s=>({t:new Date(s.date).getTime(),date:s.date,value:s.value}));
-  const lastUpdated = hasHistory ? new Date(Math.max(...Object.values(th).map(d=>d.updated||0))).toLocaleDateString('it-IT') : '—';
+  const tickerOptions = hlds.map(h =>
+    `<option value="${esc(h.ticker)}"${h.ticker===sel?' selected':''}>${esc(h.displayTicker)} — ${esc(h.name||h.displayTicker)}</option>`
+  ).join('');
 
-  const minV = Math.min(...data.map(d=>d.value));
-  const maxV = Math.max(...data.map(d=>d.value));
-  const range = maxV - minV || 1;
-  const first = data[0], last = data[data.length-1];
-  const perfE = last.value - first.value;
-  const perfP = first.value > 0 ? perfE/first.value*100 : 0;
+  area.innerHTML = `
+    <div style="padding:10px 14px 6px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <select id="hist-sel" onchange="S._histSel=this.value;renderHistory()"
+        style="flex:1;min-width:180px;background:var(--bg2);border:1px solid var(--border2);
+          color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;
+          padding:6px 10px;border-radius:8px;outline:none">
+        ${tickerOptions}
+      </select>
+      <button class="hbtn" onclick="loadSingleTickerHistory()" id="hist-btn"
+        style="padding:6px 14px;font-size:12px;font-weight:700">↻ Aggiorna storico</button>
+    </div>
+    <div id="hist-chart-area" style="padding:0 0 80px">
+      ${th ? renderHistoryChart(sel, th, hlds) : `
+        <div class="empty" style="padding:40px 20px">
+          Seleziona un titolo e premi <strong>↻ Aggiorna storico</strong> per scaricare i dati da Yahoo Finance.
+        </div>`}
+    </div>`;
+}
 
-  // SVG chart
-  const W=740, H=260, pl=72, pr=16, pt=18, pb=36;
+async function loadSingleTickerHistory() {
+  const btn = document.getElementById('hist-btn');
+  if (btn) { btn.disabled=true; btn.textContent='Caricamento...'; }
+  const hlds = calcPF();
+  const sel  = S._histSel || hlds[0]?.ticker;
+  if (!sel) return;
+  const h = hlds.find(h=>h.ticker===sel);
+  if (!h) return;
+  const candidates = candidatesForHolding(h);
+  let loaded = false;
+  for (const sym of candidates) {
+    const res = await fetchTickerHistory(sym);
+    if (res && res.pts.length >= 4) {
+      if (!S.tickerHistory) S.tickerHistory = {};
+      S.tickerHistory[sel] = { pts:res.pts, ccy:res.ccy, sym, updated:Date.now() };
+      save(); loaded = true; break;
+    }
+  }
+  if (!loaded) showToast('⚠ Storico non trovato per questo ticker');
+  renderHistory();
+}
+
+function renderHistoryChart(ticker, th, hlds) {
+  const h = hlds.find(h=>h.ticker===ticker);
+  if (!h || !th?.pts?.length) return '<div class="empty">Nessun dato disponibile.</div>';
+
+  const fxRate  = ALL.fxRates?.EURUSD || 1.1;
+  const inUSD   = th.ccy==='USD';
+  const avgRaw  = h.avgPriceBuyCcy || h.avgPrice || 0;
+  // avgPrice is in buy currency — convert to chart currency
+  const avgLine = avgRaw; // same currency as chart
+
+  const twoYearsAgo = Date.now() - 2*365.25*24*3600*1000;
+  const pts = th.pts.filter(p=>p.t >= twoYearsAgo && p.c > 0);
+  if (pts.length < 4) return '<div class="empty">Dati insufficienti (meno di 4 settimane).</div>';
+
+  const prices = pts.map(p=>p.c);
+  const minP   = Math.min(...prices, avgLine)*0.97;
+  const maxP   = Math.max(...prices, avgLine)*1.03;
+  const range  = maxP - minP || 1;
+  const last   = pts[pts.length-1];
+  const sym    = inUSD ? '$' : '€';
+
+  // SVG dimensions
+  const W=720,H=240,pl=62,pr=16,pt=14,pb=34;
   const cw=W-pl-pr, ch=H-pt-pb;
-  const sx = i => pl + (i/(data.length-1))*cw;
-  const sy = v => pt + ch*(1-(v-minV)/range);
+  const sx = i => pl + (i/(pts.length-1))*cw;
+  const sy = v => pt + ch*(1-(v-minP)/range);
 
-  const areaPath = `M${sx(0)},${sy(data[0].value)} ` +
-    data.map((d,i)=>`L${sx(i).toFixed(1)},${sy(d.value).toFixed(1)}`).join(' ') +
-    ` L${sx(data.length-1)},${pt+ch} L${sx(0)},${pt+ch} Z`;
-  const linePts = data.map((d,i)=>`${sx(i).toFixed(1)},${sy(d.value).toFixed(1)}`).join(' ');
+  // Price line path
+  const linePts = pts.map((p,i)=>`${sx(i).toFixed(1)},${sy(p.c).toFixed(1)}`).join(' ');
 
-  // X-axis labels (max 6)
-  const step = Math.max(1, Math.floor(data.length/6));
-  const xLabels = data.filter((_,i)=>i%step===0||i===data.length-1).map((d,_,arr)=>{
-    const i = data.indexOf(d);
-    const label = new Date(d.t).toLocaleDateString('it-IT',{month:'short',year:'2-digit'});
-    return `<text x="${sx(i).toFixed(1)}" y="${pt+ch+20}" text-anchor="middle" fill="#4b6090" font-size="10">${label}</text>`;
+  // Area above/below avg — split into gain (green) and loss (red) segments
+  const avgY = sy(avgLine);
+  // Build area paths by coloring each segment
+  let gainArea='', lossArea='';
+  for(let i=0;i<pts.length-1;i++){
+    const x1=sx(i), x2=sx(i+1);
+    const y1=sy(pts[i].c), y2=sy(pts[i+1].c);
+    const above1=pts[i].c>=avgLine, above2=pts[i+1].c>=avgLine;
+    if(above1&&above2){
+      gainArea+=`M${x1.toFixed(1)},${avgY.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)} L${x2.toFixed(1)},${avgY.toFixed(1)} Z `;
+    } else if(!above1&&!above2){
+      lossArea+=`M${x1.toFixed(1)},${avgY.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)} L${x2.toFixed(1)},${avgY.toFixed(1)} Z `;
+    }
+  }
+
+  // X axis labels (6 max)
+  const step = Math.max(1, Math.floor(pts.length/6));
+  const xLabels = pts.filter((_,i)=>i%step===0||i===pts.length-1).map(p=>{
+    const i=pts.indexOf(p);
+    const lbl=new Date(p.t).toLocaleDateString('it-IT',{month:'short',year:'2-digit'});
+    return `<text x="${sx(i).toFixed(1)}" y="${pt+ch+22}" text-anchor="middle" fill="#4b6090" font-size="9">${lbl}</text>`;
   }).join('');
 
-  // Y-axis labels
-  const yTicks = 5;
-  const yLabels = Array.from({length:yTicks},(_,i)=>{
-    const v = minV + (i/(yTicks-1))*range;
+  // Y axis labels (5)
+  const yLabels = Array.from({length:5},(_,i)=>{
+    const v = minP + (i/4)*range;
     const y = sy(v);
-    const label = v>=1e6?(v/1e6).toFixed(1)+'M':Math.round(v/1e3)+'k';
-    return `<text x="${pl-5}" y="${(y+4).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="10">${label}€</text>
-            <line x1="${pl}" y1="${y.toFixed(1)}" x2="${pl+cw}" y2="${y.toFixed(1)}" stroke="#1a2a4a" stroke-width="1"/>`;
+    return `<text x="${pl-5}" y="${(y+3).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="9">${v.toFixed(2)}</text>
+            <line x1="${pl}" y1="${y.toFixed(1)}" x2="${pl+cw}" y2="${y.toFixed(1)}" stroke="#1a2a4a" stroke-width="0.5"/>`;
   }).join('');
 
   const svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
-    <defs>
-      <linearGradient id="gHist" x1="0" y1="0" x2="0" y2="1">
-        <stop offset="0%" stop-color="${perfE>=0?'#22d47e':'#ff4d4d'}" stop-opacity="0.2"/>
-        <stop offset="100%" stop-color="${perfE>=0?'#22d47e':'#ff4d4d'}" stop-opacity="0.02"/>
-      </linearGradient>
-    </defs>
     ${yLabels}${xLabels}
-    <path d="${areaPath}" fill="url(#gHist)"/>
-    <polyline points="${linePts}" fill="none" stroke="${perfE>=0?'#22d47e':'#ff4d4d'}" stroke-width="2.5"/>
-    <circle cx="${sx(data.length-1).toFixed(1)}" cy="${sy(last.value).toFixed(1)}" r="4" fill="${perfE>=0?'#22d47e':'#ff4d4d'}"/>
+    <path d="${gainArea}" fill="rgba(34,212,126,.15)"/>
+    <path d="${lossArea}" fill="rgba(255,77,109,.15)"/>
+    <polyline points="${linePts}" fill="none" stroke="#7ba7ff" stroke-width="2"/>
+    <line x1="${pl}" y1="${avgY.toFixed(1)}" x2="${pl+cw}" y2="${avgY.toFixed(1)}"
+      stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <circle cx="${sx(pts.length-1).toFixed(1)}" cy="${sy(last.c).toFixed(1)}" r="3.5" fill="#7ba7ff"/>
     <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
     <line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
   </svg>`;
 
-  area.innerHTML = `
-  <div style="margin:10px 14px 6px;display:flex;justify-content:space-between;align-items:center">
-    <div class="sdesc" style="margin:0">
-      ${pts.length ? `📊 Storico reale — ${data.length} settimane · aggiornato ${lastUpdated}` : `📊 Snapshot manuali — ${data.length} punti`}
-      ${pts.length ? ' <span style="font-size:9px;color:var(--text3)">* USD convertiti al cambio attuale</span>' : ''}
-    </div>
-    <button class="hbtn" onclick="loadTickerHistories()" style="font-size:11px;padding:4px 10px">↻ Ricarica</button>
-  </div>
-  <div class="pnl-summary">
-    <div class="pnl-card"><div class="pnl-lbl">Valore attuale</div><div class="pnl-val">${e2(last.value)}</div></div>
-    <div class="pnl-card"><div class="pnl-lbl">Valore inizio periodo</div><div class="pnl-val">${e2(first.value)}</div></div>
-    <div class="pnl-card"><div class="pnl-lbl">Variazione €</div><div class="pnl-val ${perfE>=0?'gain':'loss'}">${perfE>=0?'+':''}${e2(perfE)}</div></div>
-    <div class="pnl-card"><div class="pnl-lbl">Rendimento periodo</div><div class="pnl-val ${perfE>=0?'gain':'loss'}">${perfE>=0?'+':''}${perfP.toFixed(2)}%</div></div>
-  </div>
-  <div class="proj-chart-wrap" style="margin:6px 14px 80px">
-    ${svg}
-    <div id="history-log" class="sdesc" style="margin-top:4px;text-align:center"></div>
+  // Legend
+  const legend = `<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;
+    margin:6px 14px 10px;font-size:10px;color:var(--text3)">
+    <span><span style="display:inline-block;width:24px;height:2px;background:#7ba7ff;vertical-align:middle;margin-right:5px"></span>Prezzo storico</span>
+    <span><span style="display:inline-block;width:24px;height:0;border-top:2px dashed #f59e0b;vertical-align:middle;margin-right:5px"></span>Mio prezzo medio (${n3(avgLine)} ${sym})</span>
+    <span><span style="display:inline-block;width:12px;height:10px;background:rgba(34,212,126,.3);vertical-align:middle;margin-right:5px;border-radius:2px"></span>Gain</span>
+    <span><span style="display:inline-block;width:12px;height:10px;background:rgba(255,77,109,.3);vertical-align:middle;margin-right:5px;border-radius:2px"></span>Loss</span>
   </div>`;
+
+  // Performance table
+  const now   = Date.now();
+  const findPrice = (daysAgo) => {
+    const target = now - daysAgo*24*3600*1000;
+    return pts.reduce((best,p)=>Math.abs(p.t-target)<Math.abs(best.t-target)?p:best, pts[0]).c;
+  };
+  const curPrice = last.c;
+  const periods  = [
+    {lbl:'1 mese',  days:30},
+    {lbl:'3 mesi',  days:90},
+    {lbl:'6 mesi',  days:180},
+    {lbl:'1 anno',  days:365},
+    {lbl:'2 anni',  days:730},
+  ];
+  const perfRows = periods.map(({lbl,days})=>{
+    const p0   = findPrice(days);
+    const diff = curPrice - p0;
+    const pct  = p0>0 ? diff/p0*100 : 0;
+    const cls  = diff>=0?'gain':'loss';
+    const vs   = diff>=0?'+':'';
+    return `<tr>
+      <td style="padding:7px 12px;color:var(--text2);font-size:11px">${lbl}</td>
+      <td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">${n3(p0)} ${sym}</td>
+      <td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px" class="${cls}">${vs}${n3(diff)} ${sym}</td>
+      <td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700" class="${cls}">${vs}${pct.toFixed(2)}%</td>
+    </tr>`;
+  }).join('');
+
+  const updStr = th.updated ? new Date(th.updated).toLocaleDateString('it-IT') : '—';
+
+  return `
+    <div style="margin:4px 14px 8px">
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">
+        Dati Yahoo Finance · ${pts.length} settimane · aggiornato ${updStr}
+      </div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 0 6px">
+        ${svg}
+      </div>
+      ${legend}
+    </div>
+    <div style="margin:0 14px 16px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:6px;padding-left:2px">Performance per periodo</div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:var(--bg3)">
+            ${['Periodo','Prezzo inizio','Variazione','Rendimento'].map(h=>
+              `<th style="padding:6px 12px;font-size:9px;font-weight:700;letter-spacing:.7px;
+                text-transform:uppercase;color:var(--text3);text-align:${h==='Periodo'?'left':'right'};
+                border-bottom:1px solid var(--border)">${h}</th>`
+            ).join('')}
+          </tr></thead>
+          <tbody>
+            ${perfRows}
+          </tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 // ════════════════════════════════════════════════════════════════
