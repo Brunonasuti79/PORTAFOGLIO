@@ -3953,11 +3953,14 @@ async function fetchTickerHistory(sym, interval, range) {
 }
 
 const PERIOD_CFG = {
-  '1M': {interval:'1d',  range:'1mo', label:'1 mese'},
-  '3M': {interval:'1d',  range:'3mo', label:'3 mesi'},
-  '6M': {interval:'1d',  range:'6mo', label:'6 mesi'},
-  '1A': {interval:'1wk', range:'1y',  label:'1 anno'},
-  '2A': {interval:'1wk', range:'2y',  label:'2 anni'},
+  '1M':  {interval:'1d',  range:'1mo', label:'1 mese'},
+  '3M':  {interval:'1d',  range:'3mo', label:'3 mesi'},
+  '6M':  {interval:'1d',  range:'6mo', label:'6 mesi'},
+  'YTD': {interval:'1d',  range:'ytd', label:'Da inizio anno'},
+  '1A':  {interval:'1wk', range:'1y',  label:'1 anno'},
+  '2A':  {interval:'1wk', range:'2y',  label:'2 anni'},
+  '5A':  {interval:'1wk', range:'5y',  label:'5 anni'},
+  'MAX': {interval:'1mo', range:'max', label:'Massimo storico'},
 };
 
 async function loadTickerHistories() {
@@ -4075,7 +4078,7 @@ function renderHistoryChart(ticker, th, hlds, period) {
     else if(!a1&&!a2) lossArea+=`M${x1.toFixed(1)},${avgY.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)} L${x2.toFixed(1)},${avgY.toFixed(1)} Z `;
   }
 
-  const useDayFmt = ['1M','3M','6M'].includes(period);
+  const useDayFmt = ['1M','3M','6M','YTD'].includes(period);
   const maxLbl = 7;
   const step   = Math.max(1, Math.floor(pts.length/maxLbl));
   const xLabels = pts.filter((_,i)=>i%step===0||i===pts.length-1).map(p=>{
@@ -4133,11 +4136,38 @@ function renderHistoryChart(ticker, th, hlds, period) {
     </tr>`;
   }).join('');
 
-  const intLbl = useDayFmt?'giornaliero':'settimanale';
+  const intLbl = useDayFmt?'giornaliero':(['5A','MAX'].includes(period)?'mensile':'settimanale');
   const updStr = th.updated?new Date(th.updated).toLocaleDateString('it-IT'):'—';
+
+  // KPI periodo selezionato
+  const p0       = pts[0].c;
+  const pCur     = last.c;
+  const pDiff    = pCur - p0;
+  const pPct     = p0 > 0 ? pDiff/p0*100 : 0;
+  const kpiCls   = pDiff >= 0 ? 'gain' : 'loss';
+  const kpiSign  = pDiff >= 0 ? '+' : '';
+  const kpiLabel = PERIOD_CFG[period]?.label || period;
+
+  const kpiBar = `<div style="display:flex;align-items:center;gap:12px;
+    padding:8px 14px;background:var(--bg2);border:1px solid var(--border);
+    border-radius:10px;margin-bottom:8px;flex-wrap:wrap">
+    <div style="flex:1;min-width:120px">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:2px">Performance · ${esc(kpiLabel)}</div>
+      <div style="font-size:9px;color:var(--text3)">Da ${n3(p0)} ${sym} → ${n3(pCur)} ${sym}</div>
+    </div>
+    <div style="text-align:right">
+      <div class="${kpiCls}" style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;line-height:1">
+        ${kpiSign}${pPct.toFixed(2)}%
+      </div>
+      <div class="${kpiCls}" style="font-family:'JetBrains Mono',monospace;font-size:11px">
+        ${kpiSign}${n3(Math.abs(pDiff))} ${sym}
+      </div>
+    </div>
+  </div>`;
 
   return `
     <div style="margin:4px 14px 8px">
+      ${kpiBar}
       <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Yahoo Finance · ${pts.length} candele ${intLbl} · aggiornato ${updStr}</div>
       <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 0 6px">${svg}</div>
       ${legend}
