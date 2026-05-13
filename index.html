@@ -23,41 +23,102 @@
 }
 /* ── Light theme ── */
 html.light{
-  --bg:#f8fafc;--bg2:#ffffff;--bg3:#f1f5f9;
-  --border:#e2e8f0;--border2:#cbd5e1;
-  --text:#0f172a;--text2:#334155;--text3:#94a3b8;
-  --blue:#2563eb;--green:#16a34a;--red:#dc2626;
-  --green-bg:#f0fdf4;--red-bg:#fef2f2;
+  --bg:#eef2f7;--bg2:#f7f9fc;--bg3:#e4eaf3;
+  --border:#c8d4e3;--border2:#b0bfd4;
+  --text:#0f172a;--text2:#1e3a5f;--text3:#4a6080;
+  --blue:#1a56c4;--green:#138a3e;--red:#c0192b;
+  --green-bg:#e6f9ee;--red-bg:#fde8eb;
 }
 html.light body{background:var(--bg);color:var(--text)}
 html.light .ph{background:var(--bg2);border-bottom-color:var(--border)}
 html.light #bnav{background:var(--bg2);border-top-color:var(--border)}
 html.light #subtabs-bar{background:var(--bg2);border-bottom-color:var(--border)}
 html.light .hbtn{background:var(--bg3);border-color:var(--border2);color:var(--blue)}
-html.light .nbtn{color:#94a3b8}
+html.light .nbtn{color:var(--text3)}
 html.light .nbtn.active{color:var(--green)}
 html.light .page{background:var(--bg)}
 html.light .card,html.light .ssec{background:var(--bg2);border-color:var(--border)}
 html.light .ocard{background:var(--bg2);border-color:var(--border)}
 html.light .holding-row{background:var(--bg2);border-color:var(--border)}
-html.light .sum-card{background:var(--bg2);border-color:var(--border)}
+html.light .sum-card{background:linear-gradient(135deg,#dbe8f8,#c8daf0);border-color:#a8c0e0}
+html.light .sum-lbl{color:#1a3a6a;text-shadow:none}
+html.light .sum-sl{color:#1a3a6a;text-shadow:none}
+html.light .sum-tot{color:#0f172a}
+html.light .sum-metric{background:rgba(255,255,255,.55);border-color:rgba(26,86,196,.18)}
 html.light .cash-bar{background:var(--bg2);border-color:var(--border2)}
-html.light .rb-table th{background:var(--bg3)}
+html.light .rb-table th{background:var(--bg3);color:var(--text2)}
 html.light .pnl-card{background:var(--bg2);border-color:var(--border)}
 html.light .pac-input-card{background:var(--bg2);border-color:var(--border)}
 html.light .pac-inp{background:var(--bg3);border-color:var(--border2);color:var(--text)}
 html.light input[type=number],html.light input[type=text],html.light input[type=date],html.light select{
-  background:var(--bg3)!important;border-color:var(--border2)!important;color:var(--text)!important}
+  background:var(--bg2)!important;border-color:var(--border2)!important;color:var(--text)!important}
 html.light .rb-tgt-inp,html.light .rb-sub-inp,html.light .proj-rate-inp,html.light .taxrate-inp{
-  background:rgba(37,99,235,.08)!important;border-color:rgba(37,99,235,.25)!important;color:var(--blue)!important}
+  background:rgba(26,86,196,.08)!important;border-color:rgba(26,86,196,.3)!important;color:var(--blue)!important}
 html.light .stab{background:var(--bg3);border-color:var(--border2);color:var(--text2)}
 html.light .stab.active{background:var(--green);color:#fff}
 html.light .mov{background:rgba(0,0,0,.4)}
 html.light .msh{background:var(--bg2)}
 html.light .fld label{color:var(--text2)}
 html.light .proj-rate-row{background:var(--bg2);border-color:var(--border)}
-html.light .pnl-table th{background:var(--bg3)}
-html.light .pnl-table td,html.light .rb-table td{border-color:rgba(0,0,0,.06)}
+html.light .pnl-table th{background:var(--bg3);color:var(--text2)}
+html.light .pnl-table td,html.light .rb-table td{border-color:rgba(0,0,0,.07)}
+/* testi hardcodati bianchi/chiari → leggibili in light */
+html.light .pt{color:var(--text)}
+html.light .pt-name{color:var(--text2)}
+html.light .pt-sub{color:var(--text3)}
+html.light .pf-name{color:var(--text)}
+html.light .pf-ticker{color:var(--text3)}
+html.light .pf-cat-tag{background:rgba(26,86,196,.1);color:var(--blue)}
+html.light .pf-table th{background:var(--bg3);color:var(--text2)}
+html.light .pf-table th.pf-sort-asc::after,html.light .pf-table th.pf-sort-desc::after{color:var(--blue)}
+html.light .pf-row td{color:var(--text)}
+html.light .rb-cat{color:var(--text)}
+html.light .rb-num{color:var(--text2)}
+html.light .slbl{color:var(--text)}
+html.light .sdesc{color:var(--text3)}
+html.light .stl{color:var(--text3)}
+html.light .kpi-l{color:var(--text3)}
+html.light .kpi-v{color:var(--text)}
+html.light .chart-title{color:var(--text)}
+html.light .leg-name{color:var(--text)}
+html.light .leg-pct{background:#dce8f5;border-color:#b0c8e0;color:var(--text2)}
+html.light .leg-val{background:rgba(26,86,196,.07);border-color:rgba(26,86,196,.15);color:var(--text2)}
+html.light .bar-label{color:var(--text2)}
+html.light .bar-num{color:var(--text3)}
+html.light .bar-track{background:var(--bg3);border-color:var(--border)}
+html.light .opcard{background:var(--bg2);border-color:var(--border)}
+html.light .otk{color:var(--blue)}
+html.light .otn{color:var(--text2)}
+html.light .od{color:var(--text3)}
+html.light .odet{color:var(--text3)}
+html.light .cash-lbl{color:var(--text3)}
+html.light .cash-val{color:var(--text)}
+html.light .pf-detail-row td{background:var(--bg3)}
+html.light .pf-dl{color:var(--text3)}
+html.light .pf-dv{color:var(--text)}
+html.light .donut::after{background:var(--bg2)}
+html.light .donut-total{background:var(--bg3);border-color:var(--border2)}
+html.light .donut-total span{color:var(--text3)}
+html.light .donut-total strong{color:var(--text)}
+html.light .rb-sub-row td{background:rgba(0,0,0,.03)}
+html.light .rb-sub-row td:first-child{border-left-color:#a8c0e0}
+html.light .pac-input-val{color:var(--blue)}
+html.light .pac-input-lbl{color:var(--text3)}
+html.light .proj-rate-lbl{color:var(--text)}
+html.light .proj-sub-lbl{color:var(--text2)}
+html.light .pnl-lbl{color:var(--text3)}
+html.light .pnl-val{color:var(--text)}
+html.light #diag-panel{background:#dce8f5;border-color:#a8c0e0;color:var(--text2)}
+html.light .pf-cats .pf-cat{background:var(--bg3);border-color:var(--border2);color:var(--text2)}
+html.light .pf-cats .pf-cat.active{background:var(--blue);color:#fff;border-color:var(--blue)}
+html.light .rb-warn-bar{background:rgba(180,100,0,.08);border-color:rgba(180,100,0,.3);color:#8a4a00}
+html.light .adv-ok{background:#d4f5e2;color:#0f6630}
+html.light .adv-buy{background:#dce8fb;color:#1a4a9a}
+html.light .adv-sell{background:#fde0e4;color:#9a1020}
+html.light .adv-warn{background:#fff0d4;color:#7a4a00}
+html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
+html.light .sum-sv.gain{color:var(--green)}
+html.light .sum-sv.loss{color:var(--red)}
 /* toggle button */
 .theme-toggle{background:none;border:1.5px solid var(--border2);border-radius:20px;
   padding:4px 10px;font-size:13px;cursor:pointer;color:var(--text2);
