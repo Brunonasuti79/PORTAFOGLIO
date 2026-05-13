@@ -586,7 +586,9 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 
   <!-- HISTORY PAGE -->
   <div id="pg-history" class="page">
-    <div class="ph"><div class="ph-left"><div class="pt">STORICO</div><div class="pt-sub">Andamento nel tempo</div></div></div>
+    <div class="ph">
+      <div class="ph-left"><div class="pt">STORICO</div><div class="pt-sub">Andamento reale 2 anni · candele settimanali</div></div>
+    </div>
     <div id="history-area"></div>
   </div>
 
@@ -944,6 +946,7 @@ function normalizePortfolio(pf) {
   if (!pf.prices)           pf.prices = {};
   if (!pf.dailyChanges)     pf.dailyChanges = {};
   if (!pf.priceHistory)     pf.priceHistory = [];
+  if (!pf.tickerHistory)    pf.tickerHistory = {}; // {quoteTicker: [{t,c}]}
   if (!pf.rebalanceTargets) pf.rebalanceTargets = {};
   if (!pf.subTargets)       pf.subTargets = {};
   if (pf.cashEUR == null)   pf.cashEUR = 0;
@@ -3684,6 +3687,205 @@ function addRebalanceCat() {
 // ════════════════════════════════════════════════════════════════
 //  RENDER — HISTORY
 // ════════════════════════════════════════════════════════════════
+// ════════════════════════════════════════════════════════════════
+//  STORICO PREZZI — fetch 2 anni candele settimanali
+// ════════════════════════════════════════════════════════════════
+
+async function fetchTickerHistory(sym) {
+  const urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1wk&range=2y`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1wk&range=2y`,
+  ];
+  for (const url of urls) {
+    try {
+      const data = await fetchJsonWithProxies(url);
+      const r    = data?.chart?.result?.[0];
+      if (!r) continue;
+      const ts     = r.timestamp || [];
+      const closes = r.indicators?.quote?.[0]?.close || [];
+      const ccy    = r.meta?.currency || 'EUR';
+      const pts    = ts.map((t,i) => ({ t: t*1000, c: closes[i] }))
+                      .filter(p => p.c != null && p.c > 0);
+      if (pts.length < 10) continue;
+      return { pts, ccy };
+    } catch(e) {}
+  }
+  return null;
+}
+
+async function loadTickerHistories() {
+  const hlds = calcPF();
+  if (!S.tickerHistory) S.tickerHistory = {};
+  const log = document.getElementById('history-log');
+  if (log) log.textContent = 'Caricamento storico prezzi...';
+  let loaded = 0;
+  for (const h of hlds) {
+    const candidates = candidatesForHolding(h);
+    for (const sym of candidates) {
+      const res = await fetchTickerHistory(sym);
+      if (res) {
+        S.tickerHistory[h.ticker] = { pts: res.pts, ccy: res.ccy, sym, updated: Date.now() };
+        loaded++;
+        if (log) log.textContent = `Caricati ${loaded}/${hlds.length}: ${h.displayTicker}`;
+        break;
+      }
+    }
+  }
+  save();
+  if (log) log.textContent = `✓ Storico aggiornato — ${loaded} titoli`;
+  renderHistory();
+}
+
+function calcPortfolioHistory() {
+  const th = S.tickerHistory || {};
+  const ops = (S.ops||[]).filter(o=>o.type==='buy'||o.type==='sell')
+               .sort((a,b)=>a.date.localeCompare(b.date));
+  if (!Object.keys(th).length) return [];
+
+  // Raccoglie tutti i timestamp settimanali
+  const allTs = new Set();
+  Object.values(th).forEach(d => d.pts.forEach(p => allTs.add(p.t)));
+  const twoYearsAgo = Date.now() - 2*365.25*24*3600*1000;
+  const sortedTs = [...allTs].sort().filter(t => t >= twoYearsAgo);
+  if (!sortedTs.length) return [];
+
+  const fxRate = ALL.fxRates?.EURUSD || 1.1;
+
+  return sortedTs.map(ts => {
+    const dateStr = new Date(ts).toISOString().slice(0,10);
+
+    // Holdings a questa data (da operations)
+    const qtys = {};
+    ops.forEach(op => {
+      if (op.date > dateStr) return;
+      const tk = op.quoteTicker || op.ticker;
+      if (op.type==='buy')  qtys[tk] = (qtys[tk]||0) + (op.qty||0);
+      if (op.type==='sell') qtys[tk] = Math.max(0,(qtys[tk]||0) - (op.qty||0));
+    });
+
+    // Valore portafoglio a questa data
+    let value = 0;
+    Object.entries(qtys).forEach(([ticker, qty]) => {
+      if (qty <= 0) return;
+      const hist = th[ticker];
+      if (!hist?.pts?.length) return;
+      // Prezzo più vicino a questo timestamp
+      const p = hist.pts.reduce((best, pt) =>
+        Math.abs(pt.t - ts) < Math.abs(best.t - ts) ? pt : best, hist.pts[0]);
+      if (!p?.c) return;
+      // Conversione valuta
+      const h = (S.ops||[]).find(o=>(o.quoteTicker||o.ticker)===ticker);
+      const titleCcy = hist.ccy || h?.titleCcy || 'EUR';
+      const price = titleCcy==='USD' ? p.c/fxRate : p.c;
+      value += qty * price;
+    });
+
+    // Aggiungi liquidità (approssimazione: usa quella attuale per tutto)
+    // Nota: non abbiamo storico liquidità, quindi non la includiamo
+    return { t: ts, date: dateStr, value };
+  }).filter(p => p.value > 0);
+}
+
+function renderHistory() {
+  const area = document.getElementById('history-area');
+  if (!area) return;
+  const th = S.tickerHistory || {};
+  const hasHistory = Object.keys(th).length > 0;
+
+  const pts = calcPortfolioHistory();
+
+  // Vecchio sistema snapshot (fallback se storico non disponibile)
+  const snaps = (S.priceHistory||[]).sort((a,b)=>a.date.localeCompare(b.date));
+  const useSnaps = !pts.length && snaps.length >= 2;
+
+  if (!hasHistory && snaps.length < 2) {
+    area.innerHTML = `
+    <div style="padding:20px 14px">
+      <div class="sdesc" style="margin-bottom:12px">
+        📊 Premi <strong>Carica storico 2 anni</strong> per vedere l'andamento reale del portafoglio settimana per settimana.
+      </div>
+      <button class="bbtn" onclick="loadTickerHistories()" style="background:rgba(0,232,120,.1);border-color:rgba(0,232,120,.3);color:#00e878;font-weight:700">
+        📈 Carica storico 2 anni (candele settimanali)
+      </button>
+      <div id="history-log" class="sdesc" style="margin-top:8px"></div>
+    </div>`;
+    return;
+  }
+
+  const data = pts.length ? pts : snaps.map(s=>({t:new Date(s.date).getTime(),date:s.date,value:s.value}));
+  const lastUpdated = hasHistory ? new Date(Math.max(...Object.values(th).map(d=>d.updated||0))).toLocaleDateString('it-IT') : '—';
+
+  const minV = Math.min(...data.map(d=>d.value));
+  const maxV = Math.max(...data.map(d=>d.value));
+  const range = maxV - minV || 1;
+  const first = data[0], last = data[data.length-1];
+  const perfE = last.value - first.value;
+  const perfP = first.value > 0 ? perfE/first.value*100 : 0;
+
+  // SVG chart
+  const W=740, H=260, pl=72, pr=16, pt=18, pb=36;
+  const cw=W-pl-pr, ch=H-pt-pb;
+  const sx = i => pl + (i/(data.length-1))*cw;
+  const sy = v => pt + ch*(1-(v-minV)/range);
+
+  const areaPath = `M${sx(0)},${sy(data[0].value)} ` +
+    data.map((d,i)=>`L${sx(i).toFixed(1)},${sy(d.value).toFixed(1)}`).join(' ') +
+    ` L${sx(data.length-1)},${pt+ch} L${sx(0)},${pt+ch} Z`;
+  const linePts = data.map((d,i)=>`${sx(i).toFixed(1)},${sy(d.value).toFixed(1)}`).join(' ');
+
+  // X-axis labels (max 6)
+  const step = Math.max(1, Math.floor(data.length/6));
+  const xLabels = data.filter((_,i)=>i%step===0||i===data.length-1).map((d,_,arr)=>{
+    const i = data.indexOf(d);
+    const label = new Date(d.t).toLocaleDateString('it-IT',{month:'short',year:'2-digit'});
+    return `<text x="${sx(i).toFixed(1)}" y="${pt+ch+20}" text-anchor="middle" fill="#4b6090" font-size="10">${label}</text>`;
+  }).join('');
+
+  // Y-axis labels
+  const yTicks = 5;
+  const yLabels = Array.from({length:yTicks},(_,i)=>{
+    const v = minV + (i/(yTicks-1))*range;
+    const y = sy(v);
+    const label = v>=1e6?(v/1e6).toFixed(1)+'M':Math.round(v/1e3)+'k';
+    return `<text x="${pl-5}" y="${(y+4).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="10">${label}€</text>
+            <line x1="${pl}" y1="${y.toFixed(1)}" x2="${pl+cw}" y2="${y.toFixed(1)}" stroke="#1a2a4a" stroke-width="1"/>`;
+  }).join('');
+
+  const svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="gHist" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${perfE>=0?'#22d47e':'#ff4d4d'}" stop-opacity="0.2"/>
+        <stop offset="100%" stop-color="${perfE>=0?'#22d47e':'#ff4d4d'}" stop-opacity="0.02"/>
+      </linearGradient>
+    </defs>
+    ${yLabels}${xLabels}
+    <path d="${areaPath}" fill="url(#gHist)"/>
+    <polyline points="${linePts}" fill="none" stroke="${perfE>=0?'#22d47e':'#ff4d4d'}" stroke-width="2.5"/>
+    <circle cx="${sx(data.length-1).toFixed(1)}" cy="${sy(last.value).toFixed(1)}" r="4" fill="${perfE>=0?'#22d47e':'#ff4d4d'}"/>
+    <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
+    <line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
+  </svg>`;
+
+  area.innerHTML = `
+  <div style="margin:10px 14px 6px;display:flex;justify-content:space-between;align-items:center">
+    <div class="sdesc" style="margin:0">
+      ${pts.length ? `📊 Storico reale — ${data.length} settimane · aggiornato ${lastUpdated}` : `📊 Snapshot manuali — ${data.length} punti`}
+      ${pts.length ? ' <span style="font-size:9px;color:var(--text3)">* USD convertiti al cambio attuale</span>' : ''}
+    </div>
+    <button class="hbtn" onclick="loadTickerHistories()" style="font-size:11px;padding:4px 10px">↻ Ricarica</button>
+  </div>
+  <div class="pnl-summary">
+    <div class="pnl-card"><div class="pnl-lbl">Valore attuale</div><div class="pnl-val">${e2(last.value)}</div></div>
+    <div class="pnl-card"><div class="pnl-lbl">Valore inizio periodo</div><div class="pnl-val">${e2(first.value)}</div></div>
+    <div class="pnl-card"><div class="pnl-lbl">Variazione €</div><div class="pnl-val ${perfE>=0?'gain':'loss'}">${perfE>=0?'+':''}${e2(perfE)}</div></div>
+    <div class="pnl-card"><div class="pnl-lbl">Rendimento periodo</div><div class="pnl-val ${perfE>=0?'gain':'loss'}">${perfE>=0?'+':''}${perfP.toFixed(2)}%</div></div>
+  </div>
+  <div class="proj-chart-wrap" style="margin:6px 14px 80px">
+    ${svg}
+    <div id="history-log" class="sdesc" style="margin-top:4px;text-align:center"></div>
+  </div>`;
+}
+
 function renderHistory() {
   const area = document.getElementById('history-area');
   if (!area) return;
@@ -4417,6 +4619,7 @@ function importBackup(event) {
           ops: (pf.ops||[]).map(op => { normalizeOp(op); return op; }).filter(op=>op.ticker),
           prices: pf.prices || {},
           priceHistory: pf.priceHistory || [],
+          tickerHistory: pf.tickerHistory || {},
           dailyChanges: {},
           rebalanceTargets: pf.rebalanceTargets || {}
         }));
