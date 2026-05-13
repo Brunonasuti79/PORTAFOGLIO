@@ -1571,11 +1571,19 @@ async function fetchYahooQuote(sym) {
     if (!q?.regularMarketPrice) return null;
     const out = makeQuote(q.regularMarketPrice, q.regularMarketPreviousClose, 'Yahoo');
     if (out) {
-      if (q.regularMarketChangePercent != null) out.dailyPct   = q.regularMarketChangePercent;
-      if (q.regularMarketChange != null)        out.dailyValue = q.regularMarketChange;
-      // Pre/post market (solo ticker USA)
-      if (q.postMarketChangePercent != null)    out.postPct  = q.postMarketChangePercent;
-      if (q.preMarketChangePercent  != null)    out.prePct   = q.preMarketChangePercent;
+      if (q.regularMarketChangePercent != null) out.dailyPct    = q.regularMarketChangePercent;
+      if (q.regularMarketChange != null)        out.dailyValue  = q.regularMarketChange;
+      // Market state: 'REGULAR','PRE','POST','POSTPOST','PREPRE','CLOSED'
+      out.marketState = q.marketState || null;
+      // Post/pre market %
+      const regP = q.regularMarketPrice;
+      out.postPct = q.postMarketChangePercent ?? null;
+      out.prePct  = q.preMarketChangePercent  ?? null;
+      // Se % mancante ma prezzo disponibile, calcolalo
+      if (out.postPct==null && q.postMarketPrice!=null && regP>0)
+        out.postPct = (q.postMarketPrice - regP) / regP * 100;
+      if (out.prePct==null  && q.preMarketPrice!=null  && regP>0)
+        out.prePct  = (q.preMarketPrice  - regP) / regP * 100;
     }
     return out;
   } catch(e) { return null; }
@@ -1809,8 +1817,9 @@ async function fetchPrices() {
         const pct = num(q?.dailyPct);
         if (pct !== null && Math.abs(pct) < 25)
           S.dailyChanges[h.ticker] = { pct, value:num(q.dailyValue)||0, source:q.source||'', price,
-            prePct: (q.prePct!=null&&Number.isFinite(q.prePct)) ? q.prePct : null,
-            postPct:(q.postPct!=null&&Number.isFinite(q.postPct))? q.postPct: null };
+            marketState: q.marketState || null,
+            prePct:  (q.prePct !=null&&Number.isFinite(q.prePct )) ? q.prePct  : null,
+            postPct: (q.postPct!=null&&Number.isFinite(q.postPct)) ? q.postPct : null };
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
@@ -2211,14 +2220,18 @@ function renderPF() {
       <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
       <td class="${dCls}">${(()=>{
         const mainPct = dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>';
-        const ext = isExtendedHours();
-        if(!ext.active) return mainPct;
-        const extPct = ext.type==='PRE' ? day?.prePct : day?.postPct;
+        // Usa marketState da Yahoo — più affidabile del calcolo timezone
+        const ms = day?.marketState || '';
+        const isPre  = ms==='PRE'||ms==='PREPRE';
+        const isPost = ms==='POST'||ms==='POSTPOST';
+        if (!isPre && !isPost) return mainPct;
+        const extPct = isPre ? day?.prePct : day?.postPct;
         if(extPct==null||!Number.isFinite(Number(extPct))) return mainPct;
         const ep  = Number(extPct);
         const arr = ep>=0?'▲':'▼';
         const col = ep>=0?'#22d47e':'#ff4d6d';
-        const ext2= '<div style="font-size:9px;color:'+col+';margin-top:1px;font-family:monospace">'+arr+' '+ext.type+' '+(ep>=0?'+':'')+ep.toFixed(2)+'%</div>';
+        const lbl = isPre?'PRE':'AH';
+        const ext2= '<div style="font-size:9px;color:'+col+';margin-top:1px;font-family:monospace">'+arr+' '+lbl+' '+(ep>=0?'+':'')+ep.toFixed(2)+'%</div>';
         return mainPct+ext2;
       })()}</td>
       <td style="color:var(--text)">${hp?n3(p)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
