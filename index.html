@@ -1955,6 +1955,8 @@ function pfSetFilter(cat) {
   pfFilterCategory = cat;
   renderPF();
 }
+// Expose all functions used in inline onclick handlers (strict mode doesn't put them on window)
+window.pfSetFilter = pfSetFilter;
 
 function pfSort(col) {
   if (pfSortCol === col) pfSortDir *= -1;
@@ -1997,12 +1999,14 @@ function renderPF() {
     const fmtU = v => Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';
     const gE   = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':''}${e2(v)}</div>`;
     const gU   = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':v<0?'-':''}${fmtU(v)}</div>`;
+    const eurValCls = sum.eur ? (sum.eur.tv >= sum.eur.tc ? 'color:#5fcf8a' : 'color:#f07070') : '';
+    const usdValCls = sum.usd ? (sum.usd.tv >= sum.usd.tc ? 'color:#5fcf8a' : 'color:#f07070') : '';
     sa.innerHTML = `<div class="sum-card">
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;text-align:center;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--border2)">
         <div>
           <div class="sum-sl">Valore Portafoglio</div>
-          ${sum.eur?`<div class="sum-tot">${e2(sum.eur.tv)}</div>`:''}
-          ${sum.usd?`<div class="sum-tot usd">${sum.usd.tv.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}
+          ${sum.eur?`<div class="sum-tot" style="${eurValCls}">${e2(sum.eur.tv)}</div>`:''}
+          ${sum.usd?`<div class="sum-tot usd" style="${usdValCls}">${sum.usd.tv.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}
         </div>
         <div>
           <div class="sum-sl">Investito</div>
@@ -2011,11 +2015,11 @@ function renderPF() {
         </div>
       </div>
       <div class="sum-row">
-        <div class="sum-metric"><div class="sum-sl">Rendimento</div>
-          <div class="sum-sv ${rGc}" style="font-size:20px">${pct(sum.rendimento)}</div>
-        </div>
         <div class="sum-metric"><div class="sum-sl">Gain / Loss</div>
           ${sum.eur?gE(sum.eur.g):''}${sum.usd?gU(sum.usd.g):''}
+        </div>
+        <div class="sum-metric"><div class="sum-sl">Rendimento</div>
+          <div class="sum-sv ${rGc}" style="font-size:20px">${pct(sum.rendimento)}</div>
         </div>
       </div>
     </div>`;
@@ -5046,6 +5050,31 @@ function setupPWA() {
   const blob = new Blob([JSON.stringify(m)], {type:'application/manifest+json'});
   document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
 }
+
+// ════════════════════════════════════════════════════════════════
+//  EXPOSE GLOBALS (strict mode doesn't auto-expose let/const/function to window)
+// ════════════════════════════════════════════════════════════════
+window.pfSetFilter=pfSetFilter; window.pfSort=pfSort; window.toggleHolding=toggleHolding;
+window.sortRB=sortRB; window.toggleRbCat=toggleRbCat; window.setSubTarget=setSubTarget;
+window.liveSubSum=liveSubSum; window.saveTargetInline=saveTargetInline; window.liveRbTotal=liveRbTotal;
+window.renderPF=renderPF; window.renderRebalance=renderRebalance; window.renderCharts=renderCharts;
+window.fetchPrices=fetchPrices; window.openQuick=openQuick; window.closeQuick=closeQuick;
+window.saveQuick=saveQuick; window.setCash=setCash; window.openModal=openModal;
+window.closeModal=closeModal; window.saveOp=saveOp; window.editOp=editOp;
+window.delOp=delOp; window.dupOp=dupOp; window.addPortfolio=addPortfolio;
+window.renamePortfolio=renamePortfolio; window.deletePortfolio=deletePortfolio;
+window.switchPortfolio=switchPortfolio; window.toggleTheme=toggleTheme; window.showPage=showPage;
+window.runDiagnostic=runDiagnostic; window.addRebalanceCat=addRebalanceCat;
+window.editTarget=editTarget; window.calcAndRenderPAC=calcAndRenderPAC;
+window.setProjectionRate=setProjectionRate; window.setProjectionInflation=setProjectionInflation;
+window.toggleProjCat=toggleProjCat; window.saveProjSubRate=saveProjSubRate;
+window.exportBackup=exportBackup; window.importBackup=importBackup;
+window.exportProjectionExcel=exportProjectionExcel; window.exportPACExcel=exportPACExcel;
+window.setOpType=setOpType; window.onMarketChange=onMarketChange;
+window.onTitleCcyChange=onTitleCcyChange; window.onCatChange=onCatChange;
+window.autoFillFromIsin=autoFillFromIsin; window.calcFTotal=calcFTotal; window.calcQTotal=calcQTotal;
+window.closeImport=closeImport; window.confirmImport=confirmImport;
+window.loadTickerHistories=loadTickerHistories;
 
 // ════════════════════════════════════════════════════════════════
 //  INIT
