@@ -1955,8 +1955,21 @@ function pfSetFilter(cat) {
   pfFilterCategory = cat;
   renderPF();
 }
-// Expose all functions used in inline onclick handlers (strict mode doesn't put them on window)
-window.pfSetFilter = pfSetFilter;
+
+// ── Event delegation for port-list (pills + sort headers + row expand) ──
+// Runs after DOM is ready; survives innerHTML rebuilds because listener is on stable parent
+function setupPortListDelegation() {
+  const pl = document.getElementById('port-list');
+  if (!pl) return;
+  pl.addEventListener('click', e => {
+    const pill = e.target.closest('[data-cat]');
+    if (pill) { pfFilterCategory = pill.dataset.cat; renderPF(); return; }
+    const th = e.target.closest('th[data-sort]');
+    if (th) { pfSort(th.dataset.sort); return; }
+    const row = e.target.closest('tr.pf-row[data-ticker]');
+    if (row) { toggleHolding(row.dataset.ticker); return; }
+  });
+}
 
 function pfSort(col) {
   if (pfSortCol === col) pfSortDir *= -1;
@@ -2055,8 +2068,7 @@ function renderPF() {
   // Category pills
   const cats = [...new Set(allHlds.map(h=>h.assetClass||UNCATEGORIZED))].sort();
   const pills = ['Tutte',...cats].map(c=>
-    `<button class="pf-cat${pfFilterCategory===c?' active':''}"
-      onclick="pfSetFilter(${JSON.stringify(c)})">${esc(c)}</button>`
+    `<button class="pf-cat${pfFilterCategory===c?' active':''}" data-cat="${esc(c)}">${esc(c)}</button>`
   ).join('');
 
   // Sort + filter
@@ -2069,7 +2081,7 @@ function renderPF() {
   // Column header helper
   const thCls = col => pfSortCol!==col ? 'pf-sort-none' : pfSortDir===1 ? 'pf-sort-asc' : 'pf-sort-desc';
   const th    = (col,lbl,cls='') =>
-    `<th class="${thCls(col)}${cls?' '+cls:''}" onclick="pfSort('${col}')">${lbl}</th>`;
+    `<th class="${thCls(col)}${cls?' '+cls:''}" data-sort="${col}">${lbl}</th>`;
 
   // Table rows
   const rows = visible.map((h,i) => {
@@ -2103,7 +2115,7 @@ function renderPF() {
       ? `<span style="color:var(--text3);font-size:10px;margin-left:4px">▲</span>`
       : `<span style="color:var(--border2);font-size:10px;margin-left:4px">▼</span>`;
 
-    return `<tr class="pf-row${isOpen?' pf-row-open':''}" onclick="toggleHolding('${jsq(h.ticker)}')" style="animation-delay:${i*.03}s">
+    return `<tr class="pf-row${isOpen?' pf-row-open':''}" data-ticker="${jsq(h.ticker)}" style="animation-delay:${i*.03}s">
       <td>
         <div class="pf-name">${esc(h.name||h.displayTicker)}${arrow}</div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
@@ -2120,7 +2132,7 @@ function renderPF() {
     <div class="pf-table-wrap">
       <table class="pf-table">
         <thead><tr>
-          <th class="${thCls('name')}" onclick="pfSort('name')" style="text-align:left;padding-left:14px">Titolo</th>
+          <th class="${thCls('name')}" data-sort="name" style="text-align:left;padding-left:14px">Titolo</th>
           ${th('gain','Gain','pf-col-g')}
           ${th('gainpct','Gain %')}
           ${th('oggi','Oggi')}
@@ -5083,6 +5095,7 @@ load();
 setupPWA();
 applyTheme(ALL.settings?.theme || 'dark');
 renderAll();
+setupPortListDelegation();
 showPage('portfolio');  // inizializza stato subtabs bar
 </script>
 </body>
