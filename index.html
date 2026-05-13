@@ -4023,68 +4023,64 @@ const PERIOD_CFG = {
 
 // ── Dedicated fetch per dati pre/post market ─────────────────────
 async function fetchYahooExtended(sym) {
-  // Prova 1: Yahoo v7 senza filtro fields
-  try {
-    const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}`;
-    const data = await fetchJsonWithProxies(url);
-    const q    = data?.quoteResponse?.result?.[0];
-    if (q) {
-      const regP  = q.regularMarketPrice;
-      let postPct = q.postMarketChangePercent ?? null;
-      let prePct  = q.preMarketChangePercent  ?? null;
-      // Se % non c'è ma c'è il prezzo, calcolalo
-      if (postPct==null && q.postMarketPrice!=null && regP>0)
-        postPct = (q.postMarketPrice - regP) / regP * 100;
-      if (prePct==null && q.preMarketPrice!=null && regP>0)
-        prePct  = (q.preMarketPrice  - regP) / regP * 100;
-      if (postPct!=null || prePct!=null)
-        return { prePct: Number.isFinite(prePct)?prePct:null,
-                 postPct: Number.isFinite(postPct)?postPct:null };
-    }
-  } catch(e) {}
+  // Legge i candle 1m con prePost=true — i prezzi after/pre-hours sono nelle candele stesse
+  for (const base of ['https://query1','https://query2']) {
+    try {
+      const url = `${base}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1m&range=1d&prePost=true`;
+      const data = await fetchJsonWithProxies(url);
+      const r    = data?.chart?.result?.[0];
+      if (!r) continue;
 
-  // Prova 2: Yahoo v11 quoteSummary (modulo price)
-  try {
-    const url2 = `https://query1.finance.yahoo.com/v11/finance/quoteSummary/${encodeURIComponent(sym)}?modules=price`;
-    const data2 = await fetchJsonWithProxies(url2);
-    const pr = data2?.quoteSummary?.result?.[0]?.price;
-    if (pr) {
-      const regP  = pr.regularMarketPrice?.raw;
-      let postPct = pr.postMarketChangePercent?.raw ?? null;
-      let prePct  = pr.preMarketChangePercent?.raw  ?? null;
-      const ms    = pr.marketState?.raw || pr.marketState || null;
-      if (postPct==null && pr.postMarketPrice?.raw!=null && regP>0)
-        postPct = (pr.postMarketPrice.raw - regP) / regP * 100;
-      if (prePct==null && pr.preMarketPrice?.raw!=null && regP>0)
-        prePct  = (pr.preMarketPrice.raw  - regP) / regP * 100;
-      if (postPct!=null || prePct!=null || ms)
-        return { marketState:ms, prePct:Number.isFinite(prePct)?prePct:null,
-                 postPct:Number.isFinite(postPct)?postPct:null };
-    }
-  } catch(e) {}
+      const meta   = r.meta || {};
+      const ts     = r.timestamp || [];
+      const closes = r.indicators?.quote?.[0]?.close || [];
+      const regP   = num(meta.regularMarketPrice);
+      if (!regP || !ts.length) continue;
 
-  // Prova 3: Yahoo Chart v8 — funziona meglio coi proxy, ha postMarketPrice in meta
-  try {
-    for (const base of ['https://query1','https://query2']) {
-      const url3 = `${base}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=2d`;
-      const data3 = await fetchJsonWithProxies(url3);
-      const meta  = data3?.chart?.result?.[0]?.meta;
-      if (!meta) continue;
-      const regP  = num(meta.regularMarketPrice);
-      const ms    = meta.marketState || null;
-      let postPct = null, prePct = null;
-      if (meta.postMarketPrice!=null && regP>0)
-        postPct = (num(meta.postMarketPrice) - regP) / regP * 100;
-      if (meta.preMarketPrice!=null && regP>0)
-        prePct  = (num(meta.preMarketPrice)  - regP) / regP * 100;
-      if (postPct!=null || prePct!=null || ms)
-        return { marketState:ms, prePct:Number.isFinite(prePct)?prePct:null,
-                 postPct:Number.isFinite(postPct)?postPct:null };
-    }
-  } catch(e) {}
+      // Periodi di trading dal meta
+      const regEnd   = meta.currentTradingPeriod?.regular?.end   || 0;
+      const postStart= meta.currentTradingPeriod?.post?.start    || 0;
+      const postEnd  = meta.currentTradingPeriod?.post?.end      || 0;
+      const preStart = meta.currentTradingPeriod?.pre?.start     || 0;
+      const preEnd   = meta.currentTradingPeriod?.pre?.end       || 0;
 
+      // Cerca l'ultimo close valido nel post-market
+      let postClose = null, preClose = null;
+      for (let i = ts.length-1; i >= 0; i--) {
+        if (closes[i]==null || !Number.isFinite(closes[i])) continue;
+        if (postStart && ts[i] >= postStart && (!postEnd || ts[i] <= postEnd)) {
+          if (postClose===null) postClose = closes[i];
+        }
+        if (preStart && ts[i] >= preStart && ts[i] <= preEnd) {
+          if (preClose===null) preClose = closes[i];
+        }
+      }
+
+      // Usa anche meta.postMarketPrice / meta.preMarketPrice come fallback
+      if (postClose===null && meta.postMarketPrice) postClose = num(meta.postMarketPrice);
+      if (preClose===null  && meta.preMarketPrice)  preClose  = num(meta.preMarketPrice);
+
+      const postPct = postClose!=null && regP>0 ? (postClose-regP)/regP*100 : null;
+      const prePct  = preClose !=null && regP>0 ? (preClose -regP)/regP*100 : null;
+
+      // Market state: confronta ora attuale con periodi
+      const nowSec = Date.now()/1000;
+      let ms = meta.marketState || null;
+      if (!ms) {
+        if (postStart && nowSec>=postStart && (!postEnd||nowSec<=postEnd)) ms='POST';
+        else if (preStart && nowSec>=preStart && nowSec<=preEnd)           ms='PRE';
+      }
+
+      if (postPct!=null || prePct!=null || ms) {
+        return { marketState:ms,
+                 postPct: Number.isFinite(postPct)?postPct:null,
+                 prePct:  Number.isFinite(prePct)?prePct:null };
+      }
+    } catch(e) {}
+  }
   return null;
 }
+
 
 async function loadTickerHistories() {
   // carica storico 2A settimanale per tutti i ticker (usato da vecchio sistema)
@@ -5398,8 +5394,20 @@ async function showExtDebug() {
       const sym = candidatesForHolding(h)[0];
       const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1m&range=1d&prePost=true`;
       const d = await fetchJsonWithProxies(url);
-      const meta = d?.chart?.result?.[0]?.meta;
-      msg += `chart-v8-prePost: ms=${meta?.marketState||'null'} postP=${meta?.postMarketPrice||'null'} regP=${meta?.regularMarketPrice||'null'}\n`;
+      const r2 = d?.chart?.result?.[0];
+      const meta2 = r2?.meta || {};
+      const ts2 = r2?.timestamp || [];
+      const cls2 = r2?.indicators?.quote?.[0]?.close || [];
+      const regP2 = meta2.regularMarketPrice;
+      const postS = meta2.currentTradingPeriod?.post?.start;
+      // Trova ultimo close post-market
+      let lastPostClose = null;
+      for (let i=ts2.length-1;i>=0;i--) {
+        if (cls2[i]!=null && Number.isFinite(cls2[i]) && postS && ts2[i]>=postS) {
+          lastPostClose=cls2[i]; break;
+        }
+      }
+      msg += `chart-v8: regP=${regP2} postStart=${postS?new Date(postS*1000).toLocaleTimeString('it-IT'):'-'} lastPostClose=${lastPostClose} candles=${ts2.length}\n`;
     } catch(e) { msg += `chart-v8-prePost: ERROR ${e.message}\n`; }
     msg += '\n';
   }
