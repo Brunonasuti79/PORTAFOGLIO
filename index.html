@@ -1997,18 +1997,28 @@ function renderPF() {
     const fmtU = v => Math.abs(v).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' $';
     const gE   = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':''}${e2(v)}</div>`;
     const gU   = v => `<div class="sum-sv ${v>=0?'gain':'loss'}">${v>0?'+':v<0?'-':''}${fmtU(v)}</div>`;
-    sa.innerHTML = `<div class="sum-card"><div class="sum-row">
-      <div class="sum-metric"><div class="sum-sl">Valore Portafoglio</div>
-        ${sum.eur?`<div class="sum-tot">${e2(sum.eur.tc)}</div>`:''}
-        ${sum.usd?`<div class="sum-tot usd">${sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}
+    sa.innerHTML = `<div class="sum-card">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:10px;margin-bottom:10px;border-bottom:1px solid var(--border2)">
+        <div>
+          <div class="sum-sl">Valore Portafoglio</div>
+          ${sum.eur?`<div class="sum-tot">${e2(sum.eur.tv)}</div>`:''}
+          ${sum.usd?`<div class="sum-tot usd">${sum.usd.tv.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div class="sum-sl">Investito</div>
+          ${sum.eur?`<div class="sum-tot">${e2(sum.eur.tc)}</div>`:''}
+          ${sum.usd?`<div class="sum-tot usd">${sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}
+        </div>
       </div>
-      <div class="sum-metric"><div class="sum-sl">Gain / Loss</div>
-        ${sum.eur?gE(sum.eur.g):''}${sum.usd?gU(sum.usd.g):''}
+      <div class="sum-row">
+        <div class="sum-metric"><div class="sum-sl">Rendimento</div>
+          <div class="sum-sv ${rGc}" style="font-size:20px">${pct(sum.rendimento)}</div>
+        </div>
+        <div class="sum-metric"><div class="sum-sl">Gain / Loss</div>
+          ${sum.eur?gE(sum.eur.g):''}${sum.usd?gU(sum.usd.g):''}
+        </div>
       </div>
-      <div class="sum-metric"><div class="sum-sl">Rendimento</div>
-        <div class="sum-sv ${rGc}" style="font-size:20px">${pct(sum.rendimento)}</div>
-      </div>
-    </div></div>`;
+    </div>`;
   } else {
     sa.innerHTML = `<div class="sum-card"><div class="sum-lbl">Valore Portafoglio</div>
       <div class="sum-tot" style="color:var(--text3);font-size:18px">
