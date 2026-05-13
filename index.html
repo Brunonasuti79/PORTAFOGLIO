@@ -1808,7 +1808,9 @@ async function fetchPrices() {
         sources[h.ticker] = q.source || 'Fonte prezzi';
         const pct = num(q?.dailyPct);
         if (pct !== null && Math.abs(pct) < 25)
-          S.dailyChanges[h.ticker] = { pct, value:num(q.dailyValue)||0, source:q.source||'', price, prePct:q.prePct??null, postPct:q.postPct??null };
+          S.dailyChanges[h.ticker] = { pct, value:num(q.dailyValue)||0, source:q.source||'', price,
+            prePct: (q.prePct!=null&&Number.isFinite(q.prePct)) ? q.prePct : null,
+            postPct:(q.postPct!=null&&Number.isFinite(q.postPct))? q.postPct: null };
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
@@ -1843,7 +1845,7 @@ async function fetchPrices() {
     let note = Object.entries(srcGroups).map(([s,l]) => ` · ${s}: ${l.join(', ')}`).join('');
     if (rejected.length) note += ` · Scartati: ${rejected.join(', ')}`;
     if (errors.length)   note += ` · Non trovati: ${errors.join(', ')}`;
-    document.getElementById('lupd').textContent = `Aggiornato alle ${now}${note}`;
+    document.getElementById('lupd').textContent = `Aggiornato alle ${now}`;
 
     if (errors.length) {
       eb.textContent = `⚠ Non trovati: ${errors.join(', ')}. Controlla il simbolo prezzo in Modifica.`;
@@ -5272,7 +5274,7 @@ function isExtendedHours() {
 function startAutoRefresh() {
   stopAutoRefresh();
   _autoRefreshTimer = setInterval(() => {
-    if (isMarketOpen()) fetchPrices();
+    if (isMarketOpen() || isExtendedHours().active) fetchPrices();
   }, 60000);
 }
 
