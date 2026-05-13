@@ -175,6 +175,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   border-radius:3px;background:rgba(123,167,255,.12);color:var(--blue);
   margin-left:5px;vertical-align:middle;white-space:nowrap;letter-spacing:.3px}
 .pf-no-price{color:var(--text3);font-style:italic;font-size:10px}
+.pf-chart-btn{background:none;border:1px solid var(--border2);border-radius:6px;
+  font-size:11px;padding:1px 5px;cursor:pointer;color:var(--text3);flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;transition:all .15s;line-height:1.4}
+.pf-chart-btn:hover{border-color:var(--blue);color:var(--blue)}
+html.light .pf-chart-btn{border-color:var(--border2)}
 .pf-detail-row td{padding:0;background:rgba(0,0,0,.25);
   border-bottom:2px solid var(--border2)}
 .pf-detail-inner{padding:10px 14px 14px;display:grid;
@@ -861,6 +866,30 @@ html.light .hist-period.active{background:var(--blue);color:#fff}
       <button class="bbtn" onclick="closeImport()">Annulla</button>
       <button class="bsave" id="import-confirm-btn" onclick="confirmImport()" style="display:none">Importa</button>
     </div>
+  </div>
+</div>
+
+<!-- CHART POPUP MODAL -->
+<div id="chart-modal" class="mov hidden" onclick="if(event.target.id==='chart-modal')closeChartModal()">
+  <div class="msh" style="display:flex;flex-direction:column;max-height:92dvh;overflow:hidden">
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
+      <div>
+        <div id="chart-modal-title" style="font-family:'Bebas Neue',sans-serif;
+          font-size:22px;letter-spacing:1.5px;color:var(--text)"></div>
+        <div id="chart-modal-sub" style="font-size:10px;color:var(--text3);margin-top:1px"></div>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <button class="hbtn" id="chart-modal-refresh"
+          onclick="loadChartModalData()"
+          style="font-size:11px;padding:4px 10px">↻ Aggiorna</button>
+        <button onclick="closeChartModal()"
+          style="background:none;border:none;color:var(--text3);font-size:22px;
+            cursor:pointer;line-height:1;padding:0 4px">×</button>
+      </div>
+    </div>
+    <div class="hist-periods" id="chart-modal-periods" style="flex-shrink:0;border-bottom:1px solid var(--border)"></div>
+    <div id="chart-modal-body" style="flex:1;overflow-y:auto;padding-bottom:16px"></div>
   </div>
 </div>
 
@@ -2123,7 +2152,11 @@ function renderPF() {
 
     return `<tr class="pf-row${isOpen?' pf-row-open':''}" onclick="toggleHolding('${jsq(h.ticker)}')" style="animation-delay:${i*.03}s">
       <td>
-        <div class="pf-name">${esc(h.name||h.displayTicker)}${arrow}</div>
+        <div class="pf-name" style="display:flex;align-items:center;gap:6px">
+          <span>${esc(h.name||h.displayTicker)}${arrow}</span>
+          <button class="pf-chart-btn" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')"
+            title="Grafico storico">📈</button>
+        </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
       </td>
       <td class="pf-col-g ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
@@ -3995,7 +4028,8 @@ function renderHistoryChart(ticker, th, hlds, period) {
   if (!h || !th?.pts?.length) return '<div class="empty">Nessun dato.</div>';
 
   const pts     = th.pts.filter(p=>p.c>0);
-  const avgLine = h.avgPriceBuyCcy || h.avgPrice || 0;
+  // avgPrice è sempre in titleCcy (USD per titoli USD) = corrisponde ai dati Yahoo
+  const avgLine = h.avgPrice || h.avgPriceBuyCcy || 0;
   const sym     = th.ccy==='USD' ? '$' : '€';
   if (pts.length < 3) return '<div class="empty">Dati insufficienti.</div>';
 
@@ -5010,6 +5044,87 @@ function confirmImport() {
   save(); closeImport(); renderAll();
   showToast(`✓ Importate ${n} operazioni — verifica ticker e categorie`);
 }
+
+// ── Chart popup modal ───────────────────────────────────────────
+let _chartModalTicker = null;
+let _chartModalPeriod = '1A';
+
+function openChartModal(ticker) {
+  _chartModalTicker = ticker;
+  const hlds = calcPF();
+  const h    = hlds.find(h=>h.ticker===ticker);
+  if (!h) return;
+
+  document.getElementById('chart-modal-title').textContent =
+    h.name || h.displayTicker;
+  document.getElementById('chart-modal-sub').textContent =
+    h.displayTicker + (h.isin ? ' · ' + h.isin : '');
+  document.getElementById('chart-modal').classList.remove('hidden');
+  renderChartModal();
+}
+
+function closeChartModal() {
+  document.getElementById('chart-modal').classList.add('hidden');
+  _chartModalTicker = null;
+}
+
+function renderChartModal() {
+  const ticker = _chartModalTicker;
+  if (!ticker) return;
+  const period  = _chartModalPeriod;
+  const hlds    = calcPF();
+  const th      = (S.tickerHistory||{})[ticker]?.[period];
+
+  // Period pills
+  const perDiv = document.getElementById('chart-modal-periods');
+  if (perDiv) {
+    perDiv.innerHTML = Object.keys(PERIOD_CFG).map(p =>
+      `<button class="hist-period${period===p?' active':''}"
+        onclick="_chartModalPeriod='${p}';renderChartModal()">${p}</button>`
+    ).join('');
+  }
+
+  // Chart body
+  const body = document.getElementById('chart-modal-body');
+  if (!body) return;
+
+  if (!th) {
+    body.innerHTML = `<div class="empty" style="padding:40px 20px">
+      Premi <strong>↻ Aggiorna</strong> per scaricare il grafico (${PERIOD_CFG[period]?.label}).
+    </div>`;
+    return;
+  }
+  body.innerHTML = renderHistoryChart(ticker, th, hlds, period);
+}
+
+async function loadChartModalData() {
+  const ticker = _chartModalTicker;
+  if (!ticker) return;
+  const period = _chartModalPeriod;
+  const hlds   = calcPF();
+  const h      = hlds.find(h=>h.ticker===ticker);
+  if (!h) return;
+
+  const btn = document.getElementById('chart-modal-refresh');
+  if (btn) { btn.disabled=true; btn.textContent='Caricamento...'; }
+
+  const cfg  = PERIOD_CFG[period];
+  const cands = candidatesForHolding(h);
+  let loaded = false;
+  for (const sym of cands) {
+    const res = await fetchTickerHistory(sym, cfg.interval, cfg.range);
+    if (res && res.pts.length >= 3) {
+      if (!S.tickerHistory) S.tickerHistory = {};
+      if (!S.tickerHistory[ticker]) S.tickerHistory[ticker] = {};
+      S.tickerHistory[ticker][period] = {pts:res.pts, ccy:res.ccy, sym, updated:Date.now()};
+      save(); loaded=true; break;
+    }
+  }
+  if (!loaded) showToast('⚠ Storico non trovato');
+  if (btn) { btn.disabled=false; btn.textContent='↻ Aggiorna'; }
+  renderChartModal();
+}
+
 
 function renderAll() {
   renderSwitcher();
