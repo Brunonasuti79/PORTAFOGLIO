@@ -5252,41 +5252,38 @@ async function loadChartModalData() {
 // ════════════════════════════════════════════════════════════════
 let _autoRefreshTimer = null;
 
+// Helper affidabile per orario NY/Roma usando Intl.formatToParts
+function getTZTime(tz) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: tz, hour: 'numeric', minute: 'numeric',
+    weekday: 'short', hour12: false
+  }).formatToParts(new Date());
+  const p = {};
+  parts.forEach(x => { p[x.type] = x.value; });
+  // hour12:false può dare '24' per mezzanotte su alcuni browser → normalizza
+  const h = parseInt(p.hour) % 24;
+  const m = parseInt(p.minute);
+  const wd = p.weekday; // 'Mon','Tue',...
+  return { h, m, mins: h*60+m, isWeekend: wd==='Sun'||wd==='Sat' };
+}
+
 function isMarketOpen() {
-  // Usa l'ora locale del browser convertita in orario italiano (CET/CEST)
-  const now   = new Date();
-  const itStr = now.toLocaleString('en-US', {timeZone:'Europe/Rome'});
-  const it    = new Date(itStr);
-  const day   = it.getDay(); // 0=dom, 6=sab
-  if (day === 0 || day === 6) return false;
-  const h = it.getHours(), m = it.getMinutes();
-  const mins = h * 60 + m;
-
-  // Borsa europea: 09:00 – 17:30 ora italiana
-  const euOpen  = 9*60, euClose = 17*60+30;
-  // Borsa USA: 14:30 – 21:00 ora italiana (ora solare)
-  //            15:30 – 22:00 ora italiana (ora legale USA, mar–nov)
-  // JavaScript calcola l'offset automaticamente — usiamo NY
-  const nyStr = now.toLocaleString('en-US', {timeZone:'America/New_York'});
-  const ny    = new Date(nyStr);
-  const nyH   = ny.getHours(), nyM = ny.getMinutes();
-  const nyMins= nyH*60+nyM;
-  const usOpen= 9*60+30, usClose=16*60; // NYSE 09:30–16:00 NY
-
-  const euIsOpen = mins >= euOpen  && mins < euClose;
-  const usIsOpen = nyMins >= usOpen && nyMins < usClose;
-  return euIsOpen || usIsOpen;
+  const it = getTZTime('Europe/Rome');
+  if (it.isWeekend) return false;
+  const ny = getTZTime('America/New_York');
+  if (ny.isWeekend) return false;
+  const euOpen  = 9*60, euClose = 17*60+30;   // 09:00–17:30 ora italiana
+  const usOpen  = 9*60+30, usClose = 16*60;    // 09:30–16:00 ora NY
+  return (it.mins >= euOpen && it.mins < euClose) ||
+         (ny.mins >= usOpen && ny.mins < usClose);
 }
 
 function isExtendedHours() {
   // Pre-market USA: 04:00–09:30 NY   After-hours: 16:00–20:00 NY
-  const nyStr = new Date().toLocaleString('en-US', {timeZone:'America/New_York'});
-  const ny    = new Date(nyStr);
-  const day   = ny.getDay();
-  if (day===0||day===6) return {active:false};
-  const mins  = ny.getHours()*60+ny.getMinutes();
-  if (mins >= 4*60   && mins < 9*60+30)  return {active:true, type:'PRE'};
-  if (mins >= 16*60  && mins < 20*60)    return {active:true, type:'AH'};
+  const ny = getTZTime('America/New_York');
+  if (ny.isWeekend) return {active:false};
+  if (ny.mins >= 4*60   && ny.mins < 9*60+30)  return {active:true, type:'PRE'};
+  if (ny.mins >= 16*60  && ny.mins < 20*60)     return {active:true, type:'AH'};
   return {active:false};
 }
 
