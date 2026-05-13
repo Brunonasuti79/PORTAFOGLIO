@@ -1624,6 +1624,13 @@ async function fetchYahooChart(sym) {
           out.dailyPct   = num(meta.regularMarketChangePercent);
         if (meta.regularMarketChange != null)
           out.dailyValue = num(meta.regularMarketChange);
+        // Extended hours data
+        out.marketState = meta.marketState || null;
+        const regP = num(meta.regularMarketPrice);
+        if (meta.postMarketPrice!=null && regP>0)
+          out.postPct = (num(meta.postMarketPrice) - regP) / regP * 100;
+        if (meta.preMarketPrice!=null && regP>0)
+          out.prePct  = (num(meta.preMarketPrice)  - regP) / regP * 100;
         return out;
       }
     } catch(e) {}
@@ -4045,14 +4052,37 @@ async function fetchYahooExtended(sym) {
       const regP  = pr.regularMarketPrice?.raw;
       let postPct = pr.postMarketChangePercent?.raw ?? null;
       let prePct  = pr.preMarketChangePercent?.raw  ?? null;
+      const ms    = pr.marketState?.raw || pr.marketState || null;
       if (postPct==null && pr.postMarketPrice?.raw!=null && regP>0)
         postPct = (pr.postMarketPrice.raw - regP) / regP * 100;
       if (prePct==null && pr.preMarketPrice?.raw!=null && regP>0)
         prePct  = (pr.preMarketPrice.raw  - regP) / regP * 100;
-      return { prePct: Number.isFinite(prePct)?prePct:null,
-               postPct: Number.isFinite(postPct)?postPct:null };
+      if (postPct!=null || prePct!=null || ms)
+        return { marketState:ms, prePct:Number.isFinite(prePct)?prePct:null,
+                 postPct:Number.isFinite(postPct)?postPct:null };
     }
   } catch(e) {}
+
+  // Prova 3: Yahoo Chart v8 — funziona meglio coi proxy, ha postMarketPrice in meta
+  try {
+    for (const base of ['https://query1','https://query2']) {
+      const url3 = `${base}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=2d`;
+      const data3 = await fetchJsonWithProxies(url3);
+      const meta  = data3?.chart?.result?.[0]?.meta;
+      if (!meta) continue;
+      const regP  = num(meta.regularMarketPrice);
+      const ms    = meta.marketState || null;
+      let postPct = null, prePct = null;
+      if (meta.postMarketPrice!=null && regP>0)
+        postPct = (num(meta.postMarketPrice) - regP) / regP * 100;
+      if (meta.preMarketPrice!=null && regP>0)
+        prePct  = (num(meta.preMarketPrice)  - regP) / regP * 100;
+      if (postPct!=null || prePct!=null || ms)
+        return { marketState:ms, prePct:Number.isFinite(prePct)?prePct:null,
+                 postPct:Number.isFinite(postPct)?postPct:null };
+    }
+  } catch(e) {}
+
   return null;
 }
 
@@ -5344,7 +5374,7 @@ function isExtendedHours() {
 function startAutoRefresh() {
   stopAutoRefresh();
   _autoRefreshTimer = setInterval(() => {
-    if (isMarketOpen() || isExtendedHours().active) fetchPrices();
+    if (isMarketOpen() || isExtendedHours().active) fetchPrices(); // isExtendedHours kept for auto-refresh only
   }, 60000);
 }
 
