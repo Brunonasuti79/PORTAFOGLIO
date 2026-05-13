@@ -155,13 +155,13 @@ html.light .pf-cat.active{background:var(--blue);color:#fff}
 .pf-table thead tr{position:sticky;top:0;z-index:2}
 .pf-table th{padding:9px 10px;font-size:9px;font-weight:700;letter-spacing:.7px;
   text-transform:uppercase;color:var(--text3);border-bottom:2px solid var(--border2);
-  background:var(--bg3);cursor:pointer;user-select:none;text-align:right;
+  background:var(--bg3);cursor:pointer;user-select:none;text-align:center;
   white-space:nowrap;transition:color .15s}
 .pf-table th:first-child{text-align:left;padding-left:14px}
 .pf-table th:hover{color:var(--text)}
-.pf-table th.pf-sort-asc::after{content:' ▲';color:var(--blue)}
-.pf-table th.pf-sort-desc::after{content:' ▼';color:var(--blue)}
-.pf-table th.pf-sort-none::after{content:' ⇅';opacity:.3}
+.pf-table th.pf-sort-asc::after{content:' ▲';color:var(--blue);font-size:10px;opacity:1}
+.pf-table th.pf-sort-desc::after{content:' ▼';color:var(--blue);font-size:10px;opacity:1}
+.pf-table th.pf-sort-none::after{content:' ⇅';color:var(--text2);opacity:.55;font-size:10px}
 .pf-row{cursor:pointer;transition:background .1s;border-bottom:1px solid var(--border)}
 .pf-row:hover,.pf-row.pf-row-open{background:rgba(123,167,255,.05)}
 .pf-row td{padding:9px 10px;text-align:right;font-family:'JetBrains Mono',monospace;
@@ -1890,6 +1890,11 @@ function renderSwitcher() {
 //  RENDER — PORTFOLIO
 // ════════════════════════════════════════════════════════════════
 
+function pfSetFilter(cat) {
+  pfFilterCategory = cat;
+  renderPF();
+}
+
 function pfSort(col) {
   if (pfSortCol === col) pfSortDir *= -1;
   else { pfSortCol = col; pfSortDir = col==='name' ? 1 : -1; }
@@ -1976,7 +1981,7 @@ function renderPF() {
   const cats = [...new Set(allHlds.map(h=>h.assetClass||UNCATEGORIZED))].sort();
   const pills = ['Tutte',...cats].map(c=>
     `<button class="pf-cat${pfFilterCategory===c?' active':''}"
-      onclick="pfFilterCategory=${JSON.stringify(c)};renderPF()">${esc(c)}</button>`
+      onclick="pfSetFilter(${JSON.stringify(c)})">${esc(c)}</button>`
   ).join('');
 
   // Sort + filter
