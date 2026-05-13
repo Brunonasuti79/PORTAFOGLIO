@@ -432,6 +432,10 @@ html.light .ops-group-body{border-color:var(--border)}
 .osep{font-size:10px;color:var(--border2);flex-shrink:0}
 .od{font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap}
 .odet{font-size:10px;color:var(--text3);flex-shrink:0;white-space:nowrap}
+.op-badge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;
+  white-space:nowrap;flex-shrink:0;letter-spacing:.5px}
+.op-badge.buy{background:#e6f9ef;color:#0f6e56;border:1px solid #9fe1cb}
+.op-badge.sell{background:#fcebeb;color:#993c1d;border:1px solid #f5c4b3}
 .ort{text-align:right;flex-shrink:0}
 .otot{font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;white-space:nowrap}
 .otot.buy{color:var(--red)}.otot.sell{color:var(--green)}
@@ -2189,6 +2193,8 @@ function renderOps() {
           <span class="od">${fdate(op.date)}</span>
           <span class="osep">·</span>
           <span class="odet">${op.qty} × ${n3(op.price)} ${op.titleCcy==='USD'?'$':'€'}${op.commissions?` · comm. ${n2(op.commissions)} €`:''}</span>
+          <span class="osep">·</span>
+          <span class="op-badge ${op.type}">${op.type==='buy'?'ACQUISTO':'VENDITA'}</span>
         </div>
         <div class="ort">
           <div class="otot ${op.type}">${op.type==='buy'?'−':'+'}${n2(Math.abs(tot))} €</div>
