@@ -23,10 +23,10 @@
 }
 /* ── Light theme ── */
 html.light{
-  --bg:#f8fafc;--bg2:#ffffff;--bg3:#f1f5f9;
-  --border:#e2e8f0;--border2:#cbd5e1;
-  --text:#0f172a;--text2:#334155;--text3:#94a3b8;
-  --blue:#2563eb;--green:#16a34a;--red:#dc2626;
+  --bg:#f1f5f9;--bg2:#ffffff;--bg3:#e8eef5;
+  --border:#d1dbe8;--border2:#b0bdd0;
+  --text:#0a0f1a;--text2:#1e293b;--text3:#475569;
+  --blue:#1d4ed8;--green:#15803d;--red:#dc2626;
   --green-bg:#f0fdf4;--red-bg:#fef2f2;
 }
 html.light body{background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ html.light .ph{background:var(--bg2);border-bottom-color:var(--border)}
 html.light #bnav{background:var(--bg2);border-top-color:var(--border)}
 html.light #subtabs-bar{background:var(--bg2);border-bottom-color:var(--border)}
 html.light .hbtn{background:var(--bg3);border-color:var(--border2);color:var(--blue)}
-html.light .nbtn{color:#94a3b8}
+html.light .nbtn{color:#475569}
 html.light .nbtn.active{color:var(--green)}
 html.light .page{background:var(--bg)}
 html.light .card,html.light .ssec{background:var(--bg2);border-color:var(--border)}
@@ -196,7 +196,7 @@ html.light .pf-chart-btn{border-color:var(--border2)}
   letter-spacing:.5px;text-transform:uppercase;padding:2px 6px;border-radius:999px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
 html.light .pf-filter-bar select{background:var(--bg3)}
-html.light .pf-table th{background:var(--bg3);color:var(--text2)}
+html.light .pf-table th{background:var(--bg3);color:var(--text)}
 html.light .pf-row:hover,.pf-row-open{background:rgba(37,99,235,.04)}
 html.light .pf-detail-row td{background:#f1f5f9}
 html.light .pf-cat-tag{background:rgba(37,99,235,.1);color:var(--blue)}
@@ -669,7 +669,7 @@ html.light .hist-period.active{background:var(--blue);color:#fff}
       <div class="ph-actions">
         <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
         <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
-          style="font-size:14px;font-weight:700;padding:8px 16px;color:#00e878;border-color:rgba(0,232,120,.4);letter-spacing:.5px;text-shadow:0 0 8px rgba(0,232,120,.5)">⟳ Aggiorna</button>
+          style="font-size:14px;font-weight:700;padding:8px 16px;color:#ffffff;border-color:rgba(255,255,255,.25);letter-spacing:.5px;text-shadow:0 0 12px rgba(255,255,255,.9),0 0 4px rgba(255,255,255,.6)">⟳ Aggiorna</button>
         <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
       </div>
     </div>
