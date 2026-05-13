@@ -461,7 +461,8 @@ html.light .ops-group-body{border-color:var(--border)}
 /* ──────────────────────── ERROR BAR ──────────────────────── */
 .ebar{background:var(--red-bg);border:1px solid #4a1a2a;color:#ff8099;
   font-size:13px;padding:11px 14px;margin:0 14px 10px;border-radius:10px}
-.lupd{text-align:center;font-size:11px;color:#2a3d5a;padding:8px;letter-spacing:.5px}
+.lupd{font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.4px;text-align:right;min-height:14px}
+html.light .lupd{color:rgba(15,23,42,.35)}
 
 /* ──────────────────────── EMPTY ──────────────────────── */
 .empty{text-align:center;padding:48px 20px;color:var(--text3);font-size:14px;line-height:2}
@@ -687,11 +688,14 @@ html.light .pf-dl{color:var(--text3)}
         <div class="pt" id="port-title">PORTAFOGLIO</div>
       </div>
       <div id="pf-switcher"></div>
-      <div class="ph-actions">
-        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
-        <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
-          style="font-size:14px;font-weight:700;padding:8px 16px;color:#ffffff;border-color:rgba(255,255,255,.25);letter-spacing:.5px;text-shadow:0 0 12px rgba(255,255,255,.9),0 0 4px rgba(255,255,255,.6)">⟳ Aggiorna</button>
-        <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
+      <div class="ph-actions" style="flex-direction:column;align-items:flex-end;gap:4px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
+          <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
+            style="font-size:14px;font-weight:700;padding:8px 16px;color:#ffffff;border-color:rgba(255,255,255,.25);letter-spacing:.5px;text-shadow:0 0 12px rgba(255,255,255,.9),0 0 4px rgba(255,255,255,.6)">⟳ Aggiorna</button>
+          <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
+        </div>
+        <div id="lupd" class="lupd"></div>
       </div>
     </div>
     <div id="ebar" class="ebar" style="display:none"></div>
@@ -706,7 +710,6 @@ html.light .pf-dl{color:var(--text3)}
     <div class="sh"><span class="stl" id="port-cnt"></span></div>
     <div id="port-tools" class="pf-tools" style="display:none"></div>
     <div id="port-list"></div>
-    <div id="lupd" class="lupd"></div>
   </div>
 
   <!-- OPERATIONS PAGE -->
