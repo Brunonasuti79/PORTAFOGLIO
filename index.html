@@ -657,8 +657,8 @@ html.light .ops-group-body{border-color:var(--border)}
         <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
         <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
-          style="font-size:14px;font-weight:700;padding:8px 16px;color:#00e878;border-color:rgba(0,232,120,.4);letter-spacing:.5px;text-shadow:0 0 8px rgba(0,232,120,.5)">⟳ Aggiorna</button>
-          <div id="lupd" style="font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.4px;text-align:right;min-height:14px"></div>
+          style="font-size:14px;font-weight:700;padding:8px 16px;color:#ffffff;border-color:rgba(255,255,255,.3);letter-spacing:.5px;text-shadow:0 0 10px rgba(255,255,255,.8)">⟳ Aggiorna</button>
+          <div id="lupd" style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.4px;text-align:center;min-height:14px"></div>
         </div>
         <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
       </div>
@@ -675,7 +675,6 @@ html.light .ops-group-body{border-color:var(--border)}
     <div class="sh"><span class="stl" id="port-cnt"></span></div>
     <div id="port-tools" class="pf-tools" style="display:none"></div>
     <div id="port-list"></div>
-    <div id="lupd" class="lupd"></div>
   </div>
 
   <!-- OPERATIONS PAGE -->
@@ -1785,7 +1784,7 @@ async function fetchPrices() {
     let note = Object.entries(srcGroups).map(([s,l]) => ` · ${s}: ${l.join(', ')}`).join('');
     if (rejected.length) note += ` · Scartati: ${rejected.join(', ')}`;
     if (errors.length)   note += ` · Non trovati: ${errors.join(', ')}`;
-    document.getElementById('lupd').textContent = `Aggiornato alle ${now}${note}`;
+    const _l=document.getElementById('lupd'); if(_l) _l.textContent=`Aggiornato alle ${now}`;
 
     if (errors.length) {
       eb.textContent = `⚠ Non trovati: ${errors.join(', ')}. Controlla il simbolo prezzo in Modifica.`;
