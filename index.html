@@ -678,8 +678,11 @@ html.light #btn-ref{color:var(--text)!important;border-color:var(--border2)!impo
       <div id="pf-switcher"></div>
       <div class="ph-actions">
         <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
-        <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
-          style="font-size:14px;font-weight:700;padding:8px 16px;color:#00e878;border-color:rgba(0,232,120,.4);letter-spacing:.5px;text-shadow:0 0 8px rgba(0,232,120,.5)">⟳ Aggiorna</button>
+        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+          <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
+            style="font-size:14px;font-weight:700;padding:8px 16px;color:#ffffff;border-color:rgba(255,255,255,.25);letter-spacing:.5px;text-shadow:0 0 12px rgba(255,255,255,.9),0 0 4px rgba(255,255,255,.6)">⟳ Aggiorna</button>
+          <div id="lupd" class="lupd"></div>
+        </div>
         <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
       </div>
     </div>
@@ -1760,10 +1763,11 @@ async function fetchPrices() {
 
   busy = true;
   const btn = document.getElementById('btn-ref');
+  if(!btn) { busy=false; return; }
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Aggiorno...';
   const eb = document.getElementById('ebar');
-  eb.style.display = 'none';
+  if(eb) eb.style.display = 'none';
 
   try {
     if (!S.prices)       S.prices = {};
@@ -1818,19 +1822,17 @@ async function fetchPrices() {
     let note = Object.entries(srcGroups).map(([s,l]) => ` · ${s}: ${l.join(', ')}`).join('');
     if (rejected.length) note += ` · Scartati: ${rejected.join(', ')}`;
     if (errors.length)   note += ` · Non trovati: ${errors.join(', ')}`;
-    document.getElementById('lupd').textContent = `Aggiornato alle ${now}`;
+    const lupd=document.getElementById('lupd'); if(lupd) lupd.textContent=`Aggiornato alle ${now}`;
 
     if (errors.length) {
       eb.textContent = `⚠ Non trovati: ${errors.join(', ')}. Controlla il simbolo prezzo in Modifica.`;
       eb.style.display = 'block';
     }
   } catch(e) {
-    eb.textContent = '⚠ ' + (e.message || 'Errore nel recupero prezzi. Riprova.');
-    eb.style.display = 'block';
+    if(eb) { eb.textContent = '⚠ ' + (e.message || 'Errore nel recupero prezzi. Riprova.'); eb.style.display = 'block'; }
   } finally {
     busy = false;
-    btn.disabled = false;
-    btn.innerHTML = '⟳ Aggiorna';
+    if(btn) { btn.disabled = false; btn.innerHTML = '⟳ Aggiorna'; }
     renderAll();
   }
 }
