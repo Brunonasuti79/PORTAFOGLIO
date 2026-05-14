@@ -120,7 +120,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
 
 /* ──────────────────────── SUMMARY CARD ──────────────────────── */
 .sum-card{background:linear-gradient(135deg,#0f1f3d,#162040);
-  margin:7px 14px 5px;border-radius:16px;padding:10px 13px;border:1px solid #1a3060}
+  margin:3px 14px 3px;border-radius:16px;padding:10px 13px;border:1px solid #1a3060}
 .sum-top{display:grid;grid-template-columns:1fr 1fr;gap:10px;text-align:center}
 .sum-lbl{font-size:10px;color:#c8d8ff;letter-spacing:1.3px;text-transform:uppercase;
   font-weight:800;margin-bottom:3px;text-shadow:0 0 10px rgba(123,167,255,.18)}
@@ -685,7 +685,6 @@ html.light #btn-ref{color:var(--text)!important;border-color:var(--border2)!impo
     </div>
     <div id="sum-area"></div>
     <div id="cash-area"></div>
-    <div class="sh"><span class="stl" id="port-cnt"></span></div>
     <div id="port-tools" class="pf-tools" style="display:none"></div>
     <div id="port-list"></div>
   </div>
@@ -2082,7 +2081,7 @@ function renderPF() {
   if (ca) {
     const cash = S.cashEUR||0;
     ca.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:0 14px 6px">
-      <div class="cash-bar" onclick="setCash()" style="flex:1;margin:0">
+      <div class="cash-bar" onclick="setCash()" style="flex:1;margin:0;padding:6px 12px">
         <span class="cash-lbl">💶 Liquidità c/c</span>
         <span class="cash-val">${cash>0?e2(cash):'— tocca per inserire'}</span>
         <span class="cash-edit">✎</span>
@@ -2095,7 +2094,7 @@ function renderPF() {
   const pl = document.getElementById('port-list');
   if (!allHlds.length) {
     pl.innerHTML = `<div class="empty">Nessun titolo in portafoglio.<br>Vai su <strong>Operazioni</strong> per iniziare.</div>`;
-    document.getElementById('port-cnt').textContent = '';
+    const _pc0=document.getElementById('port-cnt'); if(_pc0) _pc0.textContent='';
     return;
   }
 
@@ -2112,8 +2111,7 @@ function renderPF() {
   const visible = sortHoldings(
     pfFilterCategory==='Tutte' ? allHlds : allHlds.filter(h=>(h.assetClass||UNCATEGORIZED)===pfFilterCategory)
   );
-  document.getElementById('port-cnt').textContent =
-    `${visible.length} di ${allHlds.length} titol${allHlds.length===1?'o':'i'}`;
+  const _pc1=document.getElementById('port-cnt'); if(_pc1) _pc1.textContent=`${visible.length} di ${allHlds.length} titol${allHlds.length===1?'o':'i'}`;
 
   const thCls = col => pfSortCol!==col ? 'pf-sort-none' : pfSortDir===1 ? 'pf-sort-asc' : 'pf-sort-desc';
   const th    = (col,lbl,cls) =>
