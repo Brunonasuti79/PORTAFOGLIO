@@ -2009,12 +2009,23 @@ function pfSort(col) {
 
 function sortHoldings(list) {
   const d = pfSortDir;
+  // null/undefined sempre in fondo, indipendente dalla direzione
+  const cmp = (va, vb) => {
+    if (va == null && vb == null) return 0;
+    if (va == null) return 1;
+    if (vb == null) return -1;
+    return d * (vb - va);
+  };
   return [...list].sort((a,b) => {
     switch(pfSortCol) {
-      case 'gain':    return d*((gainBuyCcy(b)??-Infinity)-(gainBuyCcy(a)??-Infinity));
-      case 'gainpct': return d*((gainPctBuyCcy(b)??-Infinity)-(gainPctBuyCcy(a)??-Infinity));
-      case 'oggi':    return d*((Number(S.dailyChanges?.[b.ticker]?.pct)??-Infinity)-(Number(S.dailyChanges?.[a.ticker]?.pct)??-Infinity));
-      case 'prezzo':  return d*((currentPriceBuyCcy(b)??-Infinity)-(currentPriceBuyCcy(a)??-Infinity));
+      case 'gain':    return cmp(gainBuyCcy(a), gainBuyCcy(b));
+      case 'gainpct': return cmp(gainPctBuyCcy(a), gainPctBuyCcy(b));
+      case 'oggi': {
+        const pa = S.dailyChanges?.[a.ticker]?.pct;
+        const pb = S.dailyChanges?.[b.ticker]?.pct;
+        return cmp(pa==null?null:Number(pa), pb==null?null:Number(pb));
+      }
+      case 'prezzo':  return cmp(currentPriceBuyCcy(a), currentPriceBuyCcy(b));
       default: return d*(a.name||a.displayTicker).localeCompare(b.name||b.displayTicker,'it');
     }
   });
