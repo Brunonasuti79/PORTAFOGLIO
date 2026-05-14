@@ -2795,6 +2795,7 @@ function renderPAC() {
   const { cash, monExcess, total: avail } = calcAvailableFunds();
   const months = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
   const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value) || 5;
+  const minOp  = parseFloat(document.getElementById('pac-minop-inp')?.value) || 500;
 
   area.innerHTML = `
   <div class="pac-inputs">
@@ -2819,6 +2820,11 @@ function renderPAC() {
       <div class="pac-input-lbl">Max operazioni / mese</div>
       <input type="number" id="pac-maxops-inp" class="pac-inp" value="${maxOps}"
         min="1" max="20" step="1" inputmode="numeric">
+    </div>
+    <div class="pac-input-card">
+      <div class="pac-input-lbl">Minimo per operazione (€)</div>
+      <input type="number" id="pac-minop-inp" class="pac-inp" value="${minOp}"
+        min="0" max="10000" step="50" inputmode="decimal">
     </div>
   </div>
   <button class="pac-calc-btn" onclick="calcAndRenderPAC()">📊 Calcola piano PAC</button>
@@ -3352,7 +3358,7 @@ async function exportPACExcel() {
   await loadLibs();
   const months = parseInt(document.getElementById('pac-months-inp')?.value)||24;
   const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value)||5;
-  const minOp  = 500;
+  const minOp  = parseFloat(document.getElementById('pac-minop-inp')?.value)||500;
   const { plan, monthlyAmt, totalFunds, finalTotal } = runPAC(months, maxOps, minOp);
   if (!plan.length) { alert('Calcola prima il piano PAC.'); return; }
 
@@ -3615,10 +3621,11 @@ async function exportPACExcel() {
 function calcAndRenderPAC() {
   const months = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
   const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value) || 5;
+  const minOp  = parseFloat(document.getElementById('pac-minop-inp')?.value) || 500;
   if (!Object.keys(S.rebalanceTargets||{}).length) {
     alert('Imposta prima gli obiettivi % nel Ribilanciamento.'); return; }
 
-  const { plan, monthlyAmt, totalFunds, finalTotal } = runPAC(months, maxOps);
+  const { plan, monthlyAmt, totalFunds, finalTotal } = runPAC(months, maxOps, minOp);
   const planEl = document.getElementById('pac-plan');
   if (!planEl) return;
 
