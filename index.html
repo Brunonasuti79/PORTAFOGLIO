@@ -4012,8 +4012,8 @@ function renderHistoryChart(ticker,th,hlds,period){
     <text x="${(pl+cw-2).toFixed(1)}" y="${(maxY-4).toFixed(1)}" text-anchor="end" fill="#22d47e" font-size="9" font-weight="700">▲ ${maxPrice.toFixed(2)} ${sym}</text>`;
   const minPriceLines=`
     <line x1="${pl}" y1="${minY.toFixed(1)}" x2="${pl+cw}" y2="${minY.toFixed(1)}" stroke="#ff4d6d" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>
-    <rect x="${pl+cw-52}" y="${(minY+2).toFixed(1)}" width="50" height="13" rx="3" fill="#2e0a15" opacity="0.85"/>
-    <text x="${(pl+cw-2).toFixed(1)}" y="${(minY+12).toFixed(1)}" text-anchor="end" fill="#ff4d6d" font-size="9" font-weight="700">▼ ${minPrice.toFixed(2)} ${sym}</text>`;
+    <rect x="${pl+cw-52}" y="${(minY-14).toFixed(1)}" width="50" height="13" rx="3" fill="#2e0a15" opacity="0.85"/>
+    <text x="${(pl+cw-2).toFixed(1)}" y="${(minY-4).toFixed(1)}" text-anchor="end" fill="#ff4d6d" font-size="9" font-weight="700">▼ ${minPrice.toFixed(2)} ${sym}</text>`;
   const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">${yL}${xL}<path d="${gainArea}" fill="rgba(34,212,126,.18)"/><path d="${lossArea}" fill="rgba(255,77,109,.18)"/>${maxPriceLines}${minPriceLines}<polyline points="${linePts}" fill="none" stroke="#7ba7ff" stroke-width="2"/><line x1="${pl}" y1="${avgY.toFixed(1)}" x2="${pl+cw}" y2="${avgY.toFixed(1)}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,4"/><circle cx="${sx(pts.length-1).toFixed(1)}" cy="${sy(last.c).toFixed(1)}" r="3.5" fill="#7ba7ff"/><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/><line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/></svg>`;
   const p0=pts[0].c,pCur=last.c,pDiff=pCur-p0,pPct=p0>0?pDiff/p0*100:0,kpiCls=pDiff>=0?'gain':'loss',kpiSign=pDiff>=0?'+':'';
   let kpiYrs=({'1M':1/12,'3M':3/12,'6M':0.5,'1A':1,'2A':2,'5A':5})[period];
