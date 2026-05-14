@@ -2094,24 +2094,27 @@ function renderPF() {
   const pl = document.getElementById('port-list');
   if (!allHlds.length) {
     pl.innerHTML = `<div class="empty">Nessun titolo in portafoglio.<br>Vai su <strong>Operazioni</strong> per iniziare.</div>`;
-    const _pc0=document.getElementById('port-cnt'); if(_pc0) _pc0.textContent='';
+    // port-cnt ora è inline nel filterBar
     return;
   }
 
   // Category filter (select) + sort col header helper
   const cats = [...new Set(allHlds.map(h=>h.assetClass||UNCATEGORIZED))].sort();
-  const filterBar = `<div class="pf-filter-bar">
-    <label>Categoria</label>
-    <select onchange="pfFilterCategory=this.value;renderPF()">
-      <option value="Tutte"${pfFilterCategory==='Tutte'?' selected':''}>Tutte</option>
-      ${cats.map(c=>`<option value="${esc(c)}"${pfFilterCategory===c?' selected':''}>${esc(c)}</option>`).join('')}
-    </select>
+  const filterBar = `<div class="pf-filter-bar" style="justify-content:space-between;align-items:center">
+    <div style="display:flex;align-items:center;gap:8px">
+      <label>Categoria</label>
+      <select onchange="pfFilterCategory=this.value;renderPF()">
+        <option value="Tutte"${pfFilterCategory==='Tutte'?' selected':''}>Tutte</option>
+        ${cats.map(c=>`<option value="${esc(c)}"${pfFilterCategory===c?' selected':''}>${esc(c)}</option>`).join('')}
+      </select>
+    </div>
+    <span style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:1px;text-transform:uppercase">${visible.length} TITOLI</span>
   </div>`;
 
   const visible = sortHoldings(
     pfFilterCategory==='Tutte' ? allHlds : allHlds.filter(h=>(h.assetClass||UNCATEGORIZED)===pfFilterCategory)
   );
-  const _pc1=document.getElementById('port-cnt'); if(_pc1) _pc1.textContent=`${visible.length} di ${allHlds.length} titol${allHlds.length===1?'o':'i'}`;
+  // port-cnt ora è inline nel filterBar
 
   const thCls = col => pfSortCol!==col ? 'pf-sort-none' : pfSortDir===1 ? 'pf-sort-asc' : 'pf-sort-desc';
   const th    = (col,lbl,cls) =>
