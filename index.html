@@ -26,7 +26,7 @@ html.light{
   --bg:#f1f5f9;--bg2:#ffffff;--bg3:#e8eef5;
   --border:#d1dbe8;--border2:#b0bdd0;
   --text:#0a0f1a;--text2:#1e293b;--text3:#475569;
-  --blue:#2563eb;--green:#16a34a;--red:#dc2626;
+  --blue:#1d4ed8;--green:#15803d;--red:#dc2626;
   --green-bg:#f0fdf4;--red-bg:#fef2f2;
 }
 html.light body{background:var(--bg);color:var(--text)}
@@ -34,7 +34,7 @@ html.light .ph{background:var(--bg2);border-bottom-color:var(--border)}
 html.light #bnav{background:var(--bg2);border-top-color:var(--border)}
 html.light #subtabs-bar{background:var(--bg2);border-bottom-color:var(--border)}
 html.light .hbtn{background:var(--bg3);border-color:var(--border2);color:var(--blue)}
-html.light .nbtn{color:#94a3b8}
+html.light .nbtn{color:#475569}
 html.light .nbtn.active{color:var(--green)}
 html.light .page{background:var(--bg)}
 html.light .card,html.light .ssec{background:var(--bg2);border-color:var(--border)}
@@ -175,6 +175,11 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   border-radius:3px;background:rgba(123,167,255,.12);color:var(--blue);
   margin-left:5px;vertical-align:middle;white-space:nowrap;letter-spacing:.3px}
 .pf-no-price{color:var(--text3);font-style:italic;font-size:10px}
+.pf-chart-btn{background:none;border:1px solid var(--border2);border-radius:6px;
+  font-size:11px;padding:1px 5px;cursor:pointer;color:var(--text3);flex-shrink:0;
+  -webkit-tap-highlight-color:transparent;transition:all .15s;line-height:1.4}
+.pf-chart-btn:hover{border-color:var(--blue);color:var(--blue)}
+html.light .pf-chart-btn{border-color:var(--border2)}
 .pf-detail-row td{padding:0;background:rgba(0,0,0,.25);
   border-bottom:2px solid var(--border2)}
 .pf-detail-inner{padding:10px 14px 14px;display:grid;
@@ -191,7 +196,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   letter-spacing:.5px;text-transform:uppercase;padding:2px 6px;border-radius:999px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
 html.light .pf-filter-bar select{background:var(--bg3)}
-html.light .pf-table th{background:var(--bg3);color:var(--text2)}
+html.light .pf-table th{background:var(--bg3);color:var(--text)}
 html.light .pf-row:hover,.pf-row-open{background:rgba(37,99,235,.04)}
 html.light .pf-detail-row td{background:#f1f5f9}
 html.light .pf-cat-tag{background:rgba(37,99,235,.1);color:var(--blue)}
@@ -456,7 +461,8 @@ html.light .ops-group-body{border-color:var(--border)}
 /* ──────────────────────── ERROR BAR ──────────────────────── */
 .ebar{background:var(--red-bg);border:1px solid #4a1a2a;color:#ff8099;
   font-size:13px;padding:11px 14px;margin:0 14px 10px;border-radius:10px}
-
+.lupd{font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.4px;text-align:right;min-height:14px}
+html.light .lupd{color:rgba(15,23,42,.35)}
 
 /* ──────────────────────── EMPTY ──────────────────────── */
 .empty{text-align:center;padding:48px 20px;color:var(--text3);font-size:14px;line-height:2}
@@ -640,27 +646,33 @@ html.light .ops-group-body{border-color:var(--border)}
 }
 
 .hist-periods{display:flex;gap:6px;padding:6px 14px 8px;flex-wrap:wrap}
-.hist-period{font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;border:1px solid var(--border2);background:var(--bg2);color:var(--text3);cursor:pointer;transition:all .15s}
+.hist-period{font-size:11px;font-weight:700;padding:4px 14px;border-radius:20px;
+  border:1px solid var(--border2);background:var(--bg2);color:var(--text3);
+  cursor:pointer;-webkit-tap-highlight-color:transparent;transition:all .15s}
 .hist-period.active{background:var(--blue);border-color:var(--blue);color:#fff}
 html.light .hist-period{background:var(--bg3)}
 html.light .hist-period.active{background:var(--blue);color:#fff}
+/* ── Light mode: elementi con colori hardcoded ── */
 html.light .pt{color:var(--text)}
 html.light .pt-name{color:var(--text2)}
+html.light .pt-sub{color:var(--text3)}
 html.light .sum-lbl{color:var(--text3)}
 html.light .sum-sl{color:var(--text3)}
 html.light .sum-tot{color:var(--text)}
+html.light .sum-tot.neutral{color:var(--text2)}
 html.light .sum-sv{color:var(--text)}
 html.light .sum-metric{background:rgba(37,99,235,.04);border-color:rgba(37,99,235,.1)}
 html.light .sum-card{background:var(--bg2);border-color:var(--border)}
+html.light .sum-top>div .sum-lbl{color:var(--text3)}
 html.light .cash-lbl{color:var(--text2)}
 html.light .cash-val{color:var(--text)}
+html.light .cash-edit{color:var(--text3)}
+html.light .cash-bar{background:var(--bg3)}
+html.light #btn-ref{color:var(--text)!important;border-color:var(--border2)!important;text-shadow:none!important}
 html.light .pf-name{color:var(--text)}
 html.light .pf-ticker{color:var(--text3)}
-.lupd{font-size:10px;color:rgba(255,255,255,.28);letter-spacing:.4px;text-align:right;min-height:14px}
-html.light .lupd{color:rgba(15,23,42,.35)}
-html.light #btn-ref{color:var(--text)!important;border-color:var(--border2)!important;text-shadow:none!important}
-.pf-chart-btn{background:none;border:1px solid var(--border2);border-radius:6px;font-size:11px;padding:1px 5px;cursor:pointer;color:var(--text3);flex-shrink:0;-webkit-tap-highlight-color:transparent;transition:all .15s;line-height:1.4}
-.pf-chart-btn:hover{border-color:var(--blue);color:var(--blue)}
+html.light .pf-dv{color:var(--text2)}
+html.light .pf-dl{color:var(--text3)}
 </style>
 </head>
 <body>
@@ -676,14 +688,14 @@ html.light #btn-ref{color:var(--text)!important;border-color:var(--border2)!impo
         <div class="pt" id="port-title">PORTAFOGLIO</div>
       </div>
       <div id="pf-switcher"></div>
-      <div class="ph-actions">
-        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+      <div class="ph-actions" style="flex-direction:column;align-items:flex-end;gap:4px">
+        <div style="display:flex;gap:6px;align-items:center">
+          <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
           <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
             style="font-size:14px;font-weight:700;padding:8px 16px;color:#ffffff;border-color:rgba(255,255,255,.25);letter-spacing:.5px;text-shadow:0 0 12px rgba(255,255,255,.9),0 0 4px rgba(255,255,255,.6)">⟳ Aggiorna</button>
-          <div id="lupd" class="lupd"></div>
+          <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
         </div>
-        <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
+        <div id="lupd" class="lupd"></div>
       </div>
     </div>
     <div id="ebar" class="ebar" style="display:none"></div>
@@ -884,14 +896,20 @@ html.light #btn-ref{color:var(--text)!important;border-color:var(--border2)!impo
 <!-- CHART POPUP MODAL -->
 <div id="chart-modal" class="mov hidden" onclick="if(event.target.id==='chart-modal')closeChartModal()">
   <div class="msh" style="display:flex;flex-direction:column;max-height:92dvh;overflow:hidden">
-    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
+    <div style="display:flex;align-items:center;justify-content:space-between;
+      padding:14px 16px 10px;border-bottom:1px solid var(--border);flex-shrink:0">
       <div>
-        <div id="chart-modal-title" style="font-family:'Bebas Neue',sans-serif;font-size:22px;letter-spacing:1.5px;color:var(--text)"></div>
+        <div id="chart-modal-title" style="font-family:'Bebas Neue',sans-serif;
+          font-size:22px;letter-spacing:1.5px;color:var(--text)"></div>
         <div id="chart-modal-sub" style="font-size:10px;color:var(--text3);margin-top:1px"></div>
       </div>
       <div style="display:flex;align-items:center;gap:8px">
-        <button class="hbtn" id="chart-modal-refresh" onclick="loadChartModalData()" style="font-size:11px;padding:4px 10px">↻ Aggiorna</button>
-        <button onclick="closeChartModal()" style="background:none;border:none;color:var(--text3);font-size:22px;cursor:pointer;line-height:1;padding:0 4px">×</button>
+        <button class="hbtn" id="chart-modal-refresh"
+          onclick="loadChartModalData()"
+          style="font-size:11px;padding:4px 10px">↻ Aggiorna</button>
+        <button onclick="closeChartModal()"
+          style="background:none;border:none;color:var(--text3);font-size:22px;
+            cursor:pointer;line-height:1;padding:0 4px">×</button>
       </div>
     </div>
     <div class="hist-periods" id="chart-modal-periods" style="flex-shrink:0;border-bottom:1px solid var(--border)"></div>
@@ -1544,8 +1562,9 @@ function makeQuote(price, prevClose, source) {
 }
 
 async function fetchYahooQuote(sym) {
-  // v7/finance/quote → restituisce regularMarketChangePercent in tempo reale
-  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&fields=regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose`;
+  // v7/finance/quote → regularMarket + pre/postMarket
+  const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,preMarketChangePercent,preMarketChange,postMarketChangePercent,postMarketChange';
+  const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&fields=${fields}`;
   try {
     const data = await fetchJsonWithProxies(url);
     const q = data?.quoteResponse?.result?.[0];
@@ -1554,6 +1573,9 @@ async function fetchYahooQuote(sym) {
     if (out) {
       if (q.regularMarketChangePercent != null) out.dailyPct   = q.regularMarketChangePercent;
       if (q.regularMarketChange != null)        out.dailyValue = q.regularMarketChange;
+      // Pre/post market (solo ticker USA)
+      if (q.postMarketChangePercent != null)    out.postPct  = q.postMarketChangePercent;
+      if (q.preMarketChangePercent  != null)    out.prePct   = q.preMarketChangePercent;
     }
     return out;
   } catch(e) { return null; }
@@ -1763,11 +1785,10 @@ async function fetchPrices() {
 
   busy = true;
   const btn = document.getElementById('btn-ref');
-  if(!btn) { busy=false; return; }
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span> Aggiorno...';
   const eb = document.getElementById('ebar');
-  if(eb) eb.style.display = 'none';
+  eb.style.display = 'none';
 
   try {
     if (!S.prices)       S.prices = {};
@@ -1787,7 +1808,7 @@ async function fetchPrices() {
         sources[h.ticker] = q.source || 'Fonte prezzi';
         const pct = num(q?.dailyPct);
         if (pct !== null && Math.abs(pct) < 25)
-          S.dailyChanges[h.ticker] = { pct, value:num(q.dailyValue)||0, source:q.source||'', price };
+          S.dailyChanges[h.ticker] = { pct, value:num(q.dailyValue)||0, source:q.source||'', price, prePct:q.prePct??null, postPct:q.postPct??null };
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
@@ -1822,17 +1843,19 @@ async function fetchPrices() {
     let note = Object.entries(srcGroups).map(([s,l]) => ` · ${s}: ${l.join(', ')}`).join('');
     if (rejected.length) note += ` · Scartati: ${rejected.join(', ')}`;
     if (errors.length)   note += ` · Non trovati: ${errors.join(', ')}`;
-    const lupd=document.getElementById('lupd'); if(lupd) lupd.textContent=`Aggiornato alle ${now}`;
+    document.getElementById('lupd').textContent = `Aggiornato alle ${now}${note}`;
 
     if (errors.length) {
       eb.textContent = `⚠ Non trovati: ${errors.join(', ')}. Controlla il simbolo prezzo in Modifica.`;
       eb.style.display = 'block';
     }
   } catch(e) {
-    if(eb) { eb.textContent = '⚠ ' + (e.message || 'Errore nel recupero prezzi. Riprova.'); eb.style.display = 'block'; }
+    eb.textContent = '⚠ ' + (e.message || 'Errore nel recupero prezzi. Riprova.');
+    eb.style.display = 'block';
   } finally {
     busy = false;
-    if(btn) { btn.disabled = false; btn.innerHTML = '⟳ Aggiorna'; }
+    btn.disabled = false;
+    btn.innerHTML = '⟳ Aggiorna';
     renderAll();
   }
 }
@@ -2126,14 +2149,12 @@ function renderPF() {
     `<th class="${thCls(col)}${cls?' '+cls:''}" onclick="pfSort('${col}')">${lbl}</th>`;
 
   const rows = visible.map((h,i) => {
-    const p          = currentPriceBuyCcy(h);
-    const hp         = p != null;
-    const gain       = hp ? gainBuyCcy(h) : null;
-    const gainP      = hp ? gainPctBuyCcy(h) : null;
-    const gc         = gain!==null ? (gain>=0?'gain':'loss') : '';
-    const sym        = buySym(h);
-    const priceNative= S.prices[h.ticker]??null;
-    const symNative  = (h.titleCcy||'EUR')==='USD'?'$':'€';
+    const p      = currentPriceBuyCcy(h);
+    const hp     = p != null;
+    const gain   = hp ? gainBuyCcy(h) : null;
+    const gainP  = hp ? gainPctBuyCcy(h) : null;
+    const gc     = gain!==null ? (gain>=0?'gain':'loss') : '';
+    const sym    = buySym(h);
     const day    = S.dailyChanges?.[h.ticker];
     const dayPct = day && Number.isFinite(Number(day.pct)) ? Number(day.pct) : null;
     const dCls   = dayPct===null ? 'neutral' : (dayPct>=0?'gain':'loss');
@@ -2161,14 +2182,26 @@ function renderPF() {
       <td>
         <div class="pf-name" style="display:flex;align-items:center;gap:6px">
           <span>${esc(h.name||h.displayTicker)}${arrow}</span>
-          <button class="pf-chart-btn" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico">📈</button>
+          <button class="pf-chart-btn" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')"
+            title="Grafico storico">📈</button>
         </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
       </td>
       <td class="pf-col-g ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
       <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
-      <td class="${dCls}">${dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>'}</td>
-      <td style="color:var(--text)">${priceNative!=null?n3(priceNative)+' '+symNative:'<span class="pf-no-price">—</span>'}</td>
+      <td class="${dCls}">${(()=>{
+        const mainPct = dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>';
+        const ext = isExtendedHours();
+        if(!ext.active) return mainPct;
+        const extPct = ext.type==='PRE' ? day?.prePct : day?.postPct;
+        if(extPct==null||!Number.isFinite(Number(extPct))) return mainPct;
+        const ep  = Number(extPct);
+        const arr = ep>=0?'▲':'▼';
+        const col = ep>=0?'#22d47e':'#ff4d6d';
+        const ext2= '<div style="font-size:9px;color:'+col+';margin-top:1px;font-family:monospace">'+arr+' '+ext.type+' '+(ep>=0?'+':'')+ep.toFixed(2)+'%</div>';
+        return mainPct+ext2;
+      })()}</td>
+      <td style="color:var(--text)">${hp?n3(p)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
     </tr>${detail}`;
   }).join('');
 
@@ -3912,168 +3945,295 @@ function addRebalanceCat() {
 // ════════════════════════════════════════════════════════════════
 
 // ════════════════════════════════════════════════════════════════
-//  TIMEZONE + MARKET HOURS
-// ════════════════════════════════════════════════════════════════
-function getTZTime(tz) {
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone:tz, hour:'numeric', minute:'numeric', weekday:'short', hour12:false
-  }).formatToParts(new Date());
-  const p={}; parts.forEach(x=>{p[x.type]=x.value;});
-  return {h:parseInt(p.hour)%24, m:parseInt(p.minute),
-    mins:(parseInt(p.hour)%24)*60+parseInt(p.minute),
-    isWeekend:p.weekday==='Sun'||p.weekday==='Sat'};
-}
-function isMarketOpen() {
-  const it=getTZTime('Europe/Rome'), ny=getTZTime('America/New_York');
-  if(it.isWeekend||ny.isWeekend) return false;
-  return (it.mins>=9*60&&it.mins<17*60+30)||(ny.mins>=9*60+30&&ny.mins<16*60);
-}
-function isExtendedHours() {
-  const ny=getTZTime('America/New_York');
-  if(ny.isWeekend) return {active:false};
-  if(ny.mins>=4*60&&ny.mins<9*60+30) return {active:true,type:'PRE'};
-  if(ny.mins>=16*60&&ny.mins<20*60)  return {active:true,type:'AH'};
-  return {active:false};
-}
-let _autoRefreshTimer=null;
-function startAutoRefresh() {
-  stopAutoRefresh();
-  _autoRefreshTimer=setInterval(()=>{
-    if(isMarketOpen()||isExtendedHours().active) fetchPrices();
-  },60000);
-}
-function stopAutoRefresh() {
-  if(_autoRefreshTimer){clearInterval(_autoRefreshTimer);_autoRefreshTimer=null;}
-}
-
-// ════════════════════════════════════════════════════════════════
-//  STORICO — periodi multipli con intervallo corretto
+//  STORICO — fetch con intervallo per periodo
 // ════════════════════════════════════════════════════════════════
 async function fetchTickerHistory(sym, interval, range) {
-  interval=interval||'1wk'; range=range||'2y';
-  for(const base of ['https://query1','https://query2']){
-    try{
-      const data=await fetchJsonWithProxies(`${base}.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${range}`);
-      const r=data?.chart?.result?.[0]; if(!r) continue;
-      const ts=r.timestamp||[], closes=r.indicators?.quote?.[0]?.close||[];
-      const ccy=r.meta?.currency||'EUR';
-      const pts=ts.map((t,i)=>({t:t*1000,c:closes[i]})).filter(p=>p.c>0);
-      if(pts.length<3) continue;
-      return {pts,ccy};
-    }catch(e){}
+  interval = interval || '1wk';
+  range    = range    || '2y';
+  const urls = [
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${range}`,
+    `https://query2.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=${interval}&range=${range}`,
+  ];
+  for (const url of urls) {
+    try {
+      const data = await fetchJsonWithProxies(url);
+      const r    = data?.chart?.result?.[0];
+      if (!r) continue;
+      const ts     = r.timestamp || [];
+      const closes = r.indicators?.quote?.[0]?.close || [];
+      const ccy    = r.meta?.currency || 'EUR';
+      const pts    = ts.map((t,i)=>({t:t*1000,c:closes[i]})).filter(p=>p.c>0);
+      if (pts.length < 3) continue;
+      return {pts, ccy};
+    } catch(e) {}
   }
   return null;
 }
 
-const PERIOD_CFG={
-  '1M':{interval:'1d', range:'1mo', label:'1 mese'},
-  '3M':{interval:'1d', range:'3mo', label:'3 mesi'},
-  '6M':{interval:'1d', range:'6mo', label:'6 mesi'},
-  'YTD':{interval:'1d',range:'ytd', label:'Da inizio anno'},
-  '1A':{interval:'1wk',range:'1y',  label:'1 anno'},
-  '2A':{interval:'1wk',range:'2y',  label:'2 anni'},
-  '5A':{interval:'1wk',range:'5y',  label:'5 anni'},
-  'MAX':{interval:'1mo',range:'max',label:'Massimo storico'},
+const PERIOD_CFG = {
+  '1M':  {interval:'1d',  range:'1mo', label:'1 mese'},
+  '3M':  {interval:'1d',  range:'3mo', label:'3 mesi'},
+  '6M':  {interval:'1d',  range:'6mo', label:'6 mesi'},
+  'YTD': {interval:'1d',  range:'ytd', label:'Da inizio anno'},
+  '1A':  {interval:'1wk', range:'1y',  label:'1 anno'},
+  '2A':  {interval:'1wk', range:'2y',  label:'2 anni'},
+  '5A':  {interval:'1wk', range:'5y',  label:'5 anni'},
+  'MAX': {interval:'1mo', range:'max', label:'Massimo storico'},
 };
 
 async function loadTickerHistories() {
-  const hlds=calcPF(); if(!S.tickerHistory) S.tickerHistory={};
-  for(const h of hlds){
-    for(const sym of candidatesForHolding(h)){
-      const res=await fetchTickerHistory(sym,'1wk','2y');
-      if(res){if(!S.tickerHistory[h.ticker])S.tickerHistory[h.ticker]={};S.tickerHistory[h.ticker]['2A']={pts:res.pts,ccy:res.ccy,sym,updated:Date.now()};break;}
+  // carica storico 2A settimanale per tutti i ticker (usato da vecchio sistema)
+  const hlds = calcPF();
+  if (!S.tickerHistory) S.tickerHistory = {};
+  let loaded = 0;
+  for (const h of hlds) {
+    const candidates = candidatesForHolding(h);
+    for (const sym of candidates) {
+      const res = await fetchTickerHistory(sym, '1wk', '2y');
+      if (res) {
+        if (!S.tickerHistory[h.ticker]) S.tickerHistory[h.ticker] = {};
+        S.tickerHistory[h.ticker]['2A'] = {pts:res.pts, ccy:res.ccy, sym, updated:Date.now()};
+        loaded++; break;
+      }
     }
   }
-  save();renderHistory();
+  save(); renderHistory();
 }
 
 async function loadSingleTickerHistory() {
-  const hlds=calcPF(),sel=S._histSel||hlds[0]?.ticker,period=S._histPeriod||'1A';
-  if(!sel) return;
-  const h=hlds.find(h=>h.ticker===sel); if(!h) return;
-  const btn=document.getElementById('hist-btn');
-  if(btn){btn.disabled=true;btn.textContent='Caricamento...';}
-  const cfg=PERIOD_CFG[period]; let loaded=false;
-  for(const sym of candidatesForHolding(h)){
-    const res=await fetchTickerHistory(sym,cfg.interval,cfg.range);
-    if(res&&res.pts.length>=3){
-      if(!S.tickerHistory) S.tickerHistory={};
-      if(!S.tickerHistory[sel]) S.tickerHistory[sel]={};
-      S.tickerHistory[sel][period]={pts:res.pts,ccy:res.ccy,sym,updated:Date.now()};
-      save();loaded=true;break;
+  const hlds   = calcPF();
+  const sel    = S._histSel    || hlds[0]?.ticker;
+  const period = S._histPeriod || '1A';
+  if (!sel) return;
+  const h = hlds.find(h=>h.ticker===sel);
+  if (!h) return;
+  const btn = document.getElementById('hist-btn');
+  if (btn) { btn.disabled=true; btn.textContent='Caricamento...'; }
+  const cfg = PERIOD_CFG[period];
+  const candidates = candidatesForHolding(h);
+  let loaded = false;
+  for (const sym of candidates) {
+    const res = await fetchTickerHistory(sym, cfg.interval, cfg.range);
+    if (res && res.pts.length >= 3) {
+      if (!S.tickerHistory) S.tickerHistory = {};
+      if (!S.tickerHistory[sel]) S.tickerHistory[sel] = {};
+      S.tickerHistory[sel][period] = {pts:res.pts, ccy:res.ccy, sym, updated:Date.now()};
+      save(); loaded = true; break;
     }
   }
-  if(!loaded) showToast('⚠ Storico non trovato');
+  if (!loaded) showToast('⚠ Storico non trovato per questo ticker');
   renderHistory();
 }
 
-function calcPortfolioHistory(){return[];}
+function calcPortfolioHistory() { return []; } // deprecata, mantenuta per compatibilità
 
-function renderHistory(){
-  const area=document.getElementById('history-area'); if(!area) return;
-  const hlds=calcPF();
-  if(!hlds.length){area.innerHTML='<div class="empty">Nessun titolo in portafoglio.</div>';return;}
-  const sel=S._histSel||hlds[0].ticker, period=S._histPeriod||'1A';
-  const th=(S.tickerHistory||{})[sel]?.[period];
-  const opts=hlds.map(h=>`<option value="${esc(h.ticker)}"${h.ticker===sel?' selected':''}>${esc(h.displayTicker)} — ${esc(h.name||h.displayTicker)}</option>`).join('');
-  const pills=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="S._histPeriod='${p}';renderHistory()">${p}</button>`).join('');
-  area.innerHTML=`
+function renderHistory() {
+  const area = document.getElementById('history-area');
+  if (!area) return;
+  const hlds = calcPF();
+  if (!hlds.length) {
+    area.innerHTML = '<div class="empty">Nessun titolo in portafoglio.</div>';
+    return;
+  }
+  const sel    = S._histSel    || hlds[0].ticker;
+  const period = S._histPeriod || '1A';
+  const th     = (S.tickerHistory||{})[sel]?.[period];
+
+  const tickerOptions = hlds.map(h =>
+    `<option value="${esc(h.ticker)}"${h.ticker===sel?' selected':''}>${esc(h.displayTicker)} — ${esc(h.name||h.displayTicker)}</option>`
+  ).join('');
+
+  const periodBtns = Object.keys(PERIOD_CFG).map(p =>
+    `<button class="hist-period${period===p?' active':''}" onclick="S._histPeriod='${p}';renderHistory()">${p}</button>`
+  ).join('');
+
+  area.innerHTML = `
     <div style="padding:10px 14px 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-      <select id="hist-sel" onchange="S._histSel=this.value;renderHistory()" style="flex:1;min-width:180px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;padding:6px 10px;border-radius:8px;outline:none">${opts}</select>
-      <button class="hbtn" id="hist-btn" onclick="loadSingleTickerHistory()" style="padding:6px 14px;font-size:12px;font-weight:700;flex-shrink:0">↻ Aggiorna</button>
+      <select id="hist-sel" onchange="S._histSel=this.value;renderHistory()"
+        style="flex:1;min-width:180px;background:var(--bg2);border:1px solid var(--border2);
+          color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;
+          padding:6px 10px;border-radius:8px;outline:none">
+        ${tickerOptions}
+      </select>
+      <button class="hbtn" id="hist-btn" onclick="loadSingleTickerHistory()"
+        style="padding:6px 14px;font-size:12px;font-weight:700;flex-shrink:0">↻ Aggiorna</button>
     </div>
-    <div class="hist-periods">${pills}</div>
+    <div class="hist-periods">${periodBtns}</div>
     <div id="hist-chart-area" style="padding-bottom:80px">
-      ${th?renderHistoryChart(sel,th,hlds,period):'<div class="empty" style="padding:40px 20px">Seleziona un titolo e premi <strong>↻ Aggiorna</strong>.</div>'}
+      ${th ? renderHistoryChart(sel, th, hlds, period)
+           : '<div class="empty" style="padding:40px 20px">Seleziona un titolo e premi <strong>↻ Aggiorna</strong> per scaricare i dati da Yahoo Finance.</div>'}
     </div>`;
 }
 
-function renderHistoryChart(ticker,th,hlds,period){
-  const h=hlds.find(h=>h.ticker===ticker);
-  if(!h||!th?.pts?.length) return '<div class="empty">Nessun dato.</div>';
-  const pts=th.pts.filter(p=>p.c>0);
-  const avgLine=h.avgPrice||h.avgPriceBuyCcy||0, sym=th.ccy==='USD'?'$':'€';
-  if(pts.length<3) return '<div class="empty">Dati insufficienti.</div>';
-  const prices=pts.map(p=>p.c), minP=Math.min(...prices,avgLine)*0.97, maxP=Math.max(...prices,avgLine)*1.03, rng=maxP-minP||1;
-  const last=pts[pts.length-1], W=720,H=240,pl=62,pr=16,pt=14,pb=34, cw=W-pl-pr, ch=H-pt-pb;
-  const sx=i=>pl+(i/(pts.length-1))*cw, sy=v=>pt+ch*(1-(v-minP)/rng), avgY=sy(avgLine);
-  const linePts=pts.map((p,i)=>`${sx(i).toFixed(1)},${sy(p.c).toFixed(1)}`).join(' ');
-  let gainArea='',lossArea='';
+function renderHistoryChart(ticker, th, hlds, period) {
+  const h = hlds.find(h=>h.ticker===ticker);
+  if (!h || !th?.pts?.length) return '<div class="empty">Nessun dato.</div>';
+
+  const pts     = th.pts.filter(p=>p.c>0);
+  // avgPrice è sempre in titleCcy (USD per titoli USD) = corrisponde ai dati Yahoo
+  const avgLine = h.avgPrice || h.avgPriceBuyCcy || 0;
+  const sym     = th.ccy==='USD' ? '$' : '€';
+  if (pts.length < 3) return '<div class="empty">Dati insufficienti.</div>';
+
+  const prices = pts.map(p=>p.c);
+  const minP   = Math.min(...prices, avgLine)*0.97;
+  const maxP   = Math.max(...prices, avgLine)*1.03;
+  const rng    = maxP-minP||1;
+  const last   = pts[pts.length-1];
+  const W=720,H=240,pl=62,pr=16,pt=14,pb=34;
+  const cw=W-pl-pr, ch=H-pt-pb;
+  const sx = i => pl+(i/(pts.length-1))*cw;
+  const sy = v => pt+ch*(1-(v-minP)/rng);
+  const avgY = sy(avgLine);
+
+  const linePts = pts.map((p,i)=>`${sx(i).toFixed(1)},${sy(p.c).toFixed(1)}`).join(' ');
+
+  let gainArea='', lossArea='';
   for(let i=0;i<pts.length-1;i++){
-    const x1=sx(i),x2=sx(i+1),y1=sy(pts[i].c),y2=sy(pts[i+1].c),a1=pts[i].c>=avgLine,a2=pts[i+1].c>=avgLine;
+    const x1=sx(i),x2=sx(i+1),y1=sy(pts[i].c),y2=sy(pts[i+1].c);
+    const a1=pts[i].c>=avgLine, a2=pts[i+1].c>=avgLine;
     if(a1&&a2)       gainArea+=`M${x1.toFixed(1)},${avgY.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)} L${x2.toFixed(1)},${avgY.toFixed(1)} Z `;
     else if(!a1&&!a2) lossArea+=`M${x1.toFixed(1)},${avgY.toFixed(1)} L${x1.toFixed(1)},${y1.toFixed(1)} L${x2.toFixed(1)},${y2.toFixed(1)} L${x2.toFixed(1)},${avgY.toFixed(1)} Z `;
   }
-  const useDayFmt=['1M','3M','6M','YTD'].includes(period);
-  const step=Math.max(1,Math.floor(pts.length/7));
-  const xL=pts.filter((_,i)=>i%step===0||i===pts.length-1).map(p=>{
-    const i=pts.indexOf(p),d=new Date(p.t);
-    return `<text x="${sx(i).toFixed(1)}" y="${pt+ch+22}" text-anchor="middle" fill="#4b6090" font-size="9">${useDayFmt?d.toLocaleDateString('it-IT',{day:'numeric',month:'short'}):d.toLocaleDateString('it-IT',{month:'short',year:'2-digit'})}</text>`;
+
+  const useDayFmt = ['1M','3M','6M','YTD'].includes(period);
+  const maxLbl = 7;
+  const step   = Math.max(1, Math.floor(pts.length/maxLbl));
+  const xLabels = pts.filter((_,i)=>i%step===0||i===pts.length-1).map(p=>{
+    const i=pts.indexOf(p), d=new Date(p.t);
+    const lbl=useDayFmt
+      ? d.toLocaleDateString('it-IT',{day:'numeric',month:'short'})
+      : d.toLocaleDateString('it-IT',{month:'short',year:'2-digit'});
+    return `<text x="${sx(i).toFixed(1)}" y="${pt+ch+22}" text-anchor="middle" fill="#4b6090" font-size="9">${lbl}</text>`;
   }).join('');
-  const yL=Array.from({length:5},(_,i)=>{const v=minP+(i/4)*rng,y=sy(v);return `<text x="${pl-5}" y="${(y+3).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="9">${v.toFixed(2)}</text><line x1="${pl}" y1="${y.toFixed(1)}" x2="${pl+cw}" y2="${y.toFixed(1)}" stroke="#1a2a4a" stroke-width="0.5"/>`;}).join('');
-  const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">${yL}${xL}<path d="${gainArea}" fill="rgba(34,212,126,.18)"/><path d="${lossArea}" fill="rgba(255,77,109,.18)"/><polyline points="${linePts}" fill="none" stroke="#7ba7ff" stroke-width="2"/><line x1="${pl}" y1="${avgY.toFixed(1)}" x2="${pl+cw}" y2="${avgY.toFixed(1)}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,4"/><circle cx="${sx(pts.length-1).toFixed(1)}" cy="${sy(last.c).toFixed(1)}" r="3.5" fill="#7ba7ff"/><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/><line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/></svg>`;
-  // KPI bar
-  const p0=pts[0].c,pCur=last.c,pDiff=pCur-p0,pPct=p0>0?pDiff/p0*100:0,kpiCls=pDiff>=0?'gain':'loss',kpiSign=pDiff>=0?'+':'';
-  let kpiYrs=({'1M':1/12,'3M':3/12,'6M':0.5,'1A':1,'2A':2,'5A':5})[period];
-  if(period==='YTD'){const j=new Date(new Date().getFullYear(),0,1).getTime();kpiYrs=(last.t-j)/(365.25*24*3600*1000);}
-  if(period==='MAX') kpiYrs=(last.t-pts[0].t)/(365.25*24*3600*1000);
-  const kpiCAGR=kpiYrs>1&&p0>0?(Math.pow(pCur/p0,1/kpiYrs)-1)*100:null;
-  const kpiBar=`<div style="padding:10px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:8px"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:8px">${esc(PERIOD_CFG[period]?.label||period)}</div><div style="display:flex;gap:16px;justify-content:flex-end;align-items:flex-end;flex-wrap:wrap"><div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700">Interesse totale</span><span class="${kpiCls}" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${kpiSign}${pPct.toFixed(2)}%</span></div>${kpiCAGR!==null?`<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px"><span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700">Interesse composto</span><span class="${kpiCAGR>=0?'gain':'loss'}" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${kpiCAGR>=0?'+':''}${kpiCAGR.toFixed(2)}%</span></div>`:''}</div></div>`;
-  // Performance table
-  const periodYears={'1M':1/12,'3M':3/12,'6M':0.5,'YTD':null,'1A':1,'2A':2,'5A':5,'MAX':null};
-  const allTh=(S.tickerHistory||{})[ticker]||{};
-  const perfRows=Object.entries(PERIOD_CFG).map(([p,cfg])=>{
-    const d=allTh[p];
-    if(!d?.pts?.length) return `<tr><td style="padding:7px 12px;font-size:11px;color:var(--text2)">${cfg.label}</td><td colspan="4" style="padding:7px 12px;text-align:right"><button onclick="S._histPeriod='${p}';loadSingleTickerHistory()" style="font-size:10px;padding:2px 8px;cursor:pointer;background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3)">Carica ↻</button></td></tr>`;
-    const dp0=d.pts[0].c,cur=d.pts[d.pts.length-1].c,diff=cur-dp0,dpct=dp0>0?diff/dp0*100:0,cls=diff>=0?'gain':'loss',pfx=diff>=0?'+':'';
-    let yrs=periodYears[p];
-    if(p==='YTD'){const j=new Date(new Date().getFullYear(),0,1).getTime();yrs=(d.pts[d.pts.length-1].t-j)/(365.25*24*3600*1000);}
-    else if(p==='MAX') yrs=(d.pts[d.pts.length-1].t-d.pts[0].t)/(365.25*24*3600*1000);
-    const cagr=yrs>1?(Math.pow(cur/dp0,1/yrs)-1)*100:null;
-    return `<tr style="${p===period?'background:rgba(123,167,255,.06)':''}"><td style="padding:7px 12px;font-size:11px;color:var(--text2)">${cfg.label}</td><td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">${n3(dp0)} ${sym}</td><td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px" class="${cls}">${pfx}${n3(diff)} ${sym}</td><td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700" class="${cls}">${pfx}${dpct.toFixed(2)}%</td><td style="padding:7px 12px;text-align:right">${cagr!==null?`<span class="${cagr>=0?'gain':'loss'}" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700">${cagr>=0?'+':''}${cagr.toFixed(2)}%</span>`:'<span style="color:var(--text3);font-size:10px">—</span>'}</td></tr>`;
+
+  const yLabels = Array.from({length:5},(_,i)=>{
+    const v=minP+(i/4)*rng, y=sy(v);
+    return `<text x="${pl-5}" y="${(y+3).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="9">${v.toFixed(2)}</text>
+            <line x1="${pl}" y1="${y.toFixed(1)}" x2="${pl+cw}" y2="${y.toFixed(1)}" stroke="#1a2a4a" stroke-width="0.5"/>`;
   }).join('');
-  const intLbl=useDayFmt?'giornaliero':['5A','MAX'].includes(period)?'mensile':'settimanale';
-  return `<div style="margin:4px 14px 8px">${kpiBar}<div style="font-size:10px;color:var(--text3);margin-bottom:4px">Yahoo Finance · ${pts.length} candele ${intLbl} · aggiornato ${th.updated?new Date(th.updated).toLocaleDateString('it-IT'):'—'}</div><div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 0 6px">${svg}</div><div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;margin:6px 14px 10px;font-size:10px;color:var(--text3)"><span><span style="display:inline-block;width:24px;height:2px;background:#7ba7ff;vertical-align:middle;margin-right:5px"></span>Prezzo</span><span><span style="display:inline-block;width:24px;height:0;border-top:2px dashed #f59e0b;vertical-align:middle;margin-right:5px"></span>Carico: ${n3(avgLine)} ${sym}</span></div></div><div style="margin:0 14px 16px"><div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:6px">Performance per periodo</div><div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:var(--bg3)">${['Periodo','Inizio','Variazione','Interesse totale','Interesse composto'].map((h,i)=>`<th style="padding:6px 12px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:${i===4?'var(--blue)':'var(--text3)'};border-bottom:1px solid var(--border);text-align:${i===0?'left':'right'}">${h}</th>`).join('')}</tr></thead><tbody>${perfRows}</tbody></table></div></div>`;
+
+  const svg = `<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
+    ${yLabels}${xLabels}
+    <path d="${gainArea}" fill="rgba(34,212,126,.18)"/>
+    <path d="${lossArea}" fill="rgba(255,77,109,.18)"/>
+    <polyline points="${linePts}" fill="none" stroke="#7ba7ff" stroke-width="2"/>
+    <line x1="${pl}" y1="${avgY.toFixed(1)}" x2="${pl+cw}" y2="${avgY.toFixed(1)}"
+      stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,4"/>
+    <circle cx="${sx(pts.length-1).toFixed(1)}" cy="${sy(last.c).toFixed(1)}" r="3.5" fill="#7ba7ff"/>
+    <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
+    <line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
+  </svg>`;
+
+  const legend = `<div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap;
+    margin:6px 14px 10px;font-size:10px;color:var(--text3)">
+    <span><span style="display:inline-block;width:24px;height:2px;background:#7ba7ff;vertical-align:middle;margin-right:5px"></span>Prezzo (${PERIOD_CFG[period]?.label})</span>
+    <span><span style="display:inline-block;width:24px;height:0;border-top:2px dashed #f59e0b;vertical-align:middle;margin-right:5px"></span>Mio carico: ${n3(avgLine)} ${sym}</span>
+    <span><span style="display:inline-block;width:12px;height:10px;background:rgba(34,212,126,.3);vertical-align:middle;margin-right:5px;border-radius:2px"></span>Gain</span>
+    <span><span style="display:inline-block;width:12px;height:10px;background:rgba(255,77,109,.3);vertical-align:middle;margin-right:5px;border-radius:2px"></span>Loss</span>
+  </div>`;
+
+  const allTh = (S.tickerHistory||{})[ticker]||{};
+  // CAGR helper
+  const calcCAGR = (p0, pCur, years) => {
+    if (p0<=0||years<=0) return null;
+    return (Math.pow(pCur/p0, 1/years) - 1) * 100;
+  };
+  // Anni per periodo fisso
+  const periodYears = {'1M':1/12,'3M':3/12,'6M':0.5,'YTD':null,'1A':1,'2A':2,'5A':5,'MAX':null};
+
+  const perfRows = Object.entries(PERIOD_CFG).map(([p,cfg])=>{
+    const d = allTh[p];
+    if (!d?.pts?.length) return `<tr>
+      <td style="padding:7px 12px;font-size:11px;color:var(--text2)">${cfg.label}</td>
+      <td colspan="4" style="padding:7px 12px;text-align:right">
+        <button onclick="S._histPeriod='${p}';loadSingleTickerHistory()"
+          style="font-size:10px;padding:2px 8px;cursor:pointer;background:none;
+            border:1px solid var(--border2);border-radius:6px;color:var(--text3)">Carica ↻</button>
+      </td></tr>`;
+    const p0=d.pts[0].c, cur=d.pts[d.pts.length-1].c;
+    const diff=cur-p0, pct=p0>0?diff/p0*100:0;
+    const cls=diff>=0?'gain':'loss', pfx=diff>=0?'+':'';
+
+    // Calcola anni reali (per YTD e MAX dai dati, per gli altri dal config)
+    let yrs = periodYears[p];
+    if (p==='YTD') {
+      const jan1 = new Date(new Date().getFullYear(),0,1).getTime();
+      yrs = (d.pts[d.pts.length-1].t - jan1) / (365.25*24*3600*1000);
+    } else if (p==='MAX') {
+      yrs = (d.pts[d.pts.length-1].t - d.pts[0].t) / (365.25*24*3600*1000);
+    }
+    const showCAGR = yrs > 1;
+    const cagr     = showCAGR ? calcCAGR(p0, cur, yrs) : null;
+    const cagrStr  = cagr!==null
+      ? `<span class="${cagr>=0?'gain':'loss'}" style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700">${cagr>=0?'+':''}${cagr.toFixed(2)}%</span>`
+      : `<span style="color:var(--text3);font-size:10px">—</span>`;
+
+    return `<tr style="${p===period?'background:rgba(123,167,255,.06)':''}">
+      <td style="padding:7px 12px;font-size:11px;color:var(--text2)">${cfg.label}</td>
+      <td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">${n3(p0)} ${sym}</td>
+      <td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px" class="${cls}">${pfx}${n3(diff)} ${sym}</td>
+      <td style="padding:7px 12px;text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700" class="${cls}">${pfx}${pct.toFixed(2)}%</td>
+      <td style="padding:7px 12px;text-align:right">${cagrStr}</td>
+    </tr>`;
+  }).join('');
+
+  const intLbl = useDayFmt?'giornaliero':(['5A','MAX'].includes(period)?'mensile':'settimanale');
+  const updStr = th.updated?new Date(th.updated).toLocaleDateString('it-IT'):'—';
+
+  // KPI periodo selezionato
+  const p0       = pts[0].c;
+  const pCur     = last.c;
+  const pDiff    = pCur - p0;
+  const pPct     = p0 > 0 ? pDiff/p0*100 : 0;
+  const kpiCls   = pDiff >= 0 ? 'gain' : 'loss';
+  const kpiSign  = pDiff >= 0 ? '+' : '';
+  const kpiLabel = PERIOD_CFG[period]?.label || period;
+
+  // CAGR per KPI bar
+  let kpiYrs = ({'1M':1/12,'3M':3/12,'6M':0.5,'1A':1,'2A':2,'5A':5})[period];
+  if (period==='YTD') { const j=new Date(new Date().getFullYear(),0,1).getTime(); kpiYrs=(last.t-j)/(365.25*24*3600*1000); }
+  if (period==='MAX') { kpiYrs=(last.t-pts[0].t)/(365.25*24*3600*1000); }
+  // Interesse composto (CAGR) — solo per periodi > 1 anno
+  const kpiCAGR    = kpiYrs>1 && p0>0 ? (Math.pow(pCur/p0,1/kpiYrs)-1)*100 : null;
+  const kpiCAGRStr = kpiCAGR!==null
+    ? `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+        <span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700">Interesse composto</span>
+        <span class="${kpiCAGR>=0?'gain':'loss'}" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${kpiCAGR>=0?'+':''}${kpiCAGR.toFixed(2)}%</span>
+      </div>` : '';
+
+  const kpiBar = `<div style="padding:10px 14px;background:var(--bg2);border:1px solid var(--border);
+    border-radius:10px;margin-bottom:8px">
+    <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:8px">${esc(kpiLabel)}</div>
+    <div style="display:flex;gap:16px;justify-content:flex-end;align-items:flex-end;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
+        <span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700">Interesse totale</span>
+        <span class="${kpiCls}" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700">${kpiSign}${pPct.toFixed(2)}%</span>
+      </div>
+      ${kpiCAGRStr}
+    </div>
+  </div>`;
+
+  return `
+    <div style="margin:4px 14px 8px">
+      ${kpiBar}
+      <div style="font-size:10px;color:var(--text3);margin-bottom:4px">Yahoo Finance · ${pts.length} candele ${intLbl} · aggiornato ${updStr}</div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 0 6px">${svg}</div>
+      ${legend}
+    </div>
+    <div style="margin:0 14px 16px">
+      <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:6px;padding-left:2px">Performance per periodo</div>
+      <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;overflow:hidden">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr style="background:var(--bg3)">
+            ${['Periodo','Inizio','Variazione','Interesse totale','Interesse composto'].map((h,i)=>
+              `<th style="padding:6px 12px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border);text-align:${i===0?'left':'right'};${i===4?'color:var(--blue)':''}">${h}</th>`
+            ).join('')}
+          </tr></thead>
+          <tbody>${perfRows}</tbody>
+        </table>
+      </div>
+    </div>`;
 }
 
 
@@ -4985,42 +5145,139 @@ function confirmImport() {
   showToast(`✓ Importate ${n} operazioni — verifica ticker e categorie`);
 }
 
-// ── Chart popup modal ────────────────────────────────────────────
-let _chartModalTicker=null,_chartModalPeriod='1A';
-function openChartModal(ticker){
-  _chartModalTicker=ticker;
-  const hlds=calcPF(),h=hlds.find(h=>h.ticker===ticker);if(!h)return;
-  document.getElementById('chart-modal-title').textContent=h.name||h.displayTicker;
-  document.getElementById('chart-modal-sub').textContent=h.displayTicker+(h.isin?' · '+h.isin:'');
+// ── Chart popup modal ───────────────────────────────────────────
+let _chartModalTicker = null;
+let _chartModalPeriod = '1A';
+
+function openChartModal(ticker) {
+  _chartModalTicker = ticker;
+  const hlds = calcPF();
+  const h    = hlds.find(h=>h.ticker===ticker);
+  if (!h) return;
+
+  document.getElementById('chart-modal-title').textContent =
+    h.name || h.displayTicker;
+  document.getElementById('chart-modal-sub').textContent =
+    h.displayTicker + (h.isin ? ' · ' + h.isin : '');
   document.getElementById('chart-modal').classList.remove('hidden');
   renderChartModal();
 }
-function closeChartModal(){document.getElementById('chart-modal').classList.add('hidden');_chartModalTicker=null;}
-function renderChartModal(){
-  const ticker=_chartModalTicker;if(!ticker)return;
-  const period=_chartModalPeriod,hlds=calcPF(),th=(S.tickerHistory||{})[ticker]?.[period];
-  const perDiv=document.getElementById('chart-modal-periods');
-  if(perDiv) perDiv.innerHTML=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="_chartModalPeriod='${p}';renderChartModal()">${p}</button>`).join('');
-  const body=document.getElementById('chart-modal-body');if(!body)return;
-  body.innerHTML=th?renderHistoryChart(ticker,th,hlds,period):`<div class="empty" style="padding:40px 20px">Premi <strong>↻ Aggiorna</strong> per scaricare il grafico (${PERIOD_CFG[period]?.label}).</div>`;
+
+function closeChartModal() {
+  document.getElementById('chart-modal').classList.add('hidden');
+  _chartModalTicker = null;
 }
-async function loadChartModalData(){
-  const ticker=_chartModalTicker;if(!ticker)return;
-  const period=_chartModalPeriod,hlds=calcPF(),h=hlds.find(h=>h.ticker===ticker);if(!h)return;
-  const btn=document.getElementById('chart-modal-refresh');
-  if(btn){btn.disabled=true;btn.textContent='Caricamento...';}
-  const cfg=PERIOD_CFG[period];let loaded=false;
-  for(const sym of candidatesForHolding(h)){
-    const res=await fetchTickerHistory(sym,cfg.interval,cfg.range);
-    if(res&&res.pts.length>=3){
-      if(!S.tickerHistory)S.tickerHistory={};if(!S.tickerHistory[ticker])S.tickerHistory[ticker]={};
-      S.tickerHistory[ticker][period]={pts:res.pts,ccy:res.ccy,sym,updated:Date.now()};
-      save();loaded=true;break;
+
+function renderChartModal() {
+  const ticker = _chartModalTicker;
+  if (!ticker) return;
+  const period  = _chartModalPeriod;
+  const hlds    = calcPF();
+  const th      = (S.tickerHistory||{})[ticker]?.[period];
+
+  // Period pills
+  const perDiv = document.getElementById('chart-modal-periods');
+  if (perDiv) {
+    perDiv.innerHTML = Object.keys(PERIOD_CFG).map(p =>
+      `<button class="hist-period${period===p?' active':''}"
+        onclick="_chartModalPeriod='${p}';renderChartModal()">${p}</button>`
+    ).join('');
+  }
+
+  // Chart body
+  const body = document.getElementById('chart-modal-body');
+  if (!body) return;
+
+  if (!th) {
+    body.innerHTML = `<div class="empty" style="padding:40px 20px">
+      Premi <strong>↻ Aggiorna</strong> per scaricare il grafico (${PERIOD_CFG[period]?.label}).
+    </div>`;
+    return;
+  }
+  body.innerHTML = renderHistoryChart(ticker, th, hlds, period);
+}
+
+async function loadChartModalData() {
+  const ticker = _chartModalTicker;
+  if (!ticker) return;
+  const period = _chartModalPeriod;
+  const hlds   = calcPF();
+  const h      = hlds.find(h=>h.ticker===ticker);
+  if (!h) return;
+
+  const btn = document.getElementById('chart-modal-refresh');
+  if (btn) { btn.disabled=true; btn.textContent='Caricamento...'; }
+
+  const cfg  = PERIOD_CFG[period];
+  const cands = candidatesForHolding(h);
+  let loaded = false;
+  for (const sym of cands) {
+    const res = await fetchTickerHistory(sym, cfg.interval, cfg.range);
+    if (res && res.pts.length >= 3) {
+      if (!S.tickerHistory) S.tickerHistory = {};
+      if (!S.tickerHistory[ticker]) S.tickerHistory[ticker] = {};
+      S.tickerHistory[ticker][period] = {pts:res.pts, ccy:res.ccy, sym, updated:Date.now()};
+      save(); loaded=true; break;
     }
   }
-  if(!loaded)showToast('⚠ Storico non trovato');
-  if(btn){btn.disabled=false;btn.textContent='↻ Aggiorna';}
+  if (!loaded) showToast('⚠ Storico non trovato');
+  if (btn) { btn.disabled=false; btn.textContent='↻ Aggiorna'; }
   renderChartModal();
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  AUTO-REFRESH — ogni 60s durante orari di mercato
+// ════════════════════════════════════════════════════════════════
+let _autoRefreshTimer = null;
+
+function isMarketOpen() {
+  // Usa l'ora locale del browser convertita in orario italiano (CET/CEST)
+  const now   = new Date();
+  const itStr = now.toLocaleString('en-US', {timeZone:'Europe/Rome'});
+  const it    = new Date(itStr);
+  const day   = it.getDay(); // 0=dom, 6=sab
+  if (day === 0 || day === 6) return false;
+  const h = it.getHours(), m = it.getMinutes();
+  const mins = h * 60 + m;
+
+  // Borsa europea: 09:00 – 17:30 ora italiana
+  const euOpen  = 9*60, euClose = 17*60+30;
+  // Borsa USA: 14:30 – 21:00 ora italiana (ora solare)
+  //            15:30 – 22:00 ora italiana (ora legale USA, mar–nov)
+  // JavaScript calcola l'offset automaticamente — usiamo NY
+  const nyStr = now.toLocaleString('en-US', {timeZone:'America/New_York'});
+  const ny    = new Date(nyStr);
+  const nyH   = ny.getHours(), nyM = ny.getMinutes();
+  const nyMins= nyH*60+nyM;
+  const usOpen= 9*60+30, usClose=16*60; // NYSE 09:30–16:00 NY
+
+  const euIsOpen = mins >= euOpen  && mins < euClose;
+  const usIsOpen = nyMins >= usOpen && nyMins < usClose;
+  return euIsOpen || usIsOpen;
+}
+
+function isExtendedHours() {
+  // Pre-market USA: 04:00–09:30 NY   After-hours: 16:00–20:00 NY
+  const nyStr = new Date().toLocaleString('en-US', {timeZone:'America/New_York'});
+  const ny    = new Date(nyStr);
+  const day   = ny.getDay();
+  if (day===0||day===6) return {active:false};
+  const mins  = ny.getHours()*60+ny.getMinutes();
+  if (mins >= 4*60   && mins < 9*60+30)  return {active:true, type:'PRE'};
+  if (mins >= 16*60  && mins < 20*60)    return {active:true, type:'AH'};
+  return {active:false};
+}
+
+function startAutoRefresh() {
+  stopAutoRefresh();
+  _autoRefreshTimer = setInterval(() => {
+    if (isMarketOpen()) fetchPrices();
+  }, 60000);
+}
+
+function stopAutoRefresh() {
+  if (_autoRefreshTimer) { clearInterval(_autoRefreshTimer); _autoRefreshTimer=null; }
 }
 
 function renderAll() {
