@@ -2088,7 +2088,8 @@ function renderPF() {
       </div>
       <button class="hbtn" onclick="openQuick()"
         style="flex-shrink:0;padding:8px 14px;font-size:13px;font-weight:700;white-space:nowrap">+ Aggiungi</button>
-    </div>`;
+    </div>
+`;
   }
 
   const pl = document.getElementById('port-list');
@@ -2115,7 +2116,7 @@ function renderPF() {
         ${cats.map(c=>`<option value="${esc(c)}"${pfFilterCategory===c?' selected':''}>${esc(c)}</option>`).join('')}
       </select>
     </div>
-    <span style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:1px;text-transform:uppercase">${visible.length} TITOLI</span>
+    <span style="display:inline-block;min-width:90px;text-align:center;font-size:10px;color:var(--blue);font-weight:700;letter-spacing:1px;text-transform:uppercase">${visible.length} TITOLI</span>
   </div>`;
 
   const thCls = col => pfSortCol!==col ? 'pf-sort-none' : pfSortDir===1 ? 'pf-sort-asc' : 'pf-sort-desc';
