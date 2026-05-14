@@ -3848,7 +3848,9 @@ function renderRebalance() {
           </tr>` : '') : '';
           return `<tr>
             <td class="rb-cat">
-              ${catHlds.length?`<button class="rb-expand-btn ${isExpanded?'open':''}" onclick="toggleRbCat('${jsq(cat)}')" style="margin-right:6px">${isExpanded?'▼':'▶'}</button>`:''}
+              ${catHlds.length
+                ? `<button class="rb-expand-btn ${isExpanded?'open':''}" onclick="toggleRbCat('${jsq(cat)}')" style="margin-right:6px">${isExpanded?'▼':'▶'}</button>`
+                : '<span style="display:inline-block;width:28px;flex-shrink:0"></span>'}
               ${esc(cat)}
             </td>
             <td class="rb-num" style="text-align:center">
