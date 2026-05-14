@@ -2100,6 +2100,13 @@ function renderPF() {
 
   // Category filter (select) + sort col header helper
   const cats = [...new Set(allHlds.map(h=>h.assetClass||UNCATEGORIZED))].sort();
+  
+  const visible = sortHoldings(
+    pfFilterCategory==='Tutte' ? allHlds : allHlds.filter(h=>(h.assetClass||UNCATEGORIZED)===pfFilterCategory)
+  );
+  // port-cnt ora è inline nel filterBar
+
+
   const filterBar = `<div class="pf-filter-bar" style="justify-content:space-between;align-items:center">
     <div style="display:flex;align-items:center;gap:8px">
       <label>Categoria</label>
@@ -2110,11 +2117,6 @@ function renderPF() {
     </div>
     <span style="font-size:10px;color:var(--blue);font-weight:700;letter-spacing:1px;text-transform:uppercase">${visible.length} TITOLI</span>
   </div>`;
-
-  const visible = sortHoldings(
-    pfFilterCategory==='Tutte' ? allHlds : allHlds.filter(h=>(h.assetClass||UNCATEGORIZED)===pfFilterCategory)
-  );
-  // port-cnt ora è inline nel filterBar
 
   const thCls = col => pfSortCol!==col ? 'pf-sort-none' : pfSortDir===1 ? 'pf-sort-asc' : 'pf-sort-desc';
   const th    = (col,lbl,cls) =>
