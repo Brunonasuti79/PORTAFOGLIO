@@ -4118,7 +4118,7 @@ function renderHistory(){
   const area=document.getElementById('history-area');if(!area)return;
   const hlds=calcPF();
   if(!hlds.length){area.innerHTML='<div class="empty">Nessun titolo in portafoglio.</div>';return;}
-  const sel=S._histSel||hlds[0].ticker,period=S._histPeriod||'1A';
+  const sel=S._histSel=S._histSel||hlds[0].ticker,period=S._histPeriod||'1A';
   const th=(S.tickerHistory||{})[sel]?.[period];
   const opts=hlds.map(h=>`<option value="${esc(h.ticker)}"${h.ticker===sel?' selected':''}>${esc(h.displayTicker)} — ${esc(h.name||h.displayTicker)}</option>`).join('');
   const pills=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="S._histPeriod='${p}';((S.tickerHistory||{})[(S._histSel||'')]?.['${p}']?renderHistory():loadSingleTickerHistory())">${p}</button>`).join('');
