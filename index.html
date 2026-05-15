@@ -938,6 +938,30 @@ html.light .sum-cl{color:var(--text3)}
     <div id="chart-modal-body" style="flex:1;overflow-y:auto;padding-bottom:16px"></div>
   </div>
 </div>
+
+<!-- CASH DEPOSIT MODAL -->
+<div id="cashmodal" class="mov hidden" onclick="if(event.target.id==='cashmodal')closeCashModal()">
+  <div class="msh" style="max-width:340px">
+    <div class="mtit">💶 DEPOSITO LIQUIDITÀ</div>
+    <div class="fld">
+      <label>Importo (€)</label>
+      <input type="number" id="cash-dep-amount" placeholder="es. 1500" min="0" step="0.01" inputmode="decimal">
+    </div>
+    <div class="fld">
+      <label>Data</label>
+      <input type="date" id="cash-dep-date">
+    </div>
+    <div class="fld">
+      <label>Nota (opzionale)</label>
+      <input type="text" id="cash-dep-note" placeholder="es. Stipendio maggio">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="hbtn" onclick="closeCashModal()" style="flex:1">Annulla</button>
+      <button class="hbtn" onclick="saveCashDeposit()" style="flex:2;font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">💾 Salva deposito</button>
+    </div>
+  </div>
+</div>
+
 <!-- TOAST -->
 <div id="toast"></div>
 
@@ -1317,7 +1341,7 @@ function calcPF(pf) {
       h[key].costBasisBuyCcy = h[key].avgPriceBuyCcy * h[key].qty;
     }
   }
-  return Object.values(h).filter(x => x.qty > 0.00001);
+  return Object.values(h).filter(x => x.qty > 0.00001 && x.ticker !== '__CASH__');
 }
 
 // ── Caso 1: titolo€/acquisto€ | Caso 2: titolo$/acquisto€ | Caso 3: titolo$/acquisto$
@@ -2265,13 +2289,14 @@ function renderPF() {
   if (ca) {
     const cash = S.cashEUR||0;
     ca.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:0 14px 6px">
-      <div class="cash-bar" onclick="setCash()" style="flex:1;margin:0;padding:6px 12px">
-        <span class="cash-lbl">💶 Liquidità c/c</span>
-        <span class="cash-val">${cash>0?e2(cash):'— tocca per inserire'}</span>
-        <span class="cash-edit">✎</span>
+      <div style="flex:1;padding:6px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:10px">
+        <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700">💶 Liquidità</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--text)">${cash>0?e2(cash):'— nessun deposito'}</span>
       </div>
-      <button class="hbtn" onclick="openQuick()"
-        style="flex-shrink:0;padding:8px 14px;font-size:13px;font-weight:700;white-space:nowrap">+ Aggiungi</button>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        <button class="hbtn" onclick="openCashModal()" style="padding:8px 12px;font-size:13px;font-weight:700">💶 Deposita</button>
+        <button class="hbtn" onclick="openQuick()" style="padding:8px 14px;font-size:13px;font-weight:700;white-space:nowrap">+ Aggiungi</button>
+      </div>
     </div>
 `;
   }
@@ -2416,8 +2441,17 @@ function renderOps() {
     const opRows = catOps.map((op,i) => {
       const tot = op.price*op.qty + (op.type==='buy'?1:-1)*(op.commissions||0);
       return `<div class="opcard">
-        <div class="otb ${op.type}">${op.type==='buy'?'▲':'▼'}</div>
+        <div class="otb ${op.ticker==='__CASH__'?'buy':op.type}">${op.ticker==='__CASH__'?'💶':op.type==='buy'?'▲':'▼'}</div>
         <div class="om">
+          ${op.ticker==='__CASH__' ? `
+            <span class="otk" style="color:var(--blue)">CASH</span>
+            <span class="osep">·</span>
+            <span class="otn">${esc(op.name||'Deposito liquidità')}</span>
+            <span class="osep">·</span>
+            <span class="od">${fdate(op.date)}</span>
+            <span class="osep">·</span>
+            <span class="odet" style="color:var(--green);font-weight:700">+${e2(op.price||0)}</span>
+          ` : `
           <span class="otk">${esc(op.displayTicker||op.ticker)}</span>
           <span class="osep">·</span>
           <span class="otn">${esc(op.name||'')}</span>
@@ -2425,6 +2459,7 @@ function renderOps() {
           <span class="od">${fdate(op.date)}</span>
           <span class="osep">·</span>
           <span class="odet">${op.qty} × ${n3(op.price)} ${op.titleCcy==='USD'?'$':'€'}${op.commissions?` · comm. ${n2(op.commissions)} €`:''}</span>
+          `}
           <span class="osep">·</span>
           <span class="op-badge ${op.type}">${op.type==='buy'?'ACQUISTO':'VENDITA'}</span>
         </div>
@@ -4405,6 +4440,13 @@ function showToast(msg, duration=3500) {
 // Annulla l'effetto sulla liquidità di un'operazione già salvata
 function reverseCashForOp(op) {
   if (!op || S.cashEUR == null) return;
+  // Deposito liquidità: inverso = sottrai
+  if (op.ticker === '__CASH__') {
+    const amount = op.totalCost || op.price || 0;
+    S.cashEUR = Math.max(0, (S.cashEUR||0) - amount);
+    showToast('💶 Deposito annullato: −'+e2(amount));
+    return;
+  }
   if (op.titleCcy === 'USD' && op.purchCcy === 'USD') return;
   const tk = op.quoteTicker || op.ticker;
 
@@ -5320,6 +5362,45 @@ function toggleSumValues() {
   S.hideValues = !S.hideValues;
   save();
   renderPF();
+}
+
+function openCashModal() {
+  const el = document.getElementById('cashmodal');
+  if (!el) return;
+  document.getElementById('cash-dep-amount').value = '';
+  document.getElementById('cash-dep-date').value = new Date().toISOString().slice(0,10);
+  document.getElementById('cash-dep-note').value = '';
+  el.classList.remove('hidden');
+  setTimeout(()=>document.getElementById('cash-dep-amount')?.focus(),150);
+}
+function closeCashModal() {
+  document.getElementById('cashmodal')?.classList.add('hidden');
+}
+function saveCashDeposit() {
+  const amount = parseFloat(document.getElementById('cash-dep-amount').value.replace(',','.'));
+  const date   = document.getElementById('cash-dep-date').value;
+  const note   = document.getElementById('cash-dep-note').value.trim() || 'Deposito liquidità';
+  if (!amount || amount <= 0) { alert('Inserisci un importo valido'); return; }
+  if (!date) { alert('Inserisci la data'); return; }
+  // Salva come op speciale
+  const op = {
+    id: Date.now()+'_cash',
+    ticker: '__CASH__', displayTicker: 'CASH',
+    quoteTicker: '__CASH__', market: '',
+    name: note, assetClass: 'Liquidità',
+    type: 'buy', qty: 1, price: amount,
+    avgPrice: amount, avgPriceBuyCcy: amount,
+    commission: 0, totalCost: amount,
+    buyCcy: 'EUR', titleCcy: 'EUR',
+    date, isin: ''
+  };
+  if (!S.ops) S.ops = [];
+  S.ops.push(op);
+  S.cashEUR = (S.cashEUR||0) + amount;
+  save();
+  closeCashModal();
+  renderAll();
+  showToast('💶 Deposito aggiunto: ' + e2(amount));
 }
 
 function renderAll() {
