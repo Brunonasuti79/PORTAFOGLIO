@@ -5131,20 +5131,30 @@ async function loadChartModalData(){
 }
 
 async function fetchAHPrices() {
-  const ext = isExtendedHours();
-  if (!ext.active) return;
+  let _extCheck = {active:false};
+  try { _extCheck = isExtendedHours(); } catch(e) {}
+  if (!_extCheck.active) return;
   const ak = S.finnhubKey || '';
   if (!ak) return;
   if (!S.ahPrices) S.ahPrices = {};
   const hlds = calcPF().filter(h => (h.titleCcy||'EUR') === 'USD');
   await Promise.all(hlds.map(async h => {
-    try {
-      const sym = h.ticker;
-      const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${ak}`;
-      const data = await fetchWithTimeout(url, 6000);
-      const price = data?.c || 0;
-      if (price > 0) S.ahPrices[sym] = price;
-    } catch(e) {}
+    // Usa stessa trasformazione di fetchFinnhub
+    const mkt  = marketFromSymbol(h.ticker);
+    const exch = FH_EXCH[mkt];
+    const base = baseTicker(h.ticker);
+    const syms = exch ? [exch+':'+base, base] : [base, h.ticker];
+    for (const sym of syms) {
+      try {
+        const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${encodeURIComponent(ak)}`;
+        const data = await fetchWithTimeout(url, 7000);
+        const price = data?.c || 0;
+        if (price > 0) {
+          S.ahPrices[h.ticker] = price;
+          break;
+        }
+      } catch(e) {}
+    }
   }));
 }
 
