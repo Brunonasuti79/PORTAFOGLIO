@@ -662,19 +662,6 @@ html.light .pnl-table td{border-bottom:1px solid var(--border)!important;border-
 html.light .pnl-table td:first-child{border-left:1px solid var(--border)!important}
 html.light .proj-table td{border-bottom:1px solid var(--border)!important;border-right:1px solid var(--border)!important}
 html.light .proj-table td:first-child{border-left:1px solid var(--border)!important}
-
-html.light .rb-cat{color:var(--text)!important}
-html.light .leg-name{color:var(--text)!important}
-html.light .rb-table td{border-bottom:1px solid var(--border)!important}
-html.light .rb-sub-total-row td{background:rgba(37,99,235,.05)!important}
-html.light .rb-sub-row td:first-child{border-left-color:rgba(37,99,235,.4)!important}
-html.light .leg-row{color:var(--text2)}
-html.light .bar-num{color:var(--text2)!important}
-html.light .kpi-l{color:var(--text2)!important}
-html.light .chart-title{color:var(--text2)!important}
-html.light .empty-chart{color:var(--text2)}
-html.light .gain-note{color:var(--text2)}
-html.light .donut-total span{color:var(--text2)!important}
 </style>
 </head>
 <body>
@@ -1669,40 +1656,28 @@ async function fetchStooq(sym, market) {
 }
 
 async function fetchBTPMOT(isin) {
-  // Prova URL multipli Borsa Italiana (la struttura cambia periodicamente)
-  const urls = [
-    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}-MOTX.html`,
-    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}.html`,
-    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp-italia/scheda/${isin}.html`,
-  ];
-  const priceRxs = [
-    /"last":\s*([\d.]+)/i,
-    /id="last[^"]*"[^>]*>([\d,.]+)/i,
-    /<strong[^>]*>\s*(\d{2,3}[,.]\d{1,4})\s*<\/strong>/i,
-    /Ultimo[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i,
-    /Prezzo[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i,
-    /(\d{2,3}[,.]\d{3,4})(?=[^\d])/,
-  ];
-  for (const url of urls) {
-    try {
-      const html = await fetchTextWithProxies(url);
-      if (!html || html.length < 100) continue;
-      const clean = html.replace(/\s+/g,' ');
-      let price = null, prevClose = null;
-      for (const rx of priceRxs) {
-        const m = clean.match(rx);
-        if (m) {
-          const p = parseFloat(m[1].replace(',','.'));
-          if (p>50 && p<200) { price=p; break; }
-        }
-      }
-      const pm = clean.match(/(?:Prezzo ufficiale|prev[^0-9]{0,20})(\d{2,3}[,.]\d{1,5})/i);
-      if (pm) prevClose = parseFloat(pm[1].replace(',','.'));
-      if (!price && prevClose) price = prevClose;
-      if (price && price>50 && price<200)
-        return makeQuote(price, prevClose && prevClose!==price ? prevClose : null, 'Borsa Italiana');
-    } catch(e) {}
-  }
+  // BTP on Borsa Italiana MOT — nuova URL scheda
+  const url = `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}-MOTX.html`;
+  try {
+    const html = await fetchTextWithProxies(url);
+    const clean = html.replace(/\s+/g,' ');
+    let price = null, prevClose = null;
+    // Prezzo live: primo <strong> con valore in range BTP (50-150)
+    for (const re of [
+      /<strong[^>]*>\s*(\d{2,3}[,.]\d{1,4})\s*<\/strong>/i,
+      /Ultimo[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i,
+      /Prezzo[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i,
+    ]) {
+      const m = clean.match(re);
+      if (m) { const p = parseFloat(m[1].replace(',','.')); if (p>50&&p<200) { price=p; break; } }
+    }
+    // Prezzo ufficiale come prevClose (per calcolo variazione Oggi)
+    const pm = clean.match(/Prezzo ufficiale[^0-9]{0,30}(\d{2,3}[,.]\d{1,5})/i);
+    if (pm) prevClose = parseFloat(pm[1].replace(',','.'));
+    if (!price && prevClose) price = prevClose;
+    if (price && price>50 && price<200)
+      return makeQuote(price, prevClose && prevClose!==price ? prevClose : null, 'Borsa Italiana');
+  } catch(e) {}
   return null;
 }
 
@@ -1969,27 +1944,6 @@ async function runDiagnostic() {
     log.textContent += `  Skipped (nessuna API key)\n`;
   }
 
-  // Test Borsa Italiana per BTP
-  const btpIsin = isinFromTicker(ticker);
-  if (btpIsin) {
-    log.textContent += '\n[5] Borsa Italiana (BTP)...';
-    const btpUrls = [
-      `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${btpIsin}-MOTX.html`,
-      `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${btpIsin}.html`,
-    ];
-    for (const burl of btpUrls) {
-      for (let pi=1; pi<PROXIES.length; pi++) {
-        const pname = ['allorigins','corsproxy','codetabs','thingproxy'][pi-1]||`proxy${pi}`;
-        try {
-          const r = await fetchWithTimeout(PROXIES[pi](burl), 8000, true);
-          const m = r.match(/(\d{2,3}[,.]\d{3,4})/);
-          const price = m ? parseFloat(m[1].replace(',','.')) : null;
-          log.textContent += `\n   [${pname}] ${price&&price>50&&price<200?'✅ prezzo='+price:'❌ HTML ok ma prezzo non trovato'}`;
-          if (price&&price>50&&price<200) break;
-        } catch(e) { log.textContent += `\n   [${pname}] ❌ ${e.message||e}`; }
-      }
-    }
-  }
   log.textContent += '\n' + '─'.repeat(40) + '\nDiagnostica completata.';
 }
 
@@ -2170,9 +2124,6 @@ function renderPF() {
   // Category filter (select) + sort col header helper
   const cats = [...new Set(allHlds.map(h=>h.assetClass||UNCATEGORIZED))].sort();
   
-  let _ext={active:false};try{_ext=isExtendedHours();}catch(e){}
-  const _moonSvg = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#818cf8" stroke-width="2" stroke-linecap="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>`;
-  const _sunSvg  = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/></svg>`;
   const visible = sortHoldings(
     pfFilterCategory==='Tutte' ? allHlds : allHlds.filter(h=>(h.assetClass||UNCATEGORIZED)===pfFilterCategory)
   );
@@ -2238,7 +2189,6 @@ function renderPF() {
       <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
       <td class="${dCls}">${dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>'}</td>
       <td style="color:var(--text)">${priceNative!=null?n3(priceNative)+' '+symNative:'<span class="pf-no-price">—</span>'}</td>
-      ${_ext.active?`<td style="text-align:right;padding:8px;white-space:nowrap">${(h.titleCcy||'EUR')==='USD'&&priceNative!=null?`${_ext.type==='AH'?_moonSvg:_sunSvg}<span style="font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--text);vertical-align:middle"> ${n3(priceNative)}</span>`:'<span class="pf-no-price">—</span>'}</td>`:''}
     </tr>${detail}`;
   }).join('');
 
@@ -2251,7 +2201,6 @@ function renderPF() {
           ${th('gainpct','Gain %')}
           ${th('oggi','Oggi')}
           ${th('prezzo','Prezzo')}
-          ${_ext.active?`<th style="text-align:right;padding:9px 8px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text3)">${_ext.type==='AH'?'AH':'PRE'}</th>`:''}
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
@@ -5059,7 +5008,7 @@ function startAutoRefresh(){
       var nyMins=h*60+parseInt(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',minute:'numeric'}).format(new Date()));
       if((euMins>=540&&euMins<1050)||(nyMins>=570&&nyMins<960)||(nyMins>=960&&nyMins<1200)) fetchPrices();
     }catch(e){}
-  },180000);
+  },60000);
 }
 
 let _chartModalTicker=null,_chartModalPeriod='1A';
