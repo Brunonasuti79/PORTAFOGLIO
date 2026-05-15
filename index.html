@@ -702,6 +702,15 @@ html.light .pf-table svg polyline { opacity: 0.9; }
 html.light .sum-card2{background:linear-gradient(135deg,#dbeafe,#eff6ff);border-color:rgba(37,99,235,.25)}
 html.light .sum-bar-wrap{background:rgba(0,0,0,.08)}
 html.light .sum-cl{color:var(--text3)}
+
+.pf-pills{display:flex;align-items:center;gap:6px;padding:4px 14px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.pf-pills::-webkit-scrollbar{display:none}
+.pf-pill-btn{flex-shrink:0;padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:none;color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;letter-spacing:.3px;transition:all .15s;-webkit-tap-highlight-color:transparent}
+.pf-pill-btn.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.pf-pill-btn:hover:not(.active){border-color:var(--blue);color:var(--blue)}
+.pf-table-wrap{margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+html.light .pf-pill-btn{color:var(--text2);border-color:var(--border2)}
+html.light .pf-pill-btn.active{color:#fff}
 </style>
 </head>
 <body>
@@ -2357,15 +2366,12 @@ function renderPF() {
   // port-cnt ora è inline nel filterBar
 
 
-  const filterBar = `<div class="pf-filter-bar" style="justify-content:space-between;align-items:center">
-    <div style="display:flex;align-items:center;gap:8px">
-      <label>Categoria</label>
-      <select onchange="pfFilterCategory=this.value;renderPF()">
-        <option value="Tutte"${pfFilterCategory==='Tutte'?' selected':''}>Tutte</option>
-        ${cats.map(c=>`<option value="${esc(c)}"${pfFilterCategory===c?' selected':''}>${esc(c)}</option>`).join('')}
-      </select>
+  const allPills = ['Tutte', ...cats];
+  const filterBar = `<div style="display:flex;align-items:center;gap:0">
+    <div class="pf-pills" style="flex:1">
+      ${allPills.map(cat=>`<button class="pf-pill-btn${cat===pfFilterCategory?' active':''}" onclick="pfFilterCategory='${jsq(cat)}';renderPF()">${esc(cat==='Tutte'?'✦ Tutte':cat)}</button>`).join('')}
     </div>
-    <span style="display:inline-block;min-width:90px;text-align:center;font-size:10px;color:var(--blue);font-weight:700;letter-spacing:1px;text-transform:uppercase">${visible.length} TITOLI</span>
+    <span style="flex-shrink:0;padding-right:14px;font-size:10px;color:var(--blue);font-weight:700;letter-spacing:1px;text-transform:uppercase">${visible.length} TITOLI</span>
   </div>`;
 
   const thCls = col => pfSortCol!==col ? 'pf-sort-none' : pfSortDir===1 ? 'pf-sort-asc' : 'pf-sort-desc';
