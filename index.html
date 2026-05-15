@@ -4052,7 +4052,7 @@ function renderHistory(){
   const sel=S._histSel||hlds[0].ticker,period=S._histPeriod||'1A';
   const th=(S.tickerHistory||{})[sel]?.[period];
   const opts=hlds.map(h=>`<option value="${esc(h.ticker)}"${h.ticker===sel?' selected':''}>${esc(h.displayTicker)} — ${esc(h.name||h.displayTicker)}</option>`).join('');
-  const pills=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="S._histPeriod='${p}';renderHistory()">${p}</button>`).join('');
+  const pills=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="S._histPeriod='${p}';((S.tickerHistory||{})[sel]?.['${p}']?renderHistory():loadSingleTickerHistory())">${p}</button>`).join('');
   area.innerHTML=`
     <div style="padding:10px 14px 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <select id="hist-sel" onchange="S._histSel=this.value;renderHistory()" style="flex:1;min-width:180px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;padding:6px 10px;border-radius:8px;outline:none">${opts}</select>
@@ -5072,7 +5072,7 @@ function renderChartModal(){
   const ticker=_chartModalTicker;if(!ticker)return;
   const period=_chartModalPeriod,hlds=calcPF(),th=(S.tickerHistory||{})[ticker]?.[period];
   const perDiv=document.getElementById('chart-modal-periods');
-  if(perDiv)perDiv.innerHTML=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="_chartModalPeriod='${p}';renderChartModal()">${p}</button>`).join('');
+  if(perDiv)perDiv.innerHTML=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="_chartModalPeriod='${p}';((S.tickerHistory||{})[ticker]?.['${p}']?renderChartModal():loadChartModalData())">${p}</button>`).join('');
   const body=document.getElementById('chart-modal-body');if(!body)return;
   body.innerHTML=th?renderHistoryChart(ticker,th,hlds,period):`<div class="empty" style="padding:40px 20px">Premi <strong>↻ Aggiorna</strong> (${PERIOD_CFG[period]?.label}).</div>`;
 }
