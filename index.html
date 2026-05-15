@@ -712,20 +712,21 @@ html.light .sum-cl{color:var(--text3)}
 
   <!-- PORTFOLIO PAGE -->
   <div id="pg-portfolio" class="page active">
-    <div class="ph">
-      <div class="ph-left">
-        <div class="pt" id="port-title">PORTAFOGLIO</div>
-      </div>
-      <div id="pf-switcher"></div>
-      <div class="ph-actions">
-        <button class="theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema chiaro/scuro">🌙</button>
-        <div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px">
-        <button class="hbtn" id="btn-ref" onclick="fetchPrices()"
-          style="font-size:14px;font-weight:700;padding:8px 16px;color:#ffffff;border-color:rgba(255,255,255,.3);letter-spacing:.5px;text-shadow:0 0 10px rgba(255,255,255,.8)">⟳ Aggiorna</button>
-          <div id="lupd" style="font-size:10px;color:rgba(255,255,255,.3);letter-spacing:.4px;text-align:center;min-height:14px"></div>
+    <div class="ph ph-new">
+      <div class="ph-inner" style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative">
+        <button class="pf-name-btn" onclick="togglePfDropdown()" id="pf-name-btn">
+          <span class="pf-name-txt" id="port-title">PORTAFOGLIO</span>
+          <span class="pf-name-arrow" id="pf-dd-arrow">▾</span>
+        </button>
+        <div id="pf-switcher" style="display:none"></div>
+        <div class="ph-actions2">
+          <div class="ph-pill" id="lupd-pill" style="display:none"><div class="ph-dot"></div><span id="lupd">—</span></div>
+          <button class="ph-ibtn theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema">🌙</button>
+          <button class="ph-ibtn" id="btn-ref" onclick="fetchPrices()" style="color:#fff;font-weight:700;font-size:14px;padding:7px 14px;border-color:rgba(255,255,255,.3)">⟳</button>
+          <button class="ph-ibtn" onclick="runDiagnostic()" title="Diagnostica" style="font-size:14px;padding:6px 8px">🔧</button>
         </div>
-        <button class="hbtn" onclick="runDiagnostic()" title="Diagnostica proxy" style="font-size:16px;padding:6px 10px">🔧</button>
       </div>
+      <div class="pf-dropdown" id="pf-dropdown" style="display:none"></div>
     </div>
     <div id="ebar" class="ebar" style="display:none"></div>
     <div id="diag-panel">
@@ -1935,7 +1936,7 @@ async function fetchPrices() {
     let note = Object.entries(srcGroups).map(([s,l]) => ` · ${s}: ${l.join(', ')}`).join('');
     if (rejected.length) note += ` · Scartati: ${rejected.join(', ')}`;
     if (errors.length)   note += ` · Non trovati: ${errors.join(', ')}`;
-    const _l=document.getElementById('lupd'); if(_l) _l.textContent=`Aggiornato alle ${now}`;
+    const _l=document.getElementById('lupd'); if(_l){_l.textContent=now;const pill=document.getElementById('lupd-pill');if(pill)pill.style.display='inline-flex';}
 
     if (errors.length) {
       eb.textContent = `⚠ Non trovati: ${errors.join(', ')}. Controlla il simbolo prezzo in Modifica.`;
@@ -2148,6 +2149,50 @@ function deletePortfolio(id) {
   }
   save(); renderAll();
 }
+
+let _pfDdOpen = false;
+function togglePfDropdown() {
+  _pfDdOpen = !_pfDdOpen;
+  const dd = document.getElementById('pf-dropdown');
+  const arrow = document.getElementById('pf-dd-arrow');
+  if (_pfDdOpen) {
+    renderPfDropdown();
+    dd.style.display = 'block';
+    arrow.classList.add('open');
+  } else {
+    dd.style.display = 'none';
+    arrow.classList.remove('open');
+  }
+}
+function closePfDropdown() {
+  _pfDdOpen = false;
+  const dd = document.getElementById('pf-dropdown');
+  const arrow = document.getElementById('pf-dd-arrow');
+  if (dd) dd.style.display = 'none';
+  if (arrow) arrow.classList.remove('open');
+}
+function renderPfDropdown() {
+  const dd = document.getElementById('pf-dropdown');
+  if (!dd) return;
+  const pfs = ALL.portfolios || [];
+  const activeId = ALL.activePortfolioId;
+  dd.innerHTML = pfs.map(pf => {
+    const active = pf.id === activeId;
+    return `<div class="pf-dd-item ${active?'active':''}" onclick="switchPortfolio('${pf.id}');closePfDropdown()">
+      <span style="width:16px;font-size:14px">${active?'✓':''}</span>
+      <span style="flex:1">${esc(pf.name)}</span>
+      ${active?`<button onclick="event.stopPropagation();renamePortfolio('${pf.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px" title="Rinomina">✎</button>`:''}
+      ${pfs.length>1&&!active?`<button onclick="event.stopPropagation();deletePortfolio('${pf.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px" title="Elimina">×</button>`:''}
+    </div>`;
+  }).join('') +
+  `<div class="pf-dd-item pf-dd-add" onclick="addPortfolio();closePfDropdown()">
+    <span style="width:16px;font-size:14px">＋</span>
+    <span>Nuovo portafoglio</span>
+  </div>`;
+}
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#pf-name-btn') && !e.target.closest('#pf-dropdown')) closePfDropdown();
+});
 
 function renderSwitcher() {
   const el = document.getElementById('pf-switcher');
