@@ -2021,6 +2021,26 @@ async function runDiagnostic() {
       }
     }
   }
+  // Test Yahoo Chart v8 con prePost=true (AH/PRE)
+  log.textContent += '\n[5] Yahoo Chart prePost (AH/PRE)...';
+  for (const base of ['https://query1','https://query2']) {
+    for (let pi=1; pi<PROXIES.length; pi++) {
+      const pname=['allorigins','corsproxy','codetabs','thingproxy'][pi-1]||'proxy'+pi;
+      try {
+        const url = base+'.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(ticker)+
+          '?interval=1m&range=1d&prePost=true&includePrePost=true';
+        const data = await fetchWithTimeout(PROXIES[pi](url), 8000);
+        const j = JSON.parse(data);
+        const meta = j?.chart?.result?.[0]?.meta;
+        const pre  = meta?.preMarketPrice;
+        const post = meta?.postMarketPrice;
+        const reg  = meta?.regularMarketPrice;
+        const mktState = meta?.marketState;
+        log.textContent += `\n   [${pname}] ✅ regularMarket=${reg} | preMarket=${pre} | postMarket=${post} | state=${mktState}`;
+        break;
+      } catch(e) { log.textContent += `\n   [${pname}] ❌ ${e.message||e}`; }
+    }
+  }
   log.textContent += '\n' + '─'.repeat(40) + '\nDiagnostica completata.';
 }
 
