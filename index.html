@@ -682,6 +682,8 @@ html.light .donut-total span{color:var(--text2)!important}
 .pf-table td.loss, .pf-table .loss { color:#ff5252!important; font-weight:700!important }
 html.light .pf-table td.gain, html.light .pf-table .gain { color:#16a34a!important }
 html.light .pf-table td.loss, html.light .pf-table .loss { color:#dc2626!important }
+
+html.light .pf-table svg polyline { opacity: 0.9; }
 </style>
 </head>
 <body>
@@ -1832,6 +1834,7 @@ async function fetchPrices() {
 
   try {
     if (!S.prices)       S.prices = {};
+    if (!S.peakPrices)    S.peakPrices = {};
     if (!S.dailyChanges) S.dailyChanges = {};
     hlds.forEach(h => delete S.dailyChanges[h.ticker]);
 
@@ -1845,6 +1848,10 @@ async function fetchPrices() {
       const price = num(q?.price);
       if (isReasonablePrice(price, h)) {
         S.prices[h.ticker] = price;
+        // Peak badge: aggiorna massimo storico
+        if (!S.peakPrices) S.peakPrices = {};
+        if (!S.peakPrices[h.ticker] || price > S.peakPrices[h.ticker])
+          S.peakPrices[h.ticker] = price;
         sources[h.ticker] = q.source || 'Fonte prezzi';
         const pct = num(q?.dailyPct);
         const pctOk = pct !== null && Math.abs(pct) < 25;
@@ -2285,7 +2292,8 @@ function renderPF() {
     return `<tr class="pf-row${isOpen?' pf-row-open':''}" onclick="toggleHolding('${jsq(h.ticker)}')" style="animation-delay:${i*.03}s">
       <td>
         <div class="pf-name" style="display:flex;align-items:center;gap:6px">
-          <span>${esc(h.name||h.displayTicker)}${arrow}</span>
+          ${renderSparkline(getSparkPts(h.ticker))}
+          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(h.name||h.displayTicker)}${arrow}${(S.peakPrices&&S.prices&&S.prices[h.ticker]&&S.peakPrices[h.ticker]&&S.prices[h.ticker]>=S.peakPrices[h.ticker])?' 🏆':''}</span>
           <button class="pf-chart-btn" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico">📈</button>
         </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
@@ -5195,6 +5203,61 @@ async function fetchAHPrices() {
 }
 
 
+// ── Sparkline + Peak Badge ───────────────────────────────────────
+
+function getSparkPts(ticker) {
+  const th = S.tickerHistory && S.tickerHistory[ticker];
+  if (!th) return null;
+  for (const p of ['1M','3M','6M','1A','2A','5A','MAX']) {
+    if (th[p] && th[p].pts && th[p].pts.length >= 5)
+      return th[p].pts.slice(-7);
+  }
+  return null;
+}
+
+function renderSparkline(pts) {
+  if (!pts || pts.length < 2) return '<span style="display:inline-block;width:55px;text-align:center;font-size:9px;color:var(--text3)">—</span>';
+  const vals = pts.map(p => p.c).filter(v => v > 0);
+  if (vals.length < 2) return '<span style="display:inline-block;width:55px"></span>';
+  const mn = Math.min(...vals), mx = Math.max(...vals), rng = mx - mn || 1;
+  const W = 55, H = 18, pad = 1;
+  const sx = i => pad + (i / (vals.length-1)) * (W - pad*2);
+  const sy = v => H - pad - ((v - mn) / rng) * (H - pad*2);
+  const pts_str = vals.map((v,i) => sx(i).toFixed(1)+','+sy(v).toFixed(1)).join(' ');
+  const isUp = vals[vals.length-1] >= vals[0];
+  const col = isUp ? '#22d47e' : '#ff5252';
+  const lx = sx(vals.length-1).toFixed(1), ly = sy(vals[vals.length-1]).toFixed(1);
+  return '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'" style="flex-shrink:0;vertical-align:middle">'
+    +'<polyline points="'+pts_str+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>'
+    +'<circle cx="'+lx+'" cy="'+ly+'" r="2" fill="'+col+'"/>'
+    +'</svg>';
+}
+
+async function loadSparklines() {
+  const today = new Date().toLocaleDateString('it-IT');
+  if (S.sparkDate === today) { renderPF(); return; }
+  const hlds = calcPF();
+  let changed = false;
+  for (const h of hlds) {
+    if (getSparkPts(h.ticker)) continue; // già in cache
+    for (const sym of candidatesForHolding(h)) {
+      try {
+        const res = await fetchTickerHistory(sym, '1d', '10d');
+        if (res && res.pts && res.pts.length >= 3) {
+          if (!S.tickerHistory) S.tickerHistory = {};
+          if (!S.tickerHistory[h.ticker]) S.tickerHistory[h.ticker] = {};
+          S.tickerHistory[h.ticker]['1M'] = { pts:res.pts, ccy:res.ccy, sym, updated:Date.now() };
+          changed = true; break;
+        }
+      } catch(e) {}
+    }
+  }
+  S.sparkDate = today;
+  if (changed) save();
+  renderPF();
+}
+
+
 function renderAll() {
   renderSwitcher();
   renderPF();
@@ -5240,6 +5303,7 @@ applyTheme(ALL.settings?.theme || 'dark');
 renderAll();
 showPage('portfolio');  // inizializza stato subtabs bar
 startAutoRefresh();
+loadSparklines();
 </script>
 </body>
 </html>
