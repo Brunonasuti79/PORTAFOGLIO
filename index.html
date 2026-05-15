@@ -2215,13 +2215,13 @@ function renderPF() {
         <button class="sum-eye" onclick="toggleSumValues()" title="${S.hideValues?'Mostra':'Nascondi'} valori">${S.hideValues?eyeClose:eyeOpen}</button>
       </div>
       <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
-        ${S.sumCcy==='EUR'&&sum.eur ? `
-          <div class="sum-tot${hv}" style="font-size:28px;font-weight:600;letter-spacing:-.5px">${e2(sum.eur.tv)}</div>
-          ${sum.usd?`<div class="sum-tot usd${hv}" onclick="toggleSumCcy('USD')" style="font-size:15px;color:var(--blue);cursor:pointer;font-weight:600;opacity:.75" title="Passa a USD">⇄ ${sum.usd.tv.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}
-        ` : S.sumCcy==='USD'&&sum.usd ? `
-          <div class="sum-tot usd${hv}" style="font-size:28px;font-weight:600;letter-spacing:-.5px">${sum.usd.tv.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>
-          ${sum.eur?`<div class="sum-tot${hv}" onclick="toggleSumCcy('EUR')" style="font-size:15px;color:var(--blue);cursor:pointer;font-weight:600;opacity:.75" title="Passa a EUR">⇄ ${e2(sum.eur.tv)}</div>`:''}
-        ` : `<div class="sum-tot${hv}" style="font-size:28px;font-weight:600">${e2(totalTv)}</div>` }
+        ${(S.sumCcy||'EUR')==='USD'&&sum.usd ? `
+          <div class="sum-tot usd${hv}" style="font-size:28px;font-weight:700;letter-spacing:-.5px">${sum.usd.tv.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>
+          ${sum.eur?`<div class="${hv.trim()}" onclick="toggleSumCcy('EUR')" style="font-size:15px;color:var(--text2);cursor:pointer;font-weight:600" title="Passa a EUR">⇄ ${e2(sum.eur.tv)}</div>`:''}
+        ` : `
+          <div class="sum-tot${hv}" style="font-size:28px;font-weight:700;letter-spacing:-.5px">${sum.eur?e2(sum.eur.tv):e2(totalTv)}</div>
+          ${sum.usd?`<div class="${hv.trim()}" onclick="toggleSumCcy('USD')" style="font-size:15px;color:var(--text2);cursor:pointer;font-weight:600" title="Passa a USD">⇄ ${sum.usd.tv.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}
+        `}
       </div>
       <div class="sum-bar-wrap">
         <div class="sum-bar-fill" style="width:${S.hideValues?0:barW}%;background:${barCol}"></div>
