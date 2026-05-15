@@ -2267,7 +2267,7 @@ function renderPF() {
       <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
       <td class="${dCls}">${dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>'}</td>
       <td style="color:var(--text)">${priceNative!=null?n3(priceNative)+' '+symNative:'<span class="pf-no-price">—</span>'}</td>
-      ${_ext.active?`<td style="text-align:right;padding:8px;white-space:nowrap">${(h.titleCcy||'EUR')==='USD'&&priceNative!=null?`${_ext.type==='AH'?_moonSvg:_sunSvg}<span style="font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--text);vertical-align:middle"> ${n3(priceNative)}</span>`:'<span class="pf-no-price">—</span>'}</td>`:''}
+      ${_ext.active?`<td style="text-align:center;padding:8px;white-space:nowrap">${(h.titleCcy||'EUR')==='USD'&&priceNative!=null?`${_ext.type==='AH'?_moonSvg:_sunSvg}<span style="font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--text);vertical-align:middle"> ${n3(priceNative)}</span>`:'<span class="pf-no-price">—</span>'}</td>`:''}
     </tr>${detail}`;
   }).join('');
 
@@ -2280,7 +2280,7 @@ function renderPF() {
           ${th('gainpct','Gain %')}
           ${th('oggi','Oggi')}
           ${th('prezzo','Prezzo')}
-          ${_ext.active?`<th style="text-align:right;padding:9px 8px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text3)">${_ext.type==='AH'?'AH':'PRE'}</th>`:''}
+          ${_ext.active?`<th style="text-align:center;padding:9px 8px;font-size:9px;font-weight:700;letter-spacing:.7px;text-transform:uppercase;color:var(--text3)">${_ext.type==='AH'?'AH':'PRE'}</th>`:''}
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
