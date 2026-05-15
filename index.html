@@ -651,6 +651,17 @@ html.light .sum-lbl{color:var(--text3)}
 html.light .sum-tot{color:var(--text)}
 html.light .cash-lbl{color:var(--text2)}
 html.light #btn-ref{color:var(--text)!important;border-color:var(--border2)!important;text-shadow:none!important}
+
+html.light .rb-sub-row td{background:rgba(37,99,235,.04)!important}
+html.light .rb-sub-bar{background:rgba(37,99,235,.12)!important}
+html.light .pac-table td{border-bottom:1px solid var(--border)!important;border-right:1px solid var(--border)!important}
+html.light .pac-table td:first-child,html.light .pac-table td:nth-child(2){border-left:1px solid var(--border)!important}
+html.light .pac-table tr.pac-month-hdr td{background:rgba(37,99,235,.06)!important;color:var(--text2)!important}
+html.light .rb-table td{border-bottom:1px solid var(--border)!important}
+html.light .pnl-table td{border-bottom:1px solid var(--border)!important;border-right:1px solid var(--border)!important}
+html.light .pnl-table td:first-child{border-left:1px solid var(--border)!important}
+html.light .proj-table td{border-bottom:1px solid var(--border)!important;border-right:1px solid var(--border)!important}
+html.light .proj-table td:first-child{border-left:1px solid var(--border)!important}
 </style>
 </head>
 <body>
@@ -3647,7 +3658,7 @@ function calcAndRenderPAC() {
     const allocRows = allocations.map(a =>
       `<tr>
         <td style="padding-left:16px;font-size:10px;color:var(--text3)">${esc(a.cat)}</td>
-        <td style="font-size:11px;color:#dce8ff">${esc(a.name)}</td>
+        <td style="font-size:11px;color:var(--text2)">${esc(a.name)}</td>
         <td style="font-family:'JetBrains Mono',monospace;color:#7ba7ff;font-weight:600">${e2(a.amount)}</td>
         <td style="font-size:10px;color:var(--text3)">${((a.amount/amount)*100).toFixed(0)}%</td>
       </tr>`).join('');
@@ -3823,7 +3834,7 @@ function renderRebalance() {
             const dCls  = deltaPct >= 0 ? 'rb-under' : 'rb-over';
             return `<tr class="rb-sub-row">
               <td>
-                <div style="font-weight:600;font-size:11px;color:#dce8ff">${esc(h.name||h.displayTicker)}</div>
+                <div style="font-weight:600;font-size:11px;color:var(--text2)">${esc(h.name||h.displayTicker)}</div>
                 <div style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace">${esc(h.displayTicker)}</div>
               </td>
               <td class="rb-num" style="text-align:center">
@@ -4597,7 +4608,7 @@ function renderPnL() {
           const fg = t.grossTotal >= 0 ? 'gain' : 'loss';
           return `<tr>
             <td>
-              <div style="font-weight:600;color:#dce8ff">${esc(t.ticker)}</div>
+              <div style="font-weight:600;color:var(--text2)">${esc(t.ticker)}</div>
               <div style="font-size:10px;color:var(--text3);font-family:'Outfit',sans-serif">${esc(t.name)}</div>
             </td>
             <td style="color:var(--text3);font-family:'Outfit',sans-serif">${t.sellDate}</td>
