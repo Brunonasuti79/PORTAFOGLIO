@@ -1669,28 +1669,40 @@ async function fetchStooq(sym, market) {
 }
 
 async function fetchBTPMOT(isin) {
-  // BTP on Borsa Italiana MOT — nuova URL scheda
-  const url = `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}-MOTX.html`;
-  try {
-    const html = await fetchTextWithProxies(url);
-    const clean = html.replace(/\s+/g,' ');
-    let price = null, prevClose = null;
-    // Prezzo live: primo <strong> con valore in range BTP (50-150)
-    for (const re of [
-      /<strong[^>]*>\s*(\d{2,3}[,.]\d{1,4})\s*<\/strong>/i,
-      /Ultimo[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i,
-      /Prezzo[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i,
-    ]) {
-      const m = clean.match(re);
-      if (m) { const p = parseFloat(m[1].replace(',','.')); if (p>50&&p<200) { price=p; break; } }
-    }
-    // Prezzo ufficiale come prevClose (per calcolo variazione Oggi)
-    const pm = clean.match(/Prezzo ufficiale[^0-9]{0,30}(\d{2,3}[,.]\d{1,5})/i);
-    if (pm) prevClose = parseFloat(pm[1].replace(',','.'));
-    if (!price && prevClose) price = prevClose;
-    if (price && price>50 && price<200)
-      return makeQuote(price, prevClose && prevClose!==price ? prevClose : null, 'Borsa Italiana');
-  } catch(e) {}
+  // Prova URL multipli Borsa Italiana (la struttura cambia periodicamente)
+  const urls = [
+    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}-MOTX.html`,
+    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}.html`,
+    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp-italia/scheda/${isin}.html`,
+  ];
+  const priceRxs = [
+    /"last":\s*([\d.]+)/i,
+    /id="last[^"]*"[^>]*>([\d,.]+)/i,
+    /<strong[^>]*>\s*(\d{2,3}[,.]\d{1,4})\s*<\/strong>/i,
+    /Ultimo[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i,
+    /Prezzo[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i,
+    /(\d{2,3}[,.]\d{3,4})(?=[^\d])/,
+  ];
+  for (const url of urls) {
+    try {
+      const html = await fetchTextWithProxies(url);
+      if (!html || html.length < 100) continue;
+      const clean = html.replace(/\s+/g,' ');
+      let price = null, prevClose = null;
+      for (const rx of priceRxs) {
+        const m = clean.match(rx);
+        if (m) {
+          const p = parseFloat(m[1].replace(',','.'));
+          if (p>50 && p<200) { price=p; break; }
+        }
+      }
+      const pm = clean.match(/(?:Prezzo ufficiale|prev[^0-9]{0,20})(\d{2,3}[,.]\d{1,5})/i);
+      if (pm) prevClose = parseFloat(pm[1].replace(',','.'));
+      if (!price && prevClose) price = prevClose;
+      if (price && price>50 && price<200)
+        return makeQuote(price, prevClose && prevClose!==price ? prevClose : null, 'Borsa Italiana');
+    } catch(e) {}
+  }
   return null;
 }
 
@@ -1957,6 +1969,27 @@ async function runDiagnostic() {
     log.textContent += `  Skipped (nessuna API key)\n`;
   }
 
+  // Test Borsa Italiana per BTP
+  const btpIsin = isinFromTicker(ticker);
+  if (btpIsin) {
+    log.textContent += '\n[5] Borsa Italiana (BTP)...';
+    const btpUrls = [
+      `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${btpIsin}-MOTX.html`,
+      `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${btpIsin}.html`,
+    ];
+    for (const burl of btpUrls) {
+      for (let pi=1; pi<PROXIES.length; pi++) {
+        const pname = ['allorigins','corsproxy','codetabs','thingproxy'][pi-1]||`proxy${pi}`;
+        try {
+          const r = await fetchWithTimeout(PROXIES[pi](burl), 8000, true);
+          const m = r.match(/(\d{2,3}[,.]\d{3,4})/);
+          const price = m ? parseFloat(m[1].replace(',','.')) : null;
+          log.textContent += `\n   [${pname}] ${price&&price>50&&price<200?'✅ prezzo='+price:'❌ HTML ok ma prezzo non trovato'}`;
+          if (price&&price>50&&price<200) break;
+        } catch(e) { log.textContent += `\n   [${pname}] ❌ ${e.message||e}`; }
+      }
+    }
+  }
   log.textContent += '\n' + '─'.repeat(40) + '\nDiagnostica completata.';
 }
 
