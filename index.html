@@ -1890,6 +1890,7 @@ async function fetchPrices() {
     busy = false;
     btn.disabled = false;
     btn.innerHTML = '⟳ Aggiorna';
+    await fetchAHPrices();
     renderAll();
   }
 }
@@ -2268,7 +2269,7 @@ function renderPF() {
       <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
       <td class="${dCls}">${dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>'}</td>
       <td style="color:var(--text)">${priceNative!=null?n3(priceNative)+' '+symNative:'<span class="pf-no-price">—</span>'}</td>
-      ${_ext.active?`<td style="padding:8px;white-space:nowrap"><div style="display:flex;align-items:center;justify-content:center;gap:5px">${(h.titleCcy||'EUR')==='USD'&&priceNative!=null?`${_ext.type==='AH'?_moonSvg:_sunSvg}<span style="font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--text)"> ${n3(priceNative)}</span>`:'<span class="pf-no-price">—</span>'}</div></td>`:''}
+      ${_ext.active?`<td style="padding:8px;white-space:nowrap"><div style="display:flex;align-items:center;justify-content:center;gap:5px">${(h.titleCcy||'EUR')==='USD'&&priceNative!=null?`${_ext.type==='AH'?_moonSvg:_sunSvg}<span style="font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--text)"> ${n3((S.ahPrices||{})[h.ticker]||priceNative)}</span>`:'<span class="pf-no-price">—</span>'}</div></td>`:''}
     </tr>${detail}`;
   }).join('');
 
@@ -5128,6 +5129,25 @@ async function loadChartModalData(){
   if(btn){btn.disabled=false;btn.textContent='↻ Aggiorna';}
   renderChartModal();
 }
+
+async function fetchAHPrices() {
+  const ext = isExtendedHours();
+  if (!ext.active) return;
+  const ak = S.finnhubKey || '';
+  if (!ak) return;
+  if (!S.ahPrices) S.ahPrices = {};
+  const hlds = calcPF().filter(h => (h.titleCcy||'EUR') === 'USD');
+  await Promise.all(hlds.map(async h => {
+    try {
+      const sym = h.ticker;
+      const url = `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${ak}`;
+      const data = await fetchWithTimeout(url, 6000);
+      const price = data?.c || 0;
+      if (price > 0) S.ahPrices[sym] = price;
+    } catch(e) {}
+  }));
+}
+
 
 function renderAll() {
   renderSwitcher();
