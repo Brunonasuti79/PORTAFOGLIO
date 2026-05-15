@@ -712,21 +712,22 @@ html.light .sum-cl{color:var(--text3)}
 
   <!-- PORTFOLIO PAGE -->
   <div id="pg-portfolio" class="page active">
-    <div class="ph ph-new">
-      <div class="ph-inner" style="background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:10px;position:relative">
-        <button class="pf-name-btn" onclick="togglePfDropdown()" id="pf-name-btn">
-          <span class="pf-name-txt" id="port-title">PORTAFOGLIO</span>
-          <span class="pf-name-arrow" id="pf-dd-arrow">▾</span>
-        </button>
-        <div id="pf-switcher" style="display:none"></div>
-        <div class="ph-actions2">
-          <div class="ph-pill" id="lupd-pill" style="display:none"><div class="ph-dot"></div><span id="lupd">—</span></div>
-          <button class="ph-ibtn theme-toggle" id="theme-btn" onclick="toggleTheme()" title="Tema">🌙</button>
-          <button class="ph-ibtn" id="btn-ref" onclick="fetchPrices()" style="color:#fff;font-weight:700;font-size:14px;padding:7px 14px;border-color:rgba(255,255,255,.3)">⟳</button>
-          <button class="ph-ibtn" onclick="runDiagnostic()" title="Diagnostica" style="font-size:14px;padding:6px 8px">🔧</button>
+    <div style="margin:8px 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:relative">
+      <div id="pf-switcher" style="display:none"></div>
+      <button onclick="togglePfDropdown()" id="pf-name-btn" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0">
+        <span id="port-title" style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1.5px;color:var(--text);line-height:1">PORTAFOGLIO</span>
+        <span id="pf-dd-arrow" style="font-size:12px;color:var(--text3);transition:transform .2s">▾</span>
+      </button>
+      <div style="display:flex;align-items:center;gap:7px;margin-left:auto">
+        <div id="lupd-pill" style="display:none;align-items:center;gap:5px;background:rgba(31,224,126,.08);border:0.5px solid rgba(31,224,126,.2);border-radius:20px;padding:4px 10px 4px 7px;font-size:10px;color:rgba(31,224,126,.9);font-weight:600;white-space:nowrap">
+          <div style="width:6px;height:6px;border-radius:50%;background:#1fe07e;flex-shrink:0"></div>
+          <span id="lupd">—</span>
         </div>
+        <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 9px;cursor:pointer;color:rgba(255,255,255,.7);font-size:13px;line-height:1">🌙</button>
+        <button id="btn-ref" onclick="fetchPrices()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 13px;cursor:pointer;color:#fff;font-size:14px;font-weight:700;line-height:1">⟳</button>
+        <button onclick="runDiagnostic()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 8px;cursor:pointer;color:rgba(255,255,255,.7);font-size:14px;line-height:1">🔧</button>
       </div>
-      <div class="pf-dropdown" id="pf-dropdown" style="display:none"></div>
+      <div id="pf-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);left:0;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:6px;min-width:200px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
     </div>
     <div id="ebar" class="ebar" style="display:none"></div>
     <div id="diag-panel">
@@ -2195,18 +2196,12 @@ document.addEventListener('click', function(e) {
 });
 
 function renderSwitcher() {
+  // Il switcher ora è nel dropdown dell'header — non serve più qui
   const el = document.getElementById('pf-switcher');
-  if (!el) return;
-  el.innerHTML = ALL.portfolios.map(pf => {
-    const active = pf.id === ALL.activePortfolioId;
-    return `<div class="pf-tab ${active?'active':''}" onclick="switchPortfolio('${pf.id}')">
-      <span class="pf-tab-name">${esc(pf.name)}</span>
-      ${active ? `<div class="pf-tab-acts">
-        <button onclick="event.stopPropagation();renamePortfolio('${pf.id}')" title="Rinomina">✎</button>
-        <button onclick="event.stopPropagation();deletePortfolio('${pf.id}')" title="Elimina">×</button>
-      </div>` : ''}
-    </div>`;
-  }).join('') + `<button class="pf-add-btn" onclick="addPortfolio()">+ Nuovo</button>`;
+  if (el) el.innerHTML = '';
+  // Aggiorna nome nel header
+  const titleEl = document.getElementById('port-title');
+  if (titleEl) titleEl.textContent = S?.name || 'PORTAFOGLIO';
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -2252,7 +2247,7 @@ function renderPF() {
   const allHlds = calcPF();
 
   const titleEl = document.getElementById('port-title');
-  if (titleEl) titleEl.innerHTML = `PORTAFOGLIO${S?.name?`<span class="pt-name"> · ${esc(S.name)}</span>`:''}`;
+  if (titleEl) titleEl.textContent = S?.name || 'PORTAFOGLIO';
 
   const toolsEl = document.getElementById('port-tools');
   if (toolsEl) { toolsEl.style.display='none'; toolsEl.innerHTML=''; }
