@@ -2387,11 +2387,9 @@ function renderPF() {
     const cash = S.cashEUR||0;
     const nHlds = allHlds.length;
     ca.innerHTML = `<div style="margin:0 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:5px 12px;display:flex;align-items:center;gap:10px">
-      <div style="flex:1;min-width:0;display:flex;align-items:center;gap:8px">
-        <span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;flex-shrink:0">💶 Liquidità</span>
-        <div id="cash-hv" class="sum-cv" style="transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'—'}</div>
-      </div>
-      <button onclick="openCashModal()" style="flex-shrink:0;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap;letter-spacing:.3px">💶 Deposita</button>
+      <span class="sum-cl" style="flex-shrink:0">Liquidità</span>
+      <div id="cash-hv" class="sum-cv" style="transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'—'}</div>
+      <button onclick="openCashModal()" style="flex-shrink:0;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap;letter-spacing:.3px">Deposita</button>
       <div style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${nHlds} Titoli</div>
     </div>
 `;
