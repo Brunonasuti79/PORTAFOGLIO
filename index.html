@@ -35,7 +35,9 @@ html.light #bnav{background:var(--bg2);border-top-color:var(--border)}
 html.light #subtabs-bar{background:var(--bg2);border-bottom-color:var(--border)}
 html.light .hbtn{background:var(--bg3);border-color:var(--border2);color:var(--blue)}
 html.light .nbtn{color:#94a3b8}
-html.light .nbtn.active{color:var(--green)}
+html.light .nbtn.active{color:#16a34a;text-shadow:0 0 8px rgba(22,163,74,.5);font-weight:700}
+html.light .nbtn.active svg{filter:drop-shadow(0 0 4px rgba(22,163,74,.6))}
+html.light .nbtn.active::after{background:#16a34a;box-shadow:0 0 6px rgba(22,163,74,.6)}
 html.light .page{background:var(--bg)}
 html.light .card,html.light .ssec{background:var(--bg2);border-color:var(--border)}
 html.light .ocard{background:var(--bg2);border-color:var(--border)}
@@ -51,7 +53,8 @@ html.light input[type=number],html.light input[type=text],html.light input[type=
 html.light .rb-tgt-inp,html.light .rb-sub-inp,html.light .proj-rate-inp,html.light .taxrate-inp{
   background:rgba(37,99,235,.08)!important;border-color:rgba(37,99,235,.25)!important;color:var(--blue)!important}
 html.light .stab{background:var(--bg3);border-color:var(--border2);color:var(--text2)}
-html.light .stab.active{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.4);text-shadow:0 0 8px rgba(255,255,255,.6)}
+
+
 html.light .mov{background:rgba(0,0,0,.4)}
 html.light .msh{background:var(--bg2)}
 html.light .fld label{color:var(--text2)}
@@ -473,11 +476,11 @@ html.light .ops-group-body{border-color:var(--border)}
   color:#2a3d5a;cursor:pointer;font-family:'Outfit',sans-serif;
   font-size:10px;font-weight:600;transition:color .2s,text-shadow .2s;
   -webkit-tap-highlight-color:transparent;position:relative}
-.nbtn.active{color:#00e878;text-shadow:0 0 10px rgba(0,232,120,.5)}
-.nbtn.active svg{filter:drop-shadow(0 0 4px rgba(0,232,120,.5))}
+.nbtn.active{color:#fff;text-shadow:0 0 10px rgba(255,255,255,.8);font-weight:700}
+.nbtn.active svg{filter:drop-shadow(0 0 4px rgba(255,255,255,.6))}
 .nbtn.active::after{content:'';position:absolute;bottom:0;left:50%;transform:translateX(-50%);
-  width:24px;height:2px;background:#00e878;border-radius:1px;
-  box-shadow:0 0 6px rgba(0,232,120,.6)}
+  width:24px;height:2px;background:#fff;border-radius:1px;
+  box-shadow:0 0 6px rgba(255,255,255,.7)}
 .nbtn svg{stroke:currentColor;transition:filter .2s}
 .nbtn span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 /* Sub-tabs bar */
@@ -489,8 +492,7 @@ html.light .ops-group-body{border-color:var(--border)}
   padding:6px 14px;border-radius:20px;cursor:pointer;white-space:nowrap;
   border:1px solid var(--border);background:var(--bg2);color:var(--text3);
   transition:all .2s;-webkit-tap-highlight-color:transparent;flex-shrink:0}
-.stab.active{background:#00e878;border-color:#00e878;color:#001a08;
-  box-shadow:0 0 10px rgba(0,232,120,.35)}
+
 
 /* ──────────────────────── SETTINGS ──────────────────────── */
 .ssec{margin:14px;padding:18px;background:var(--bg2);border-radius:14px;border:1px solid var(--border)}
@@ -685,13 +687,13 @@ html.light .pf-table td.loss, html.light .pf-table .loss { color:#dc2626!importa
 
 html.light .pf-table svg polyline { opacity: 0.9; }
 
-.sum-card2{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:14px 16px;margin:3px 14px 5px}
+.sum-card2{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:10px 14px;margin:2px 14px 4px}
 .sum-eye{background:none;border:none;cursor:pointer;padding:3px;color:var(--text3);line-height:1;flex-shrink:0}
 .sum-eye:hover{color:var(--text)}
 .sum-hv{filter:blur(7px);user-select:none;pointer-events:none;transition:filter .2s}
-.sum-bar-wrap{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:10px 0 4px}
+.sum-bar-wrap{height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;margin:8px 0 3px}
 .sum-bar-fill{height:100%;border-radius:2px;transition:width .4s,background .3s}
-.sum-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:14px}
+.sum-cols{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px}
 .sum-col{border-left:2px solid var(--border2);padding-left:10px}
 .sum-col.gc{border-left-color:#22d47e}.sum-col.lc{border-left-color:#ff5252}
 .sum-cl{font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px;font-weight:700}
@@ -703,7 +705,7 @@ html.light .sum-card2{background:linear-gradient(135deg,#dbeafe,#eff6ff);border-
 html.light .sum-bar-wrap{background:rgba(0,0,0,.08)}
 html.light .sum-cl{color:var(--text3)}
 
-.pf-pills{display:flex;align-items:center;gap:6px;padding:4px 14px 8px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.pf-pills{display:flex;align-items:center;gap:6px;padding:3px 14px 5px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
 .pf-pills::-webkit-scrollbar{display:none}
 .pf-pill-btn{flex-shrink:0;padding:5px 14px;border-radius:20px;border:1px solid var(--border2);background:none;color:var(--text2);font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;letter-spacing:.3px;transition:all .15s;-webkit-tap-highlight-color:transparent}
 .pf-pill-btn.active{background:var(--blue);border-color:var(--blue);color:#fff}
@@ -711,6 +713,9 @@ html.light .sum-cl{color:var(--text3)}
 .pf-table-wrap{margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;overflow:hidden}
 html.light .pf-pill-btn{color:var(--text2);border-color:var(--border2)}
 html.light .pf-pill-btn.active{color:#fff}
+
+.stab.active{background:rgba(255,255,255,.13);color:#fff;border-color:rgba(255,255,255,.45);font-weight:700;text-shadow:0 0 10px rgba(255,255,255,.8)}
+html.light .stab.active{background:rgba(22,163,74,.12);color:#16a34a;border-color:rgba(22,163,74,.5);font-weight:700;text-shadow:0 0 8px rgba(22,163,74,.5)}
 </style>
 </head>
 <body>
@@ -721,7 +726,7 @@ html.light .pf-pill-btn.active{color:#fff}
 
   <!-- PORTFOLIO PAGE -->
   <div id="pg-portfolio" class="page active">
-    <div style="margin:8px 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:12px 16px;position:relative">
+    <div style="margin:6px 14px 3px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:9px 14px;position:relative">
       <div id="pf-switcher" style="display:none"></div>
       <!-- Riga principale -->
       <div style="display:flex;align-items:center;gap:14px">
@@ -2381,7 +2386,7 @@ function renderPF() {
   if (ca) {
     const cash = S.cashEUR||0;
     const nHlds = allHlds.length;
-    ca.innerHTML = `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+    ca.innerHTML = `<div style="margin:0 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:7px 14px;display:flex;align-items:center;gap:10px">
       <div style="flex:1;min-width:0">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">💶 Liquidità</div>
         <div id="cash-hv" style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--text);transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'— nessun deposito'}</div>
@@ -2455,7 +2460,7 @@ function renderPF() {
       <td>
         <div class="pf-name" style="display:flex;align-items:center;gap:6px">
           ${renderSparkline(getSparkPts(h.ticker))}
-          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(h.name||h.displayTicker)}${arrow}${(S.peakPrices&&S.prices&&S.prices[h.ticker]&&S.peakPrices[h.ticker]&&S.prices[h.ticker]>=S.peakPrices[h.ticker])?' 🏆':''}</span>
+          <span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(h.name||h.displayTicker)}${arrow}${getMedalBadge(h.ticker, S.prices&&S.prices[h.ticker])}</span>
           <button class="pf-chart-btn" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico">📈</button>
         </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
@@ -5599,6 +5604,34 @@ function renderPortfolioHeader() {
   }
 }
 
+
+function getMedalBadge(ticker, currentPrice) {
+  if (!currentPrice || currentPrice <= 0) return '';
+  const th = S.tickerHistory && S.tickerHistory[ticker];
+  if (!th) return '';
+  const THRESHOLD = 0.01; // ±1%
+
+  // Raccoglie punti per ogni periodo
+  function maxOf(period) {
+    const pts = th[period]?.pts;
+    if (!pts || pts.length < 2) return null;
+    return Math.max(...pts.map(p => p.c || p.h || 0).filter(v => v > 0));
+  }
+
+  // Giorni approssimati per periodo
+  const m1  = maxOf('1M');
+  const m6  = maxOf('6M') || maxOf('3M');
+  const m12 = maxOf('1A') || maxOf('6M');
+  const all = maxOf('MAX') || maxOf('5A') || maxOf('2A') || maxOf('1A');
+
+  const near = (max, price) => max && Math.abs(price - max) / max <= THRESHOLD && price >= max * (1 - THRESHOLD);
+
+  if (near(all, currentPrice))  return ' 🏆';
+  if (near(m12, currentPrice))  return ' 🥇';
+  if (near(m6, currentPrice))   return ' 🥈';
+  if (near(m1, currentPrice))   return ' 🥉';
+  return '';
+}
 
 function renderAll() {
   renderSwitcher();
