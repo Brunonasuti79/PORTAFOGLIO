@@ -2856,13 +2856,20 @@ function renderProjection() {
   refreshProjectionOutput();
 }
 
+function setProjYears(y) {
+  ALL.settings.projYears = y;
+  save();
+  refreshProjectionOutput();
+}
+
 function refreshProjectionOutput() {
   const out = document.getElementById('proj-output');
   if (!out) return;
 
   const rates    = Object.assign({}, DEFAULT_PROJ_RATES, ALL.settings.projRates || {});
   const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
-  const YRS      = 31;
+  const MAXYRS   = (ALL.settings.projYears || 30);
+  const YRS      = MAXYRS + 1;
 
   const hlds = calcPF();
   const catVals = {}, tkVals = {};
@@ -2922,12 +2929,12 @@ function refreshProjectionOutput() {
   const cw=W-pl-pr, ch=H-pt-pb;
   const allVals=[...attuale,...(obiettivo||[]),...inflaz];
   const maxV=Math.max(...allVals)*1.06;
-  const sx=y=>pl+(y/30)*cw, sy=v=>pt+ch*(1-v/maxV);
+  const sx=y=>pl+(y/MAXYRS)*cw, sy=v=>pt+ch*(1-v/maxV);
   const fY=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?Math.round(v/1e3)+'k':''+Math.round(v);
   const pts=arr=>arr.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
   const gridY=Array.from({length:5},(_,i)=>maxV*(i+1)/5);
-  const xTicks=[0,5,10,15,20,25,30];
-  const areaPath=`M${sx(0)},${sy(0)} `+attuale.map((v,i)=>`L${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ')+` L${sx(30)},${pt+ch} L${sx(0)},${pt+ch} Z`;
+  const xTicks=Array.from({length:Math.floor(MAXYRS/5)+1},(_,i)=>i*5).filter(y=>y<=MAXYRS);
+  const areaPath=`M${sx(0)},${sy(0)} `+attuale.map((v,i)=>`L${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ')+` L${sx(MAXYRS)},${pt+ch} L${sx(0)},${pt+ch} Z`;
   const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">
     <defs><linearGradient id="gAtt2" x1="0" y1="0" x2="0" y2="1">
       <stop offset="0%" stop-color="#7ba7ff" stop-opacity="0.18"/>
@@ -2958,7 +2965,30 @@ function refreshProjectionOutput() {
     </tr>`;
   }).join('');
 
+  const fmtK = v => v>=1e6?(v/1e6).toFixed(2)+'M€':v>=1e3?Math.round(v/1e3)+'k€':Math.round(v)+'€';
+  const finalA = attuale[MAXYRS], finalO = obiettivo?.[MAXYRS], finalI = inflaz[MAXYRS];
+
   out.innerHTML = `
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+    ${[5,10,15,20,25,30,35,40].map(y=>`<button onclick="setProjYears(${y})" style="padding:4px 12px;border-radius:20px;border:1px solid ${MAXYRS===y?'var(--blue)':'var(--border2)'};background:${MAXYRS===y?'var(--blue)':'none'};color:${MAXYRS===y?'#fff':'var(--text2)'};font-size:11px;font-weight:700;cursor:pointer">${y}a</button>`).join('')}
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(${finalO!=null?3:2},1fr);gap:8px;margin-bottom:10px">
+    <div style="background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.2);border-radius:10px;padding:8px 12px">
+      <div style="font-size:9px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">Portafoglio attuale</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#7ba7ff">${fmtK(finalA)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">tra ${MAXYRS} anni</div>
+    </div>
+    ${finalO!=null?`<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:10px;padding:8px 12px">
+      <div style="font-size:9px;color:#22d47e;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">Allocazione obiettivo</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#22d47e">${fmtK(finalO)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">tra ${MAXYRS} anni</div>
+    </div>`:''}
+    <div style="background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.2);border-radius:10px;padding:8px 12px">
+      <div style="font-size:9px;color:#ff9944;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">Inflazione ${inflRate}%</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#ff9944">${fmtK(finalI)}</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:1px">potere d'acquisto</div>
+    </div>
+  </div>
   <div class="proj-chart-wrap">
     <div class="proj-legend">
       <span><span class="proj-leg-dot" style="background:#7ba7ff"></span>Portafoglio attuale</span>
