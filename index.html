@@ -2294,6 +2294,7 @@ function renderPfDropdown() {
     <span>Nuovo portafoglio</span>
   </div>`;
 }
+
 document.addEventListener('click', function(e) {
   if (!e.target.closest('#pf-name-btn') && !e.target.closest('#pf-dropdown')) closePfDropdown();
 });
@@ -2709,29 +2710,59 @@ function renderCharts() {
     </div>
   </div>
   <div class="chart-card">
-    <div class="chart-title">Investito vs valore attuale</div>
-    ${[...rows].sort((a,b)=>b.value-a.value).map(r=>`
-      <div class="bar-row">
-        <div class="bar-head"><span class="bar-label">${esc(r.name||r.displayTicker)}</span><span class="bar-num">${e2(r.cost)} → ${e2(r.value)}</span></div>
-        <div class="bar-track"><div class="bar-fill cost" style="width:${Math.max(2,r.cost/maxV*100)}%"></div></div>
-        <div class="bar-track"><div class="bar-fill value" style="width:${Math.max(2,r.value/maxV*100)}%"></div></div>
-      </div>`).join('')}
+    <div class="chart-title">Heatmap performance — titoli</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:4px">
+      ${rows.map(r => {
+        const p2 = r.pctGain;
+        const bg = p2>=15?'#14532d':p2>=8?'#166534':p2>=3?'#16a34a':p2>=0?'#22c55e':p2>=-5?'#ea580c':p2>=-12?'#dc2626':'#991b1b';
+        return '<div style="background:'+bg+';border-radius:8px;padding:7px 6px;text-align:center">'
+          +'<div style="font-size:10px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.displayTicker)+'</div>'
+          +'<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.95);margin-top:2px">'+(r.pctGain>=0?'+':'')+r.pctGain.toFixed(1)+'%</div>'
+          +'<div style="font-size:9px;color:rgba(255,255,255,.65);margin-top:1px">'+e2(r.value)+'</div>'
+          +'</div>';
+      }).join('')}
+    </div>
   </div>
   <div class="chart-card">
-    <div class="chart-title">Gain / Loss per titolo</div>
-    ${[...rows].sort((a,b)=>Math.abs(b.gain)-Math.abs(a.gain)).map(r=>`
-      <div class="bar-row">
-        <div class="bar-head"><span class="bar-label">${esc(r.name||r.displayTicker)}</span><span class="bar-num ${r.gain>=0?'gain':'loss'}">${r.gain>=0?'+':''}${e2(r.gain)} · ${pct(r.pctGain)}</span></div>
-        <div class="bar-track"><div class="bar-fill ${r.gain>=0?'gain':'loss'}" style="width:${Math.max(2,Math.abs(r.gain)/maxG*100)}%"></div></div>
-      </div>`).join('')}
+    <div class="chart-title">Heatmap performance — categorie</div>
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:4px">
+      ${(() => {
+        const byC={};
+        rows.forEach(r=>{const k=r.assetClass||UNCATEGORIZED;if(!byC[k])byC[k]={v:0,c:0};byC[k].v+=r.value;byC[k].c+=r.cost;});
+        const clrs=['#1d4ed8','#15803d','#0e7490','#7c3aed','#be123c','#c2410c','#0369a1','#065f46'];
+        let ci=0;
+        return Object.entries(byC).map(([n,d])=>{
+          const p2=d.c>0?(d.v-d.c)/d.c*100:0;
+          const wP=tv>0?d.v/tv*100:0;
+          const bg=p2>=15?'#14532d':p2>=8?'#166534':p2>=3?'#16a34a':p2>=0?'#22c55e':p2>=-5?'#ea580c':p2>=-12?'#dc2626':'#991b1b';
+          return '<div style="background:'+bg+';border-radius:8px;padding:8px">'
+            +'<div style="font-size:10px;font-weight:700;color:#fff;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(n)+'</div>'
+            +'<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.95)">'+(p2>=0?'+':'')+p2.toFixed(1)+'%</div>'
+            +'<div style="font-size:9px;color:rgba(255,255,255,.65);margin-top:1px">'+wP.toFixed(1)+'% portafoglio</div>'
+            +'</div>';
+        }).join('');
+      })()}
+    </div>
   </div>
   <div class="chart-card">
-    <div class="chart-title">Peso % per strumento</div>
-    ${[...rows].sort((a,b)=>b.value-a.value).map(r=>{const w=tv?r.value/tv*100:0;return`
-      <div class="bar-row">
-        <div class="bar-head"><span class="bar-label">${esc(r.name||r.displayTicker)} · ${esc(r.assetClass||UNCATEGORIZED)}</span><span class="bar-num">${w.toFixed(1)}%</span></div>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.max(2,w)}%"></div></div>
-      </div>`;}).join('')}
+    <div class="chart-title">Treemap allocazione</div>
+    ${(() => {
+      const sorted=[...rows].sort((a,b)=>b.value-a.value);
+      const tot=sorted.reduce((s,r)=>s+r.value,0)||1;
+      const clrs=['#1d4ed8','#15803d','#0e7490','#7c3aed','#be123c','#c2410c','#0369a1','#065f46'];
+      const cmap={};let ci2=0;
+      return '<div style="display:flex;gap:3px;height:160px;border-radius:8px;overflow:hidden">'
+        +sorted.map(r=>{
+          if(!cmap[r.assetClass||'?'])cmap[r.assetClass||'?']=clrs[ci2++%clrs.length];
+          const w=r.value/tot*100;
+          const p2=r.pctGain;
+          const bdr=p2>=0?'2px solid rgba(34,212,126,.35)':'2px solid rgba(255,82,82,.3)';
+          return '<div style="width:'+w+'%;background:'+cmap[r.assetClass||'?']+';border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;overflow:hidden;flex-shrink:0;border:'+bdr+'">'
+            +(w>4?'<div style="font-size:'+(w>8?'10':'8')+'px;font-weight:700;color:#fff;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">'+esc(r.displayTicker)+'</div>':'')
+            +(w>6?'<div style="font-size:9px;'+(p2>=0?'color:#86efac':'color:#fca5a5')+'">'+(p2>=0?'+':'')+p2.toFixed(0)+'%</div>':'')
+            +'</div>';
+        }).join('')+'</div>';
+    })()}
   </div>`;
 }
 
