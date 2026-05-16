@@ -2389,8 +2389,8 @@ function renderPF() {
     ca.innerHTML = `<div style="margin:0 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:5px 12px;display:flex;align-items:center;gap:10px">
       <span class="sum-cl" style="flex-shrink:0">Liquidità</span>
       <div id="cash-hv" class="sum-cv" style="transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'—'}</div>
+      <button onclick="openCashModal()" style="flex-shrink:0;background:none;border:none;padding:0 0 0 20px;cursor:pointer;white-space:nowrap"><span class="sum-cl" style="color:var(--blue)">DEPOSITA</span></button>
       <div style="flex:1"></div>
-      <button onclick="openCashModal()" style="flex-shrink:0;background:none;border:none;padding:0 0 0 18px;cursor:pointer;white-space:nowrap"><span class="sum-cl" style="color:var(--blue)">DEPOSITA</span></button>
       <div style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${nHlds} Titoli</div>
     </div>
 `;
