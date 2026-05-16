@@ -51,7 +51,7 @@ html.light input[type=number],html.light input[type=text],html.light input[type=
 html.light .rb-tgt-inp,html.light .rb-sub-inp,html.light .proj-rate-inp,html.light .taxrate-inp{
   background:rgba(37,99,235,.08)!important;border-color:rgba(37,99,235,.25)!important;color:var(--blue)!important}
 html.light .stab{background:var(--bg3);border-color:var(--border2);color:var(--text2)}
-html.light .stab.active{background:var(--green);color:#fff}
+html.light .stab.active{background:rgba(255,255,255,.12);color:#fff;border-color:rgba(255,255,255,.4);text-shadow:0 0 8px rgba(255,255,255,.6)}
 html.light .mov{background:rgba(0,0,0,.4)}
 html.light .msh{background:var(--bg2)}
 html.light .fld label{color:var(--text2)}
@@ -2384,7 +2384,7 @@ function renderPF() {
     ca.innerHTML = `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 14px;display:flex;align-items:center;gap:10px">
       <div style="flex:1;min-width:0">
         <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">💶 Liquidità</div>
-        <div id="cash-hv" style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--text);transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'— nessun deposito'}</div>
+        <div id="cash-hv" style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--text);transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'— nessun deposito'}</div>
       </div>
       <button onclick="openCashModal()" style="flex-shrink:0;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap;letter-spacing:.3px">💶 Deposita</button>
       <div style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:10px;padding:8px 14px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${nHlds} Titoli</div>
