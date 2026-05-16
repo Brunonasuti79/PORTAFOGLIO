@@ -260,7 +260,7 @@ html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
 .rb-sub-inp.complete{border-color:var(--green)!important;color:var(--green)}
 .pct-suffix{font-size:11px;color:var(--text3);margin-left:3px}
 /* ── Sub-row totale / indicatore ── */
-.rb-sub-total-row td{background:rgba(123,167,255,.04);padding:3px 8px 3px 40px;border-bottom:1px solid var(--border)}
+.rb-sub-total-row td{background:rgba(123,167,255,.04);padding:2px 6px 2px 32px;border-bottom:1px solid var(--border)}
 .rb-sub-bar{height:4px;border-radius:2px;margin-top:4px;background:rgba(255,255,255,.06);overflow:hidden}
 .rb-sub-bar-fill{height:100%;border-radius:2px;transition:width .3s}
 /* ── expand btn (shared) ── */
@@ -270,7 +270,7 @@ html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
 .rb-expand-btn.open{color:var(--blue);border-color:var(--blue)}
 /* ── sub-row table cells ── */
 .rb-sub-row td{background:rgba(7,11,20,.35);border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
-.rb-sub-row td:first-child{padding-left:28px;border-left:3px solid #1a3060}
+.rb-sub-row td:first-child{padding-left:20px;border-left:2px solid #1a3060}
 .pac-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 14px 6px}
 .pac-input-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
 .pac-input-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:5px}
@@ -600,14 +600,14 @@ html.light .ops-group-body{border-color:var(--border)}
 /* ──────────────────────── REBALANCE ──────────────────────── */
 .rb-table{width:100%;border-collapse:collapse;font-size:12px}
 .rb-table th{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;
-  font-weight:700;padding:5px 8px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;
+  font-weight:700;padding:3px 6px;border-bottom:1px solid var(--border);text-align:left;white-space:nowrap;
   cursor:pointer;user-select:none}
 .rb-table th.rb-th-r{text-align:right}
 .rb-table th:hover{color:var(--text2)}
 .rb-table th.rb-sort-asc::after{content:' ▲';color:var(--blue)}
 .rb-table th.rb-sort-desc::after{content:' ▼';color:var(--blue)}
 .rb-table th.rb-sortable::after{content:' ⇅';opacity:.35}
-.rb-table td{padding:6px 8px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
+.rb-table td{padding:3px 6px;border-bottom:1px solid rgba(255,255,255,.04);vertical-align:middle}
 .rb-table tfoot td{border-top:1px solid var(--border);border-bottom:none;padding-top:8px}
 .rb-cat{color:#c8d8ff;font-weight:500;font-size:12px}
 .rb-num{font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text2);text-align:right;white-space:nowrap}
@@ -4182,7 +4182,7 @@ function renderRebalance() {
                     min="0" max="100" step="0.5" data-rb-cat="${esc(cat)}"
                     oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);liveSubSum('${jsq(cat)}')"
                     onchange="renderRebalance()">
-                  <span class="pct-suffix">% cat.</span>
+                  <span class="pct-suffix">%</span>
                   <button class="pct-step-btn" onclick="var i=this.parentElement.querySelector('input');i.value=Math.min(100,parseFloat(i.value||0)+.5);i.dispatchEvent(new Event('input'))">+</button>
                 </div>
                 ${hTgt !== '' ? `<div style="font-size:9px;color:var(--text3);margin-top:2px">= ${hTgtPtfPct.toFixed(1)}% ptf</div>` : ''}
