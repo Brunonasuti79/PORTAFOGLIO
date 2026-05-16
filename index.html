@@ -724,7 +724,7 @@ html.light .pf-pill-btn.active{color:#fff}
     <div style="margin:8px 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:relative">
       <div id="pf-switcher" style="display:none"></div>
       <button onclick="togglePfDropdown()" id="pf-name-btn" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0">
-        <span id="port-title" style="font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:1.5px;color:var(--text);line-height:1">PORTAFOGLIO</span>
+        <span id="port-title" style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1.5px;color:var(--text);line-height:1">PORTAFOGLIO</span>
         <span id="pf-dd-arrow" style="font-size:12px;color:var(--text3);transition:transform .2s">▾</span>
       </button>
       <div style="display:flex;align-items:center;gap:7px;margin-left:auto">
@@ -1903,10 +1903,13 @@ async function fetchPrices() {
       const price = num(q?.price);
       if (isReasonablePrice(price, h)) {
         S.prices[h.ticker] = price;
-        // Peak badge: aggiorna massimo storico
+        // Peak badge: inizializza con avgPrice, aggiorna solo se supera il picco storico
         if (!S.peakPrices) S.peakPrices = {};
-        if (!S.peakPrices[h.ticker] || price > S.peakPrices[h.ticker])
+        if (!S.peakPrices[h.ticker]) {
+          S.peakPrices[h.ticker] = h.avgPriceBuyCcy || h.avgPrice || price;
+        } else if (price > S.peakPrices[h.ticker]) {
           S.peakPrices[h.ticker] = price;
+        }
         sources[h.ticker] = q.source || 'Fonte prezzi';
         const pct = num(q?.dailyPct);
         const pctOk = pct !== null && Math.abs(pct) < 25;
@@ -2337,15 +2340,14 @@ function renderPF() {
   const ca = document.getElementById('cash-area');
   if (ca) {
     const cash = S.cashEUR||0;
-    ca.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:0 14px 6px">
-      <div style="flex:1;padding:6px 12px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;display:flex;align-items:center;gap:10px">
-        <span style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700">💶 Liquidità</span>
-        <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;color:var(--text)">${cash>0?e2(cash):'— nessun deposito'}</span>
+    const nHlds = allHlds.length;
+    ca.innerHTML = `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">💶 Liquidità</div>
+        <div id="cash-hv" style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--text);transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'— nessun deposito'}</div>
       </div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="hbtn" onclick="openCashModal()" style="padding:8px 12px;font-size:13px;font-weight:700">💶 Deposita</button>
-        <button class="hbtn" onclick="openQuick()" style="padding:8px 14px;font-size:13px;font-weight:700;white-space:nowrap">+ Aggiungi</button>
-      </div>
+      <button onclick="openCashModal()" style="flex-shrink:0;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:8px 14px;cursor:pointer;font-size:11px;font-weight:700;color:var(--text2);white-space:nowrap;letter-spacing:.3px">💶 Deposita</button>
+      <div style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:10px;padding:8px 14px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${nHlds} Titoli</div>
     </div>
 `;
   }
@@ -5408,6 +5410,9 @@ function toggleSumValues() {
   S.hideValues = !S.hideValues;
   save();
   renderPF();
+  // Oscura/mostra anche liquidità (renderata separatamente)
+  const ch = document.getElementById('cash-hv');
+  if (ch) { ch.style.filter = S.hideValues ? 'blur(7px)' : ''; ch.style.userSelect = S.hideValues ? 'none' : ''; }
 }
 
 function openCashModal() {
