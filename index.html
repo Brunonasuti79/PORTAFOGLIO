@@ -2807,7 +2807,7 @@ function renderProjection() {
           <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.1).toFixed(1);i.dispatchEvent(new Event('input'))">−</button>
           <input type="number" class="proj-rate-inp" value="${sr??''}"
             placeholder="${rates[cat]??0}" step="0.1" min="0" max="100" inputmode="decimal"
-            oninput="saveProjSubRate('${h.ticker}',this.value)">
+            oninput="saveProjSubRate('${h.ticker}',this.value);debouncedRenderProj()">
           <span style="font-size:12px;color:var(--text3)">%</span>
           <button class="pct-step-btn" onclick="var i=this.parentElement.querySelector('.proj-rate-inp');i.value=Math.min(100,parseFloat(i.value||0)+.1).toFixed(1);i.dispatchEvent(new Event('input'))">+</button>
           ${sr!=null?`<button onclick="saveProjSubRate('${h.ticker}','')" title="Usa tasso categoria" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;line-height:1">✕</button>`:''}
@@ -4266,7 +4266,7 @@ function renderRebalance() {
                   <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.5);i.dispatchEvent(new Event('input'));setTimeout(renderRebalance,30)">−</button>
                   <input type="number" class="rb-sub-inp${subInputClass(subSum,hTgt)}" value="${hTgt}" placeholder="0"
                     min="0" max="100" step="0.5" data-rb-cat="${esc(cat)}"
-                    oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);liveSubSum('${jsq(cat)}')"
+                    oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);liveSubSum('${jsq(cat)}');debouncedRenderRB()"
                     onchange="renderRebalance()">
                   <span class="pct-suffix">%</span>
                   <button class="pct-step-btn" onclick="var i=this.parentElement.querySelector('input');i.value=Math.min(100,parseFloat(i.value||0)+.5);i.dispatchEvent(new Event('input'))">+</button>
@@ -4302,7 +4302,7 @@ function renderRebalance() {
                 <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.5);i.dispatchEvent(new Event('input'));setTimeout(renderRebalance,30)">−</button>
                 <input type="number" class="rb-tgt-inp" value="${target||''}" placeholder="0"
                   min="0" max="100" step="0.5"
-                  oninput="saveTargetInline('${jsq(cat)}',this.value)">
+                  oninput="saveTargetInline('${jsq(cat)}',this.value);debouncedRenderRB()">
                 <span class="pct-suffix">%</span>
                 <button class="pct-step-btn" onclick="var i=this.previousElementSibling.previousElementSibling;i.value=Math.min(100,parseFloat(i.value||0)+.5);i.dispatchEvent(new Event('input'));setTimeout(renderRebalance,30);setTimeout(renderRebalance,30)">+</button>
               </div>
@@ -5913,6 +5913,11 @@ function renderTutSlide() {
   next.onclick = _tutIdx === n-1 ? closeTutorial : () => tutNav(1);
 }
 
+
+let _rbDebTimer = null;
+function debouncedRenderRB() { clearTimeout(_rbDebTimer); _rbDebTimer = setTimeout(renderRebalance, 400); }
+let _projDebTimer = null;
+function debouncedRenderProj() { clearTimeout(_projDebTimer); _projDebTimer = setTimeout(refreshProjectionOutput, 400); }
 
 function renderAll() {
   renderSwitcher();
