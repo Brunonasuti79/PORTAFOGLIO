@@ -4163,12 +4163,8 @@ function renderRebalance() {
   }
 
   area.innerHTML = `
-  <div class="ssec" style="margin:14px">
-    <div class="slbl">📐 Come funziona</div>
-    <div class="sdesc">Clicca ✎ per impostare l'obiettivo %. Clicca le intestazioni per ordinare la tabella. Somma = 100%.</div>
-    ${totalTarget > 0 && Math.abs(totalTarget-100) > 0.1 ? `<div class="rb-warn-bar">⚠ Totale obiettivi: ${totalTarget.toFixed(1)}% (deve essere 100%)</div>` : ''}
-  </div>
-  <div style="margin:0 14px 14px;overflow-x:auto">
+    ${totalTarget > 0 && Math.abs(totalTarget-100) > 0.1 ? `<div class="rb-warn-bar" style="margin:6px 14px 4px">⚠ Totale: ${totalTarget.toFixed(1)}%</div>` : ''}
+  <div style="margin:4px 14px 8px;overflow-x:auto">
     <table class="rb-table">
       <thead><tr>
         <th class="${thCls('categoria')}" onclick="sortRB('categoria')">Categoria</th>
@@ -4207,7 +4203,7 @@ function renderRebalance() {
               </td>
               <td class="rb-num" style="text-align:center">
                 <div class="pct-stepper">
-                  <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.5);i.dispatchEvent(new Event('input'))">−</button>
+                  <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.5);i.dispatchEvent(new Event('input'));setTimeout(renderRebalance,30)">−</button>
                   <input type="number" class="rb-sub-inp${subInputClass(subSum,hTgt)}" value="${hTgt}" placeholder="0"
                     min="0" max="100" step="0.5" data-rb-cat="${esc(cat)}"
                     oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);liveSubSum('${jsq(cat)}')"
@@ -4243,12 +4239,12 @@ function renderRebalance() {
             </td>
             <td class="rb-num" style="text-align:center">
               <div class="pct-stepper">
-                <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.5);i.dispatchEvent(new Event('input'))">−</button>
+                <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.5);i.dispatchEvent(new Event('input'));setTimeout(renderRebalance,30)">−</button>
                 <input type="number" class="rb-tgt-inp" value="${target||''}" placeholder="0"
                   min="0" max="100" step="0.5"
                   oninput="saveTargetInline('${jsq(cat)}',this.value)">
                 <span class="pct-suffix">%</span>
-                <button class="pct-step-btn" onclick="var i=this.previousElementSibling.previousElementSibling;i.value=Math.min(100,parseFloat(i.value||0)+.5);i.dispatchEvent(new Event('input'))">+</button>
+                <button class="pct-step-btn" onclick="var i=this.previousElementSibling.previousElementSibling;i.value=Math.min(100,parseFloat(i.value||0)+.5);i.dispatchEvent(new Event('input'));setTimeout(renderRebalance,30);setTimeout(renderRebalance,30)">+</button>
               </div>
             </td>
             <td class="rb-num ${actual>0?(delta>2?'rb-over':delta<-2?'rb-under':''):''}">${actual.toFixed(1)}%</td>
