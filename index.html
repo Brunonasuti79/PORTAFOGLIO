@@ -271,17 +271,17 @@ html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
 /* ── sub-row table cells ── */
 .rb-sub-row td{background:rgba(7,11,20,.35);border-bottom:1px solid rgba(255,255,255,.03);vertical-align:middle}
 .rb-sub-row td:first-child{padding-left:20px;border-left:2px solid #1a3060}
-.pac-inputs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 14px 6px}
-.pac-input-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px}
+.pac-inputs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:6px 14px 4px}
+.pac-input-card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:7px 10px}
 .pac-input-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:700;margin-bottom:5px}
 .pac-input-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:var(--blue);margin-bottom:4px}
 .pac-inp{width:100%;background:var(--bg);border:1px solid var(--border2);color:var(--text);
   font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:700;
   border-radius:8px;padding:6px 8px;margin-top:4px}
-.pac-calc-btn{display:block;width:calc(100% - 28px);margin:8px 14px;
-  background:linear-gradient(135deg,#0a3080,#0c4090);border:1px solid #1a5090;
-  color:#c8d8ff;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;
-  padding:11px;border-radius:12px;cursor:pointer;letter-spacing:.5px;transition:all .2s}
+.pac-calc-btn{display:block;width:calc(100% - 28px);margin:6px 14px;
+  background:none;border:1px solid var(--blue);
+  color:var(--blue);font-family:'Outfit',sans-serif;font-size:13px;font-weight:700;
+  padding:8px;border-radius:10px;cursor:pointer;letter-spacing:.3px;transition:all .2s}
 .pac-calc-btn:active{opacity:.8}
 .pac-plan-wrap{margin:6px 14px 80px;overflow-x:auto}
 .pac-table{width:100%;border-collapse:collapse;font-size:11px}
@@ -3043,8 +3043,21 @@ function setSubTarget(cat, ticker, val) {
 // ════════════════════════════════════════════════════════════════
 const MON_CAT = 'ETF Monetario / Fondo Monetario';
 
+function applyEqualDistribution() {
+  const cats = [...new Set(calcPF().map(h => h.assetClass || UNCATEGORIZED))];
+  if (!cats.length) return;
+  const pct = Math.floor(10000 / cats.length) / 100;
+  const rem = Math.round((100 - pct * cats.length) * 100) / 100;
+  if (!S.rebalanceTargets) S.rebalanceTargets = {};
+  cats.forEach((cat, i) => { S.rebalanceTargets[cat] = i === 0 ? pct + rem : pct; });
+  save();
+  renderRebalance();
+  showToast('✓ Distribuzione uguale applicata');
+}
+
 function calcAvailableFunds() {
   const hlds = calcPF();
+  const targets = S.rebalanceTargets || {};
   const catVals = {}, tkVals = {};
   let total = 0;
   hlds.forEach(h => {
@@ -3057,9 +3070,18 @@ function calcAvailableFunds() {
   const cash = S.cashEUR || 0;
   catVals['Liquidità'] = (catVals['Liquidità']||0) + cash;
   total += cash;
-  const monPct  = (Number(S.rebalanceTargets?.[MON_CAT]) || 0) / 100;
-  const monExcess = Math.max(0, (catVals[MON_CAT]||0) - total * monPct);
-  return { cash, monExcess, total: cash + monExcess, catVals, tkVals, hlds, portfolioTotal: total };
+  // Eccesso per ogni categoria rispetto al target (prezzi correnti)
+  const excess = {};
+  let totalExcess = 0;
+  Object.entries(catVals).forEach(([cat, val]) => {
+    if (cat === 'Liquidità') return;
+    const tgt = (Number(targets[cat]) || 0) / 100;
+    const exc = Math.max(0, val - total * tgt);
+    if (exc > 0.01) { excess[cat] = exc; totalExcess += exc; }
+  });
+  const monExcess = excess[MON_CAT] || 0;
+  return { cash, monExcess, excess, totalExcess,
+    total: cash + totalExcess, catVals, tkVals, hlds, portfolioTotal: total };
 }
 
 function runPAC(months, maxOps, minOp=500) {
@@ -3171,7 +3193,7 @@ function monthLabel(offset) {
 function renderPAC() {
   const area = document.getElementById('pac-area');
   if (!area) return;
-  const { cash, monExcess, total: avail } = calcAvailableFunds();
+  const { cash, monExcess, totalExcess, total: avail } = calcAvailableFunds();
   const months = parseInt(document.getElementById('pac-months-inp')?.value) || 24;
   const maxOps = parseInt(document.getElementById('pac-maxops-inp')?.value) || 5;
   const minOp  = parseFloat(document.getElementById('pac-minop-inp')?.value) || 500;
@@ -3181,7 +3203,7 @@ function renderPAC() {
     <div class="pac-input-card">
       <div class="pac-input-lbl">Fondi disponibili (auto)</div>
       <div class="pac-input-val">${e2(avail)}</div>
-      <div style="font-size:10px;color:var(--text3)">Liquidità ${e2(cash)} + Eccesso ETF mon. ${e2(monExcess)}</div>
+      <div style="font-size:10px;color:var(--text3)">Liquidi ${e2(cash)}${totalExcess>0?` + Eccessi ${e2(totalExcess)}`:''}</div>
     </div>
     <div class="pac-input-card">
       <div class="pac-input-lbl">Importo mensile stimato</div>
@@ -3206,7 +3228,12 @@ function renderPAC() {
         min="0" max="10000" step="50" inputmode="decimal">
     </div>
   </div>
-  <button class="pac-calc-btn" onclick="calcAndRenderPAC()">📊 Calcola piano PAC</button>
+  \${!((S.rebalanceTargets||{}) && Object.values(S.rebalanceTargets||{}).some(v=>Number(v)>0))
+    ? \`<div style="margin:8px 14px;padding:12px 16px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.2);border-radius:10px;font-size:12px;color:var(--text2)">
+        🔴 PAC non disponibile — <a onclick="showPage('rebalance')" style="color:var(--blue);cursor:pointer;text-decoration:underline">imposta prima i target in Ribilanciamento</a>
+      </div>\`
+    : \`<button class="pac-calc-btn" onclick="calcAndRenderPAC()">Calcola piano PAC</button>\`
+  }
   <div id="pac-plan"></div>`;
 }
 
@@ -4126,6 +4153,39 @@ function renderRebalance() {
   }
   const allCats = new Set([...Object.keys(catValues), ...Object.keys(targets)]);
   const totalTarget = Object.values(targets).reduce((a,v)=>a+(Number(v)||0),0);
+  const rbAllCats = [...new Set(calcPF().map(h=>h.assetClass||UNCATEGORIZED))];
+  const hasTargets = rbAllCats.some(cat => Number(targets[cat]) > 0);
+  const allHaveTarget = rbAllCats.every(cat => Number(targets[cat]) > 0);
+  const isComplete = Math.abs(totalTarget - 100) < 0.5;
+  const isPartial = hasTargets && !isComplete;
+
+  // Semaforo
+  let semHtml = '';
+  if (!hasTargets) {
+    semHtml = `<div style="margin:0 14px 8px;background:rgba(239,68,68,.08);border:1px solid rgba(239,68,68,.25);border-radius:10px;padding:10px 14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+      <span style="font-size:14px">🔴</span>
+      <div style="flex:1;min-width:160px">
+        <div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:2px">Nessun target inserito</div>
+        <div style="font-size:11px;color:var(--text3)">Imposta i target per abilitare il PAC</div>
+      </div>
+      <button onclick="applyEqualDistribution()" style="background:none;border:1px solid rgba(239,68,68,.35);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700;color:#ef4444;white-space:nowrap">Distribuzione uguale</button>
+    </div>`;
+  } else if (isComplete) {
+    semHtml = `<div style="margin:0 14px 8px;background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:10px">
+      <span style="font-size:14px">🟢</span>
+      <div style="font-size:12px;font-weight:700;color:#22d47e">Target completati ✓</div>
+      <div style="font-size:11px;color:var(--text3);margin-left:4px">PAC abilitato</div>
+    </div>`;
+  } else {
+    const residuo = (100 - totalTarget).toFixed(1);
+    const msgA = 'Totale '+totalTarget.toFixed(1)+'%. Il '+residuo+'% residuo verrà distribuito equamente tra tutte le categorie.';
+    const msgB = 'Totale '+totalTarget.toFixed(1)+'% raggiunto. Le categorie senza target useranno la quota residua divisa equamente.';
+    const msg = allHaveTarget ? msgA : msgB;
+    semHtml = '<div style="margin:0 14px 8px;background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.25);border-radius:10px;padding:8px 14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">'
+      + '<span style="font-size:14px">🟡</span>'
+      + '<div style="flex:1;min-width:160px;font-size:11px;color:var(--text2)">' + msg + '</div>'
+      + '</div>';
+  }
 
   let rows = [...allCats].map(cat => {
     const val    = catValues[cat] || 0;
@@ -4163,7 +4223,7 @@ function renderRebalance() {
   }
 
   area.innerHTML = `
-    ${totalTarget > 0 && Math.abs(totalTarget-100) > 0.1 ? `<div class="rb-warn-bar" style="margin:6px 14px 4px">⚠ Totale: ${totalTarget.toFixed(1)}%</div>` : ''}
+    \${semHtml}
   <div style="margin:4px 14px 8px;overflow-x:auto">
     <table class="rb-table">
       <thead><tr>
