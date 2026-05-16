@@ -763,6 +763,7 @@ html.light .stab.active{background:rgba(22,163,74,.12);color:#16a34a;border-colo
           <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 9px;cursor:pointer;color:rgba(255,255,255,.7);font-size:13px;line-height:1">🌙</button>
           <button id="btn-ref" onclick="fetchPrices()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 13px;cursor:pointer;color:#fff;font-size:14px;font-weight:700;line-height:1">⟳</button>
           <button onclick="runDiagnostic()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 8px;cursor:pointer;color:rgba(255,255,255,.7);font-size:14px;line-height:1">🔧</button>
+          <button onclick="openTutorial()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:5px 10px;cursor:pointer;color:rgba(255,255,255,.7);font-size:11px;font-weight:700;line-height:1;letter-spacing:.3px">?</button>
         </div>
       </div>
       <!-- Barra allineamento piano -->
@@ -1019,6 +1020,29 @@ html.light .stab.active{background:rgba(22,163,74,.12);color:#16a34a;border-colo
   </div>
 </div>
 
+
+<!-- TUTORIAL MODAL -->
+<div id="tutorialmodal" class="mov hidden" onclick="if(event.target.id==='tutorialmodal')closeTutorial()" style="z-index:999">
+  <div class="msh" style="max-width:420px;padding:0;overflow:hidden;border-radius:20px">
+    <!-- Header -->
+    <div id="tut-header" style="padding:20px 20px 0;background:var(--bg2)">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+        <div style="display:flex;gap:6px" id="tut-dots"></div>
+        <button onclick="closeTutorial()" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1">×</button>
+      </div>
+      <div id="tut-icon" style="font-size:40px;margin-bottom:8px;text-align:center"></div>
+      <div id="tut-title" style="font-family:'Bebas Neue',sans-serif;font-size:26px;letter-spacing:1px;color:var(--text);text-align:center;margin-bottom:6px"></div>
+    </div>
+    <!-- Content -->
+    <div id="tut-body" style="padding:16px 20px 20px;background:var(--bg2);min-height:160px;font-size:13px;color:var(--text2);line-height:1.65"></div>
+    <!-- Nav -->
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:var(--bg3);border-top:1px solid var(--border)">
+      <button id="tut-prev" onclick="tutNav(-1)" style="background:none;border:1px solid var(--border2);border-radius:8px;padding:7px 16px;cursor:pointer;color:var(--text2);font-size:12px;font-weight:600">← Indietro</button>
+      <span id="tut-counter" style="font-size:11px;color:var(--text3);font-weight:600"></span>
+      <button id="tut-next" onclick="tutNav(1)" style="background:var(--blue);border:none;border-radius:8px;padding:7px 16px;cursor:pointer;color:#fff;font-size:12px;font-weight:700">Avanti →</button>
+    </div>
+  </div>
+</div>
 <!-- TOAST -->
 <div id="toast"></div>
 
@@ -5631,6 +5655,151 @@ function getMedalBadge(ticker, currentPrice) {
   if (near(m1, currentPrice))   return ' 🥉';
   return '';
 }
+
+// ── Tutorial ──────────────────────────────────────────────────────
+const TUTORIAL_SLIDES = [
+  {
+    icon: '📊',
+    title: 'Benvenuto',
+    body: `<p>Questo è il tuo <strong>tracker personale di portafoglio</strong> — costruito per tenere tutto sotto controllo in un unico posto, senza abbonamenti o cloud.</p>
+           <p style="margin-top:10px">Tutte le tue operazioni, i prezzi in tempo reale e le analisi vivono localmente sul tuo dispositivo.</p>`
+  },
+  {
+    icon: '🏠',
+    title: 'Schermata Portafoglio',
+    body: `<p>La schermata principale ti mostra in un colpo d'occhio:</p>
+           <ul style="margin:10px 0 0 16px;display:flex;flex-direction:column;gap:6px">
+             <li><strong>Oggi</strong> — variazione giornaliera in € e %</li>
+             <li><strong>Europa / NYSE</strong> — pallino verde = mercato aperto</li>
+             <li><strong>Valore portafoglio</strong> — totale attuale in EUR e USD</li>
+             <li><strong>Gain/Loss</strong> — sempre visibile anche con l'occhio chiuso</li>
+             <li><strong>Barra allineamento</strong> — quanto sei vicino al tuo piano di ribilanciamento</li>
+           </ul>`
+  },
+  {
+    icon: '👁',
+    title: 'Pulsante Occhio',
+    body: `<p>Clicca l'occhio <strong>👁</strong> nella card del portafoglio per nascondere tutti gli importi.</p>
+           <p style="margin-top:10px">Rimangono sempre visibili <strong>Gain/Loss</strong> e <strong>Rendimento%</strong> — le cose che contano davvero per capire se stai guadagnando o perdendo, senza mostrare cifre assolute.</p>
+           <p style="margin-top:10px;font-size:11px;color:var(--text3)">Utile in luoghi pubblici o quando condividi lo schermo.</p>`
+  },
+  {
+    icon: '📈',
+    title: 'Sparkline e Medaglie',
+    body: `<p>Ogni titolo mostra una <strong>mini-linea degli ultimi 7 giorni</strong> — verde se sale, rossa se scende.</p>
+           <p style="margin-top:10px">Le medaglie indicano se il titolo è ai suoi massimi storici:</p>
+           <ul style="margin:8px 0 0 16px;display:flex;flex-direction:column;gap:5px">
+             <li>🥉 Massimo degli <strong>ultimi 30 giorni</strong></li>
+             <li>🥈 Massimo degli <strong>ultimi 6 mesi</strong></li>
+             <li>🥇 Massimo dell'<strong>ultimo anno</strong></li>
+             <li>🏆 <strong>Massimo assoluto</strong> disponibile nello storico</li>
+           </ul>`
+  },
+  {
+    icon: '⚙️',
+    title: 'Filtro e Ordinamento',
+    body: `<p>Usa le <strong>pill delle categorie</strong> per filtrare la tabella per tipo di prodotto — ETF, BTP, Monetario, ecc.</p>
+           <p style="margin-top:10px">Clicca sulle intestazioni <strong>Gain · Gain% · Oggi · Prezzo</strong> per ordinare come in Excel — ▲ ascendente, ▼ discendente.</p>`
+  },
+  {
+    icon: '💶',
+    title: 'Liquidità',
+    body: `<p>La liquidità è il denaro che hai disponibile per investire.</p>
+           <p style="margin-top:10px">Clicca <strong>DEPOSITA</strong> per aggiungere un versamento — ogni deposito viene registrato come operazione con data e nota.</p>
+           <p style="margin-top:10px">Quando <strong>compri un titolo</strong> la liquidità scende automaticamente. Quando <strong>vendi</strong>, risale.</p>`
+  },
+  {
+    icon: '📋',
+    title: 'Operazioni',
+    body: `<p>Nella scheda <strong>Operazioni</strong> trovi tutta la storia dei tuoi acquisti e vendite, raggruppati per categoria.</p>
+           <p style="margin-top:10px">Puoi aggiungere una nuova posizione con <strong>+ Nuova</strong> — inserisci ticker, quantità, prezzo medio e data.</p>
+           <p style="margin-top:10px;font-size:11px;color:var(--text3)">I ticker USA usano il suffisso standard (es. AAPL). Per gli ETF italiani aggiungi .MI (es. SWDA.MI).</p>`
+  },
+  {
+    icon: '📉',
+    title: 'Storico Prezzi',
+    body: `<p>Nella scheda <strong>Storico</strong> puoi vedere l'andamento di ogni titolo su diversi orizzonti temporali: 1M · 3M · 6M · YTD · 1A · 2A · 5A · MAX.</p>
+           <p style="margin-top:10px">Cliccando su un periodo i dati vengono <strong>scaricati automaticamente</strong> se non ancora in cache.</p>
+           <p style="margin-top:10px">Il grafico mostra anche i tuoi <strong>prezzi medi di acquisto</strong> per confronto diretto.</p>`
+  },
+  {
+    icon: '⚖️',
+    title: 'Ribilanciamento',
+    body: `<p>Nella scheda <strong>Ribilanciamento</strong> puoi impostare il <strong>peso target</strong> di ogni categoria nel tuo portafoglio.</p>
+           <p style="margin-top:10px">L'app calcola automaticamente quanto comprare o vendere per rientrare nei pesi obiettivo — utile per il <strong>PAC mensile</strong>.</p>
+           <p style="margin-top:10px">La <strong>barra di allineamento</strong> nell'header si aggiorna in tempo reale man mano che il portafoglio si muove.</p>`
+  },
+  {
+    icon: '⟳',
+    title: 'Aggiornamento Prezzi',
+    body: `<p>Premi <strong>⟳</strong> per aggiornare tutti i prezzi. L'app prova in sequenza:</p>
+           <ul style="margin:8px 0 0 16px;display:flex;flex-direction:column;gap:5px">
+             <li><strong>Finnhub</strong> — veloce, richiede API key gratuita</li>
+             <li><strong>Yahoo Finance</strong> — ottimo per ticker USA</li>
+             <li><strong>Stooq</strong> — fallback per ETF europei</li>
+           </ul>
+           <p style="margin-top:10px;font-size:11px;color:var(--text3)">L'API key Finnhub si imposta in Impostazioni — è gratuita su finnhub.io.</p>`
+  },
+  {
+    icon: '🗓',
+    title: 'PAC — Piano di Accumulo',
+    body: `<p>Nella scheda <strong>Pianifica → PAC</strong> l'app genera automaticamente un piano di acquisto mensile basato su tre parametri:</p>
+           <ul style="margin:8px 0 0 16px;display:flex;flex-direction:column;gap:6px">
+             <li><strong>Fondi disponibili</strong> — calcolati automaticamente da liquidità + eventuale surplus mensile</li>
+             <li><strong>Orizzonte temporale</strong> — su quanti mesi distribuire il piano (es. 24 mesi)</li>
+             <li><strong>Max operazioni / importo minimo</strong> — per evitare acquisti troppo piccoli o frammentati</li>
+           </ul>
+           <p style="margin-top:10px">Il piano suggerisce <strong>quali titoli acquistare e per quanto</strong>, partendo sempre dalle categorie più sottopesate rispetto ai tuoi target di ribilanciamento.</p>
+           <p style="margin-top:10px;font-size:11px;color:var(--text3)">💡 Imposta prima i target in Ribilanciamento — il PAC usa quelli come guida.</p>`
+  },
+  {
+    icon: '🚀',
+    title: 'Inizia!',
+    body: `<p>Sei pronto. Alcuni consigli per iniziare:</p>
+           <ul style="margin:10px 0 0 16px;display:flex;flex-direction:column;gap:8px">
+             <li>Vai su <strong>Operazioni → + Nuova</strong> per inserire i tuoi titoli</li>
+             <li>Aggiungi la tua <strong>liquidità disponibile</strong> con il tasto DEPOSITA</li>
+             <li>Imposta i <strong>target di ribilanciamento</strong> per attivare la barra allineamento</li>
+             <li>Inserisci la tua <strong>API key Finnhub</strong> per prezzi in tempo reale</li>
+           </ul>
+           <p style="margin-top:12px;text-align:center;font-size:12px;color:var(--text3)">Buon investimento! 📊</p>`
+  }
+];
+
+let _tutIdx = 0;
+
+function openTutorial() {
+  _tutIdx = 0;
+  document.getElementById('tutorialmodal').classList.remove('hidden');
+  renderTutSlide();
+}
+function closeTutorial() {
+  document.getElementById('tutorialmodal').classList.add('hidden');
+}
+function tutNav(dir) {
+  _tutIdx = Math.max(0, Math.min(TUTORIAL_SLIDES.length-1, _tutIdx + dir));
+  renderTutSlide();
+}
+function renderTutSlide() {
+  const s = TUTORIAL_SLIDES[_tutIdx];
+  const n = TUTORIAL_SLIDES.length;
+  document.getElementById('tut-icon').textContent = s.icon;
+  document.getElementById('tut-title').textContent = s.title;
+  document.getElementById('tut-body').innerHTML = s.body;
+  document.getElementById('tut-counter').textContent = (_tutIdx+1) + ' / ' + n;
+  // Dots
+  document.getElementById('tut-dots').innerHTML = TUTORIAL_SLIDES.map((_,i) =>
+    `<div style="width:${i===_tutIdx?16:6}px;height:6px;border-radius:3px;background:${i===_tutIdx?'var(--blue)':'var(--border2)'};transition:all .2s"></div>`
+  ).join('');
+  // Buttons
+  const prev = document.getElementById('tut-prev');
+  const next = document.getElementById('tut-next');
+  prev.style.opacity = _tutIdx === 0 ? '0.3' : '1';
+  prev.style.pointerEvents = _tutIdx === 0 ? 'none' : 'auto';
+  next.textContent = _tutIdx === n-1 ? 'Chiudi ✓' : 'Avanti →';
+  next.onclick = _tutIdx === n-1 ? closeTutorial : () => tutNav(1);
+}
+
 
 function renderAll() {
   renderSwitcher();
