@@ -721,20 +721,61 @@ html.light .pf-pill-btn.active{color:#fff}
 
   <!-- PORTFOLIO PAGE -->
   <div id="pg-portfolio" class="page active">
-    <div style="margin:8px 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:12px 16px;display:flex;align-items:center;justify-content:space-between;gap:8px;position:relative">
+    <div style="margin:8px 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:12px 16px;position:relative">
       <div id="pf-switcher" style="display:none"></div>
-      <button onclick="togglePfDropdown()" id="pf-name-btn" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0">
-        <span id="port-title" style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1.5px;color:var(--text);line-height:1">PORTAFOGLIO</span>
-        <span id="pf-dd-arrow" style="font-size:12px;color:var(--text3);transition:transform .2s">▾</span>
-      </button>
-      <div style="display:flex;align-items:center;gap:7px;margin-left:auto">
-        <div id="lupd-pill" style="display:none;align-items:center;gap:5px;background:rgba(31,224,126,.08);border:0.5px solid rgba(31,224,126,.2);border-radius:20px;padding:4px 10px 4px 7px;font-size:10px;color:rgba(31,224,126,.9);font-weight:600;white-space:nowrap">
-          <div style="width:6px;height:6px;border-radius:50%;background:#1fe07e;flex-shrink:0"></div>
-          <span id="lupd">—</span>
+      <!-- Riga principale -->
+      <div style="display:flex;align-items:center;gap:14px">
+        <!-- Nome portafoglio -->
+        <button onclick="togglePfDropdown()" id="pf-name-btn" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0;flex-shrink:0">
+          <span id="port-title" style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1.5px;color:var(--text);line-height:1">PORTAFOGLIO</span>
+          <span id="pf-dd-arrow" style="font-size:11px;color:var(--text3);transition:transform .2s">▾</span>
+        </button>
+        <!-- Centro: Oggi + Mercati -->
+        <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:18px">
+          <div style="text-align:center">
+            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Oggi</div>
+            <div id="ph-today-val" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;white-space:nowrap;line-height:1;color:var(--text3)">—</div>
+            <div id="ph-today-pct" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
+          </div>
+          <div style="width:1px;height:32px;background:var(--border)"></div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <div style="display:flex;align-items:center;gap:6px">
+              <div id="ph-eu-dot" style="width:7px;height:7px;border-radius:50%;background:#ff5252;flex-shrink:0"></div>
+              <span style="font-size:11px;color:var(--text2);font-weight:600">Europa</span>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div id="ph-us-dot" style="width:7px;height:7px;border-radius:50%;background:#ff5252;flex-shrink:0"></div>
+              <span style="font-size:11px;color:var(--text2);font-weight:600">NYSE</span>
+            </div>
+          </div>
         </div>
-        <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 9px;cursor:pointer;color:rgba(255,255,255,.7);font-size:13px;line-height:1">🌙</button>
-        <button id="btn-ref" onclick="fetchPrices()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 13px;cursor:pointer;color:#fff;font-size:14px;font-weight:700;line-height:1">⟳</button>
-        <button onclick="runDiagnostic()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 8px;cursor:pointer;color:rgba(255,255,255,.7);font-size:14px;line-height:1">🔧</button>
+        <!-- Destra: pill + bottoni -->
+        <div style="display:flex;align-items:center;gap:7px;flex-shrink:0">
+          <div id="lupd-pill" style="display:none;align-items:center;gap:5px;background:rgba(31,224,126,.08);border:0.5px solid rgba(31,224,126,.2);border-radius:20px;padding:4px 10px 4px 7px;font-size:10px;color:rgba(31,224,126,.9);font-weight:600;white-space:nowrap">
+            <div style="width:6px;height:6px;border-radius:50%;background:#1fe07e;flex-shrink:0"></div>
+            <span id="lupd">—</span>
+          </div>
+          <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 9px;cursor:pointer;color:rgba(255,255,255,.7);font-size:13px;line-height:1">🌙</button>
+          <button id="btn-ref" onclick="fetchPrices()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 13px;cursor:pointer;color:#fff;font-size:14px;font-weight:700;line-height:1">⟳</button>
+          <button onclick="runDiagnostic()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 8px;cursor:pointer;color:rgba(255,255,255,.7);font-size:14px;line-height:1">🔧</button>
+        </div>
+      </div>
+      <!-- Barra allineamento piano -->
+      <div id="ph-score-wrap" style="display:none;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;margin-bottom:2px">
+          <span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:600">Allineamento al piano</span>
+          <span id="ph-score-val" style="font-size:10px;font-weight:700;color:rgba(123,167,255,.9)">—</span>
+        </div>
+        <div style="height:3px;background:var(--bg3);border-radius:2px;overflow:hidden;margin-bottom:3px">
+          <div id="ph-score-bar" style="height:100%;border-radius:2px;background:linear-gradient(90deg,#1fe07e,#7ba7ff);transition:width .4s;width:0%"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text3)">
+          <span>0%</span><span>Perfetto 100%</span>
+        </div>
+      </div>
+      <div id="ph-no-target" style="display:none;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);align-items:center;gap:8px">
+        <span style="font-size:10px;color:var(--text3)">Imposta i target in</span>
+        <button onclick="showPage('rebalance')" style="background:none;border:0.5px solid var(--border2);border-radius:6px;padding:3px 10px;font-size:10px;color:var(--blue);cursor:pointer">→ Ribilanciamento</button>
       </div>
       <div id="pf-dropdown" style="display:none;position:absolute;top:calc(100% + 8px);left:0;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:6px;min-width:200px;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.4)"></div>
     </div>
@@ -2212,8 +2253,7 @@ function renderSwitcher() {
   const el = document.getElementById('pf-switcher');
   if (el) el.innerHTML = '';
   // Aggiorna nome nel header
-  const titleEl = document.getElementById('port-title');
-  if (titleEl) titleEl.textContent = S?.name || 'PORTAFOGLIO';
+  renderPortfolioHeader();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -5452,6 +5492,113 @@ function saveCashDeposit() {
   renderAll();
   showToast('💶 Deposito aggiunto: ' + e2(amount));
 }
+
+// ── Market status ────────────────────────────────────────────────
+function isEUMarketOpen() {
+  try {
+    const t = getTZTime('Europe/Rome');
+    if (t.isWeekend) return false;
+    return t.mins >= 9*60 && t.mins < 17*60+30;
+  } catch(e) { return false; }
+}
+function isUSMarketOpen() {
+  try {
+    const t = getTZTime('America/New_York');
+    if (t.isWeekend) return false;
+    return t.mins >= 9*60+30 && t.mins < 16*60;
+  } catch(e) { return false; }
+}
+
+// ── Variazione giornaliera totale EUR ────────────────────────────
+function calcDailyEUR() {
+  const hlds = calcPF();
+  const rate = ALL.fxRates?.EURUSD || 1;
+  let totalVal = 0, totalChange = 0;
+  for (const h of hlds) {
+    const dc = S.dailyChanges?.[h.ticker];
+    if (!dc || dc.pct == null) continue;
+    const val = currentValueAllEUR(h);
+    if (!val) continue;
+    totalVal += val;
+    totalChange += (dc.pct / 100) * val;
+  }
+  if (!totalVal) return null;
+  return { eur: totalChange, pct: totalChange / totalVal * 100 };
+}
+
+// ── Alignment score (ribilanciamento) ───────────────────────────
+function calcAlignmentScore() {
+  const targets = S.rebalanceTargets || {};
+  if (!Object.keys(targets).length) return null;
+  const hlds = calcPF();
+  let catVals = {}, total = 0;
+  hlds.forEach(h => {
+    const v = currentValueAllEUR(h) ?? costBasisAllEUR(h) ?? 0;
+    const cat = h.assetClass || 'Altro';
+    catVals[cat] = (catVals[cat] || 0) + v;
+    total += v;
+  });
+  if (!total) return null;
+  const allCats = new Set([...Object.keys(targets), ...Object.keys(catVals)]);
+  let sumErr = 0;
+  for (const cat of allCats) {
+    const target = (targets[cat] || 0) / 100;
+    const actual = (catVals[cat] || 0) / total;
+    if (target <= 0) continue;
+    const relErr = Math.min(1, Math.abs(actual - target) / target);
+    sumErr += relErr * target;
+  }
+  return Math.max(0, Math.round((1 - sumErr) * 100));
+}
+
+// ── Render header centro ─────────────────────────────────────────
+function renderPortfolioHeader() {
+  const titleEl = document.getElementById('port-title');
+  if (titleEl) titleEl.textContent = S?.name || 'PORTAFOGLIO';
+
+  // Variazione oggi
+  const daily = calcDailyEUR();
+  const dayEl = document.getElementById('ph-today-val');
+  const dayPctEl = document.getElementById('ph-today-pct');
+  if (dayEl) {
+    if (daily) {
+      const sign = daily.eur >= 0 ? '+' : '';
+      dayEl.textContent = sign + daily.eur.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2,style:'currency',currency:'EUR'}).replace('€\xa0','€\u00a0');
+      dayEl.textContent = (daily.eur>=0?'+':'')+'€ '+(Math.abs(daily.eur)).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
+      dayEl.style.color = daily.eur >= 0 ? '#1fe07e' : '#ff5252';
+      if (dayPctEl) { dayPctEl.textContent = (daily.pct>=0?'+':'')+daily.pct.toFixed(2)+'%'; dayPctEl.style.color = daily.pct>=0?'#1fe07e':'#ff5252'; }
+    } else {
+      dayEl.textContent = '—'; dayEl.style.color = 'rgba(255,255,255,.3)';
+      if (dayPctEl) { dayPctEl.textContent = ''; }
+    }
+  }
+
+  // Mercati
+  const euEl = document.getElementById('ph-eu-dot');
+  const usEl = document.getElementById('ph-us-dot');
+  const euOpen = isEUMarketOpen(), usOpen = isUSMarketOpen();
+  if (euEl) euEl.style.background = euOpen ? '#1fe07e' : '#ff5252';
+  if (usEl) usEl.style.background = usOpen ? '#1fe07e' : '#ff5252';
+  if (euEl) euEl.style.boxShadow = euOpen ? '0 0 5px #1fe07e' : 'none';
+  if (usEl) usEl.style.boxShadow = usOpen ? '0 0 5px #1fe07e' : 'none';
+
+  // Alignment score
+  const score = calcAlignmentScore();
+  const scoreEl = document.getElementById('ph-score-val');
+  const barEl   = document.getElementById('ph-score-bar');
+  const wrapEl  = document.getElementById('ph-score-wrap');
+  const noTargEl= document.getElementById('ph-no-target');
+  if (score !== null) {
+    if (wrapEl)  wrapEl.style.display  = 'block';
+    if (noTargEl) noTargEl.style.display = 'none';
+    if (scoreEl) scoreEl.textContent = score + '% allineato al piano';
+    if (barEl)   barEl.style.width   = score + '%';
+  } else {
+    if (wrapEl)  wrapEl.style.display  = 'none';
+    if (noTargEl) noTargEl.style.display = 'flex';
+  }
+}
+
 
 function renderAll() {
   renderSwitcher();
