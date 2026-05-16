@@ -2304,7 +2304,7 @@ function renderPF() {
       </div>
       <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text3);font-weight:600;margin-bottom:0">
         <span>Investito <span class="${hv.trim()}">${e2(totalTc)}</span></span>
-        <span class="${gc}${hv}">${totalG>=0?'+':''}${e2(totalG)} · ${pct(sum.rendimento)}</span>
+        <span class="${gc}">${totalG>=0?'+':''}${e2(totalG)} · ${pct(sum.rendimento)}</span>
       </div>
       <div class="sum-cols">
         <div class="sum-col">
@@ -2318,14 +2318,14 @@ function renderPF() {
         <div class="sum-col ${gc}">
           <div class="sum-cl">Gain / Loss</div>
           ${S.sumCcy==='USD'&&sum.usd
-            ? `<div class="sum-cv ${gc}${hv}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>
+            ? `<div class="sum-cv ${gc}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>
                ${sum.eur?`<div class="sum-cs ${gc}${hv}">${sum.eur.g>=0?'+':''} ${e2(sum.eur.g)}</div>`:''}`
-            : `<div class="sum-cv ${gc}${hv}">${sum.eur?(totalG>=0?'+':'')+e2(sum.eur.g):'—'}</div>
+            : `<div class="sum-cv ${gc}">${sum.eur?(totalG>=0?'+':'')+e2(sum.eur.g):'—'}</div>
                ${sum.usd?`<div class="sum-cs ${gc}${hv}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}`}
         </div>
         <div class="sum-col ${gc}">
           <div class="sum-cl">Rendimento</div>
-          <div class="sum-cv ${gc}${hv}">${pct(sum.rendimento)}</div>
+          <div class="sum-cv ${gc}">${pct(sum.rendimento)}</div>
         </div>
       </div>
     </div>`;
@@ -2373,7 +2373,6 @@ function renderPF() {
     <div class="pf-pills" style="flex:1">
       ${allPills.map(cat=>`<button class="pf-pill-btn${cat===pfFilterCategory?' active':''}" onclick="pfFilterCategory='${jsq(cat)}';renderPF()">${esc(cat==='Tutte'?'✦ Tutte':cat)}</button>`).join('')}
     </div>
-    <span style="flex-shrink:0;padding-right:14px;font-size:10px;color:var(--blue);font-weight:700;letter-spacing:1px;text-transform:uppercase">${visible.length} TITOLI</span>
   </div>`;
 
   const thCls = col => pfSortCol!==col ? 'pf-sort-none' : pfSortDir===1 ? 'pf-sort-asc' : 'pf-sort-desc';
