@@ -2711,14 +2711,14 @@ function renderCharts() {
   </div>
   <div class="chart-card">
     <div class="chart-title">Heatmap performance — titoli</div>
-    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:4px">
+    <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:5px">
       ${rows.map(r => {
         const p2 = r.pctGain;
         const bg = p2>=15?'#14532d':p2>=8?'#166534':p2>=3?'#16a34a':p2>=0?'#22c55e':p2>=-5?'#ea580c':p2>=-12?'#dc2626':'#991b1b';
-        return '<div style="background:'+bg+';border-radius:8px;padding:7px 6px;text-align:center">'
-          +'<div style="font-size:10px;font-weight:700;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(r.displayTicker)+'</div>'
-          +'<div style="font-size:11px;font-weight:700;color:rgba(255,255,255,.95);margin-top:2px">'+(r.pctGain>=0?'+':'')+r.pctGain.toFixed(1)+'%</div>'
-          +'<div style="font-size:9px;color:rgba(255,255,255,.65);margin-top:1px">'+e2(r.value)+'</div>'
+        return '<div title="'+esc(r.name||r.displayTicker)+' — '+e2(r.value)+'" style="background:'+bg+';border-radius:10px;padding:10px 8px;text-align:center;cursor:default">'
+          +'<div style="font-size:11px;font-weight:800;color:#fff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.3px">'+esc(r.displayTicker)+'</div>'
+          +'<div style="font-size:15px;font-weight:800;color:#fff;margin-top:4px;letter-spacing:-.3px">'+(r.pctGain>=0?'+':'')+r.pctGain.toFixed(1)+'%</div>'
+          +'<div style="font-size:10px;color:rgba(255,255,255,.8);margin-top:3px;font-weight:600">'+e2(r.value)+'</div>'
           +'</div>';
       }).join('')}
     </div>
@@ -2734,11 +2734,11 @@ function renderCharts() {
         return Object.entries(byC).map(([n,d])=>{
           const p2=d.c>0?(d.v-d.c)/d.c*100:0;
           const wP=tv>0?d.v/tv*100:0;
-          const bg=p2>=15?'#14532d':p2>=8?'#166534':p2>=3?'#16a34a':p2>=0?'#22c55e':p2>=-5?'#ea580c':p2>=-12?'#dc2626':'#991b1b';
-          return '<div style="background:'+bg+';border-radius:8px;padding:8px">'
-            +'<div style="font-size:10px;font-weight:700;color:#fff;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(n)+'</div>'
-            +'<div style="font-size:12px;font-weight:700;color:rgba(255,255,255,.95)">'+(p2>=0?'+':'')+p2.toFixed(1)+'%</div>'
-            +'<div style="font-size:9px;color:rgba(255,255,255,.65);margin-top:1px">'+wP.toFixed(1)+'% portafoglio</div>'
+          const bg=p2>=15?'#14532d':p2>=8?'#166634':p2>=3?'#16a34a':p2>=0?'#22c55e':p2>=-5?'#ea580c':p2>=-12?'#dc2626':'#991b1b';
+          return '<div style="background:'+bg+';border-radius:10px;padding:12px 10px;cursor:default">'
+            +'<div style="font-size:11px;font-weight:800;color:#fff;margin-bottom:5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;letter-spacing:.2px">'+esc(n)+'</div>'
+            +'<div style="font-size:20px;font-weight:800;color:#fff;line-height:1;letter-spacing:-.5px">'+(p2>=0?'+':'')+p2.toFixed(1)+'%</div>'
+            +'<div style="font-size:10px;color:rgba(255,255,255,.8);margin-top:4px;font-weight:600">'+wP.toFixed(1)+'% portafoglio</div>'
             +'</div>';
         }).join('');
       })()}
@@ -2757,7 +2757,7 @@ function renderCharts() {
           const w=r.value/tot*100;
           const p2=r.pctGain;
           const bdr=p2>=0?'2px solid rgba(34,212,126,.35)':'2px solid rgba(255,82,82,.3)';
-          return '<div style="width:'+w+'%;background:'+cmap[r.assetClass||'?']+';border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;overflow:hidden;flex-shrink:0;border:'+bdr+'">'
+          return '<div title="'+esc(r.name||r.displayTicker)+' ('+esc(r.assetClass||'')+') — '+e2(r.value)+' · '+(r.pctGain>=0?'+':'')+r.pctGain.toFixed(1)+'%" style="width:'+w+'%;background:'+cmap[r.assetClass||'?']+';border-radius:4px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:4px;overflow:hidden;flex-shrink:0;border:'+bdr+';cursor:default">'
             +(w>4?'<div style="font-size:'+(w>8?'10':'8')+'px;font-weight:700;color:#fff;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:100%">'+esc(r.displayTicker)+'</div>':'')
             +(w>6?'<div style="font-size:9px;'+(p2>=0?'color:#86efac':'color:#fca5a5')+'">'+(p2>=0?'+':'')+p2.toFixed(0)+'%</div>':'')
             +'</div>';
