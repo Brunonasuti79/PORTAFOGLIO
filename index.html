@@ -716,6 +716,14 @@ html.light .pf-pill-btn.active{color:#fff}
 
 .stab.active{background:rgba(255,255,255,.13);color:#fff;border-color:rgba(255,255,255,.45);font-weight:700;text-shadow:0 0 10px rgba(255,255,255,.8)}
 html.light .stab.active{background:rgba(22,163,74,.12);color:#16a34a;border-color:rgba(22,163,74,.5);font-weight:700;text-shadow:0 0 8px rgba(22,163,74,.5)}
+
+input[type=number]::-webkit-inner-spin-button,
+input[type=number]::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+input[type=number]{-moz-appearance:textfield}
+.pct-stepper{display:inline-flex;align-items:center;gap:6px}
+.pct-step-btn{background:var(--bg3);border:1px solid var(--border2);border-radius:6px;width:28px;height:28px;cursor:pointer;color:var(--text2);font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:background .1s;-webkit-tap-highlight-color:transparent;line-height:1}
+.pct-step-btn:hover{background:var(--bg2);color:var(--text)}
+.pct-step-btn:active{transform:scale(.94)}
 </style>
 </head>
 <body>
@@ -2795,7 +2803,8 @@ function renderProjection() {
           <span>${esc(h.name||h.displayTicker)}</span>
           <span>${esc(h.displayTicker)}</span>
         </div>
-        <div style="display:flex;align-items:center;gap:4px">
+        <div class="pct-stepper">
+          <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.1).toFixed(1);i.dispatchEvent(new Event('input'))">−</button>
           <input type="number" class="proj-rate-inp" value="${sr??''}"
             placeholder="${rates[cat]??0}" step="0.1" min="0" max="100" inputmode="decimal"
             oninput="saveProjSubRate('${h.ticker}',this.value)">
@@ -4166,7 +4175,8 @@ function renderRebalance() {
                 <div style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace">${esc(h.displayTicker)}</div>
               </td>
               <td class="rb-num" style="text-align:center">
-                <div style="display:inline-flex;align-items:center;gap:4px">
+                <div class="pct-stepper">
+                  <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.5);i.dispatchEvent(new Event('input'))">−</button>
                   <input type="number" class="rb-sub-inp${subInputClass(subSum,hTgt)}" value="${hTgt}" placeholder="0"
                     min="0" max="100" step="0.5" data-rb-cat="${esc(cat)}"
                     oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);liveSubSum('${jsq(cat)}')"
@@ -4200,11 +4210,13 @@ function renderRebalance() {
               ${esc(cat)}
             </td>
             <td class="rb-num" style="text-align:center">
-              <div style="display:inline-flex;align-items:center;gap:4px">
+              <div class="pct-stepper">
+                <button class="pct-step-btn" onclick="var i=this.nextElementSibling;i.value=Math.max(0,parseFloat(i.value||0)-.5);i.dispatchEvent(new Event('input'))">−</button>
                 <input type="number" class="rb-tgt-inp" value="${target||''}" placeholder="0"
                   min="0" max="100" step="0.5"
                   oninput="saveTargetInline('${jsq(cat)}',this.value)">
                 <span class="pct-suffix">%</span>
+                <button class="pct-step-btn" onclick="var i=this.previousElementSibling.previousElementSibling;i.value=Math.min(100,parseFloat(i.value||0)+.5);i.dispatchEvent(new Event('input'))">+</button>
               </div>
             </td>
             <td class="rb-num ${actual>0?(delta>2?'rb-over':delta<-2?'rb-under':''):''}">${actual.toFixed(1)}%</td>
