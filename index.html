@@ -2809,6 +2809,7 @@ function renderProjection() {
             placeholder="${rates[cat]??0}" step="0.1" min="0" max="100" inputmode="decimal"
             oninput="saveProjSubRate('${h.ticker}',this.value)">
           <span style="font-size:12px;color:var(--text3)">%</span>
+          <button class="pct-step-btn" onclick="var i=this.parentElement.querySelector('.proj-rate-inp');i.value=Math.min(100,parseFloat(i.value||0)+.1).toFixed(1);i.dispatchEvent(new Event('input'))">+</button>
           ${sr!=null?`<button onclick="saveProjSubRate('${h.ticker}','')" title="Usa tasso categoria" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;line-height:1">✕</button>`:''}
         </div>
       </div>`;
@@ -4182,6 +4183,7 @@ function renderRebalance() {
                     oninput="setSubTarget('${jsq(cat)}','${h.ticker}',this.value);liveSubSum('${jsq(cat)}')"
                     onchange="renderRebalance()">
                   <span class="pct-suffix">% cat.</span>
+                  <button class="pct-step-btn" onclick="var i=this.parentElement.querySelector('input');i.value=Math.min(100,parseFloat(i.value||0)+.5);i.dispatchEvent(new Event('input'))">+</button>
                 </div>
                 ${hTgt !== '' ? `<div style="font-size:9px;color:var(--text3);margin-top:2px">= ${hTgtPtfPct.toFixed(1)}% ptf</div>` : ''}
               </td>
