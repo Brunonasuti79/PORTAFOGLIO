@@ -2505,15 +2505,17 @@ function renderPF() {
         </div>
         <div class="sum-col ${gc}">
           <div class="sum-cl">Gain / Loss</div>
-          ${S.sumCcy==='USD'&&sum.usd
-            ? `<div class="sum-cv ${gc}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>
-               ${sum.eur?`<div class="sum-cs ${gc}${hv}">${sum.eur.g>=0?'+':''} ${e2(sum.eur.g)}</div>`:''}`
-            : `<div class="sum-cv ${gc}">${sum.eur?(totalG>=0?'+':'')+e2(sum.eur.g):'—'}</div>
-               ${sum.usd?`<div class="sum-cs ${gc}${hv}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}`}
+          ${S.hideValues
+            ? '<div class="sum-cv" style="filter:blur(7px);user-select:none">●●●●</div>'
+            : S.sumCcy==='USD'&&sum.usd
+              ? `<div class="sum-cv ${gc}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>
+                 ${sum.eur?`<div class="sum-cs ${gc}${hv}">${sum.eur.g>=0?'+':''} ${e2(sum.eur.g)}</div>`:''}`
+              : `<div class="sum-cv ${gc}">${sum.eur?(totalG>=0?'+':'')+e2(sum.eur.g):'—'}</div>
+                 ${sum.usd?`<div class="sum-cs ${gc}${hv}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}`}
         </div>
         <div class="sum-col ${gc}">
           <div class="sum-cl">Rendimento</div>
-          <div class="sum-cv ${gc}">${pct(sum.rendimento)}</div>
+          <div class="sum-cv ${gc}" style="${S.hideValues?'filter:blur(7px);user-select:none':''}">${pct(sum.rendimento)}</div>
         </div>
       </div>
     </div>`;
@@ -2607,8 +2609,8 @@ function renderPF() {
         </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
       </td>
-      <td class="pf-col-g ${gc}">${S.hideValues?'<span style="filter:blur(6px);user-select:none">●●●●</span>':gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
-      <td class="${gc}">${S.hideValues?'<span style="filter:blur(6px);user-select:none">●●%</span>':gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
+      <td class="pf-col-g ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
+      <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
       <td class="${dCls}">${dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>'}</td>
       <td style="color:var(--text)">${priceNative!=null?n3(priceNative)+' '+symNative:'<span class="pf-no-price">—</span>'}</td>
       
@@ -3129,25 +3131,23 @@ function refreshProjectionOutput() {
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
     ${[5,10,15,20,25,30,35,40].map(y=>`<button onclick="setProjYears(${y})" style="padding:4px 12px;border-radius:20px;border:1px solid ${MAXYRS===y?'var(--blue)':'var(--border2)'};background:${MAXYRS===y?'var(--blue)':'none'};color:${MAXYRS===y?'#fff':'var(--text2)'};font-size:11px;font-weight:700;cursor:pointer">${y}a</button>`).join('')}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(${finalO!=null?4:3},1fr);gap:5px;margin-bottom:4px">
-    <div style="background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.2);border-radius:7px;padding:4px 8px;text-align:center;display:flex;flex-direction:column;justify-content:center">
-      <div style="font-size:7px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:1px;line-height:1.1">Portafoglio attuale</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:#7ba7ff;line-height:1.1">${fmtK(finalA)}</div>
+  <div style="display:grid;grid-template-columns:repeat(${finalO!=null?4:3},1fr);gap:4px;margin-bottom:4px">
+    <div style="background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
+      <div style="font-size:7px;color:#94a3b8;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Capitale investito</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#94a3b8;line-height:1.1">${fmtK(total)}</div>
     </div>
-    <div style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2);border-radius:7px;padding:4px 8px;text-align:center;display:flex;flex-direction:column;justify-content:center">
-      <div style="font-size:7px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:1px;line-height:1.1">Capitale investito</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:#94a3b8;line-height:1.1">${fmtK(total)}</div>
+    <div style="background:rgba(123,167,255,.07);border:1px solid rgba(123,167,255,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
+      <div style="font-size:7px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Portafoglio attuale</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#7ba7ff;line-height:1.1">${fmtK(finalA)}</div>
     </div>
-    ${finalO!=null?`<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:8px;padding:4px 8px;text-align:center">
-      <div style="font-size:7px;color:#22d47e;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:0px">Allocazione obiettivo</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#22d47e">${fmtK(finalO)}</div>
-      </div>`:''}
-    <div style="background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.2);border-radius:10px;padding:5px 8px;text-align:center">
-      <div style="font-size:8px;color:#ff9944;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:0px">Inflazione ${inflRate}%</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#ff9944">${fmtK(finalI)}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:1px">potere d'acquisto</div>
+    ${finalO!=null?`<div style="background:rgba(34,212,126,.07);border:1px solid rgba(34,212,126,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
+      <div style="font-size:7px;color:#22d47e;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Allocazione obiettivo</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#22d47e;line-height:1.1">${fmtK(finalO)}</div>
+    </div>`:''}
+    <div style="background:rgba(255,153,68,.07);border:1px solid rgba(255,153,68,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
+      <div style="font-size:7px;color:#ff9944;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Inflazione ${inflRate}%</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#ff9944;line-height:1.1">${fmtK(finalI)}</div>
     </div>
-  </div>
   <div class="proj-chart-wrap">
     <div class="proj-legend">
       <span><span class="proj-leg-dot" style="background:#7ba7ff"></span>Portafoglio attuale</span>
