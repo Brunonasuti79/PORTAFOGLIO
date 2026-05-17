@@ -1421,6 +1421,16 @@ function todayRome() {
   } catch(e) { return new Date().toISOString().slice(0,10); }
 }
 
+function parseLocalDateMs(s) {
+  // Interpreta le date operative (YYYY-MM-DD) come giorno locale italiano,
+  // evitando lo slittamento UTC che può spostare i marker sul grafico.
+  if (!s) return null;
+  const [y, m, d] = String(s).split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d, 12, 0, 0).getTime();
+}
+
+
 // ════════════════════════════════════════════════════════════════
 //  PORTFOLIO CALCULATION
 // ════════════════════════════════════════════════════════════════
@@ -6252,7 +6262,10 @@ async function renderOpsChart() {
   // Cerca ops con tutti i ticker alternativi
   const allOpTickers = new Set([ticker,...altTickers]);
   const tickerOps = ops.filter(o=> allOpTickers.has(o.ticker)||allOpTickers.has(o.displayTicker)||allOpTickers.has(o.quoteTicker)||(o.isin&&hld?.isin&&o.isin===hld.isin));
-  const visOps = tickerOps.filter(o=>{ const d=new Date(o.date).getTime(); return d>=t0&&d<=t1; });
+  const visOps = tickerOps.filter(o=>{
+    const d = parseLocalDateMs(o.date);
+    return d !== null && d >= t0 && d <= t1;
+  });
 
   // SVG chart
   const W=800, H=180, pl=44, pr=8, pt=12, pb=22;
@@ -6267,10 +6280,12 @@ async function renderOpsChart() {
   const col = prices[prices.length-1]>=prices[0]?'#22d47e':'#ff5252';
   let svgDots = '';
   visOps.forEach(op=>{
-    const opT = new Date(op.date).getTime();
-    // Trova il punto più vicino
-    let closest=0, minDiff=Infinity;
-    pts.forEach((p,i)=>{ const d=Math.abs(p.t*1000-opT); if(d<minDiff){minDiff=d;closest=i;} });
+    const opT = parseLocalDateMs(op.date);
+    if (opT === null) return;
+    // Aggancia l'operazione alla prima candela disponibile successiva/uguale.
+    // Se la data cade in weekend/festivo, evita di spostarla alla candela precedente.
+    let closest = pts.findIndex(p => p.t * 1000 >= opT);
+    if (closest < 0) closest = pts.length - 1;
     const cx=sx(closest), cy=sy(pts[closest].c);
     const dotCol = op.type==='buy'?'#7ba7ff':'#f59e0b';
     const label = (op.type==='buy'?'▲ Acq. ':'▼ Vend. ')+op.qty+' × '+(op.price||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+'€ ('+op.date+')';
