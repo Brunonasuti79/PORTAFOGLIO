@@ -3130,16 +3130,16 @@ function refreshProjectionOutput() {
     ${[5,10,15,20,25,30,35,40].map(y=>`<button onclick="setProjYears(${y})" style="padding:4px 12px;border-radius:20px;border:1px solid ${MAXYRS===y?'var(--blue)':'var(--border2)'};background:${MAXYRS===y?'var(--blue)':'none'};color:${MAXYRS===y?'#fff':'var(--text2)'};font-size:11px;font-weight:700;cursor:pointer">${y}a</button>`).join('')}
   </div>
   <div style="display:grid;grid-template-columns:repeat(${finalO!=null?3:2},1fr);gap:8px;margin-bottom:10px">
-    <div style="background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.2);border-radius:8px;padding:5px 8px;text-align:center">
-      <div style="font-size:8px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:1px">Portafoglio attuale</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#7ba7ff">${fmtK(finalA)}</div>
+    <div style="background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.2);border-radius:8px;padding:4px 8px;text-align:center">
+      <div style="font-size:7px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:0px">Portafoglio attuale</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#7ba7ff">${fmtK(finalA)}</div>
     </div>
-    ${finalO!=null?`<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:8px;padding:5px 8px;text-align:center">
-      <div style="font-size:8px;color:#22d47e;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:1px">Allocazione obiettivo</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#22d47e">${fmtK(finalO)}</div>
+    ${finalO!=null?`<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:8px;padding:4px 8px;text-align:center">
+      <div style="font-size:7px;color:#22d47e;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:0px">Allocazione obiettivo</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#22d47e">${fmtK(finalO)}</div>
       </div>`:''}
     <div style="background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.2);border-radius:10px;padding:5px 8px;text-align:center">
-      <div style="font-size:8px;color:#ff9944;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">Inflazione ${inflRate}%</div>
+      <div style="font-size:8px;color:#ff9944;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:0px">Inflazione ${inflRate}%</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#ff9944">${fmtK(finalI)}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:1px">potere d'acquisto</div>
     </div>
