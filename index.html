@@ -753,10 +753,10 @@ input[type=number]{-moz-appearance:textfield}
       <!-- Riga principale -->
       <div style="display:flex;align-items:center;gap:14px">
         <!-- Nome portafoglio -->
-        <button onclick="togglePfDropdown()" id="pf-name-btn" style="background:none;border:none;cursor:pointer;display:flex;align-items:center;gap:6px;padding:0;flex-shrink:0">
-          <span id="port-title" style="font-family:'Bebas Neue',sans-serif;font-size:32px;letter-spacing:1.5px;color:var(--text);line-height:1">PORTAFOGLIO</span>
-          <span id="pf-dd-arrow" style="font-size:11px;color:var(--text3);transition:transform .2s">▾</span>
-        </button>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <span id="port-title" style="font-family:'Bebas Neue',sans-serif;font-size:30px;letter-spacing:1.5px;color:var(--text);line-height:1">PORTAFOGLIO</span>
+          <button onclick="openPfSelector()" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:5px 12px;cursor:pointer;font-size:11px;font-weight:700;color:var(--blue);white-space:nowrap;letter-spacing:.3px">⇄ Cambia</button>
+        </div>
         <!-- Centro: Oggi + Mercati -->
         <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:18px">
           <div style="text-align:center">
@@ -870,14 +870,11 @@ input[type=number]{-moz-appearance:textfield}
     </div>
 
     <div class="ssec">
-      <div class="slbl">📁 Portafoglio attivo</div>
-      <div class="sdesc">Seleziona il portafoglio da rinominare.</div>
-      <select class="sinput" id="pf-settings-sel" onchange="onSettingsPfSelect(this.value)"></select>
-      <label class="slbl" style="display:block;margin-top:12px;margin-bottom:6px">Nome portafoglio</label>
-      <input class="sinput" type="text" id="pf-name-inp" placeholder="Es. ETF PAC, Azioni, BTP..." autocomplete="off" oninput="onPortfolioNameInput()">
-      <div id="pf-name-st" class="akst ok" style="display:none">✓ Nome salvato</div>
+      <div class="slbl">✎ Rinomina portafoglio</div>
+      <div class="sdesc">Cambia il nome del portafoglio attivo. Per cambiare portafoglio usa il bottone "⇄ Cambia" in alto.</div>
+      <input class="sinput" type="text" id="pf-name-inp" placeholder="Es. ETF PAC, Azioni, BTP..."
+        oninput="renameCurrent(this.value)">
     </div>
-
     <div class="ssec">
       <div class="slbl">🔑 API Key Finnhub <span style="color:var(--green);font-weight:600">(fonte principale)</span></div>
       <div class="sdesc">Chiamata diretta, senza CORS. Gratuita su <a href="https://finnhub.io" target="_blank" style="color:var(--blue)">finnhub.io</a> → Sign up → Dashboard.</div>
@@ -2270,18 +2267,41 @@ function deletePortfolio(id) {
 }
 
 let _pfDdOpen = false;
-function togglePfDropdown() {
-  _pfDdOpen = !_pfDdOpen;
-  const dd = document.getElementById('pf-dropdown');
-  const arrow = document.getElementById('pf-dd-arrow');
-  if (_pfDdOpen) {
-    renderPfDropdown();
-    dd.style.display = 'block';
-    arrow.classList.add('open');
-  } else {
-    dd.style.display = 'none';
-    arrow.classList.remove('open');
+function togglePfDropdown() { openPfSelector(); }
+function openPfSelector() {
+  const pfs = ALL.portfolios || [];
+  if (pfs.length <= 1) {
+    // Solo un portafoglio — chiedi se creare nuovo
+    if (confirm('Hai solo un portafoglio. Vuoi crearne uno nuovo?')) addPortfolio();
+    return;
   }
+  const activeIdx = pfs.findIndex(p => p.id === ALL.activePortfolioId);
+  const names = pfs.map((p,i) => p.name);
+  // Usa un dialog HTML semplice
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:9999;display:flex;align-items:center;justify-content:center';
+  const box = document.createElement('div');
+  box.style.cssText = 'background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:20px;min-width:260px;max-width:320px;width:90%';
+  box.innerHTML = '<div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:14px;letter-spacing:.5px">SELEZIONA PORTAFOGLIO</div>'
+    + pfs.map((p,i) => '<button onclick="_selectPf('+i+')" style="display:block;width:100%;text-align:left;background:'+(i===activeIdx?'var(--blue)':'var(--bg3)')+';border:1px solid '+(i===activeIdx?'var(--blue)':'var(--border2)')+';border-radius:10px;padding:10px 14px;margin-bottom:8px;cursor:pointer;font-size:13px;font-weight:700;color:'+(i===activeIdx?'#fff':'var(--text)')+'">'+esc(p.name)+(i===activeIdx?' ✓':'')+'</button>').join('')
+    + '<div style="display:flex;gap:8px;margin-top:4px">'
+    + '<button onclick="_closePfOverlay();addPortfolio()" style="flex:1;background:none;border:1px solid var(--border2);border-radius:10px;padding:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--blue)">+ Nuovo</button>'
+    + '<button onclick="_closePfOverlay()" style="flex:1;background:none;border:1px solid var(--border2);border-radius:10px;padding:8px;cursor:pointer;font-size:12px;font-weight:600;color:var(--text2)">Annulla</button>'
+    + '</div>';
+  overlay.id = 'pf-overlay';
+  overlay.appendChild(box);
+  overlay.onclick = e => { if(e.target===overlay) _closePfOverlay(); };
+  document.body.appendChild(overlay);
+}
+function _closePfOverlay() {
+  const o = document.getElementById('pf-overlay');
+  if (o) document.body.removeChild(o);
+}
+
+function _selectPf(idx) {
+  const overlay = document.getElementById('pf-overlay');
+  if (overlay) document.body.removeChild(overlay);
+  switchPfByIndex(idx);
 }
 function closePfDropdown() {
   _pfDdOpen = false;
@@ -3299,14 +3319,13 @@ function renderPAC() {
 }
 
 async function loadLibs() {
-  const load = (src, check) => new Promise((res,rej) => {
-    if (window[check]) return res();
+  if (window.XLSX) return; // già caricato
+  await new Promise((res,rej) => {
     const s = document.createElement('script');
-    s.src = src; s.onload = res; s.onerror = rej;
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
+    s.onload = res; s.onerror = rej;
     document.head.appendChild(s);
   });
-  await load('https://cdnjs.cloudflare.com/ajax/libs/exceljs/4.3.0/exceljs.min.js','ExcelJS');
-  await load('https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js','JSZip');
 }
 
 // ─── Stili Excel professionali ───────────────────────────────────────────────
@@ -4943,6 +4962,14 @@ function onAkChange() {
 function onAntChange() {
   ALL.settings.anthropicKey = document.getElementById('ant-inp')?.value.trim() || '';
   save(); syncSettingsUI();
+}
+
+function renameCurrent(val) {
+  if (!val || !val.trim()) return;
+  S.name = val.trim();
+  save();
+  const titleEl = document.getElementById('port-title');
+  if (titleEl) titleEl.textContent = S.name;
 }
 function syncSettingsUI() {
   const ak  = ALL.settings.ak || '';
