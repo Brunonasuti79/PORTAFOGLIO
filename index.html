@@ -2290,6 +2290,13 @@ function closePfDropdown() {
   if (dd) dd.style.display = 'none';
   if (arrow) arrow.classList.remove('open');
 }
+function handlePfDdClick(el) {
+  const id = el.getAttribute('data-pfid');
+  if (!id) return;
+  closePfDropdown();
+  switchPortfolio(id);
+}
+
 function renderPfDropdown() {
   const dd = document.getElementById('pf-dropdown');
   if (!dd) return;
@@ -2297,11 +2304,11 @@ function renderPfDropdown() {
   const activeId = ALL.activePortfolioId;
   dd.innerHTML = pfs.map(pf => {
     const active = pf.id === activeId;
-    return `<div class="pf-dd-item ${active?'active':''}" onclick="switchPortfolio('${pf.id}');closePfDropdown()">
+    return `<div class="pf-dd-item ${active?'active':''}" data-pfid="${esc(pf.id)}" onclick="handlePfDdClick(this)">
       <span style="width:16px;font-size:14px">${active?'✓':''}</span>
       <span style="flex:1">${esc(pf.name)}</span>
-      ${active?`<button onclick="event.stopPropagation();renamePortfolio('${pf.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px" title="Rinomina">✎</button>`:''}
-      ${pfs.length>1&&!active?`<button onclick="event.stopPropagation();deletePortfolio('${pf.id}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px" title="Elimina">×</button>`:''}
+      ${active?`<button onclick="event.stopPropagation();renamePortfolio('${esc(pf.id)}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px" title="Rinomina">✎</button>`:''}
+      ${pfs.length>1&&!active?`<button onclick="event.stopPropagation();deletePortfolio('${esc(pf.id)}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px" title="Elimina">×</button>`:''}
     </div>`;
   }).join('') +
   `<div class="pf-dd-item pf-dd-add" onclick="addPortfolio();closePfDropdown()">
@@ -5459,8 +5466,16 @@ function parseImportRows(header, rows) {
 
 function showImportPreview(broker, ops) {
   const bNames={degiro:'Degiro',fineco:'Fineco',directa:'Directa SIM',generic:'Generico'};
+  const pfOpts = (ALL.portfolios||[]).map(pf =>
+    `<option value="${esc(pf.id)}" ${pf.id===ALL.activePortfolioId?'selected':''}>${esc(pf.name)}</option>`
+  ).join('');
   document.getElementById('import-broker-label').innerHTML =
-    `Broker rilevato: <strong>${bNames[broker]||broker}</strong> · <strong>${ops.length}</strong> operazioni · verifica e conferma prima di importare`;
+    `<div style="margin-bottom:8px">Broker rilevato: <strong>${bNames[broker]||broker}</strong> · <strong>${ops.length}</strong> operazioni</div>`
+    +`<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">`
+    +`<label style="font-size:11px;color:var(--text3);font-weight:600">Importa in:</label>`
+    +`<select id="import-pf-sel" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:4px 10px;font-size:12px;color:var(--text);cursor:pointer">${pfOpts}</select>`
+    +`<button onclick="addPortfolio();setTimeout(()=>{showImportPreview('${broker}',_importOps)},300)" style="background:none;border:1px solid var(--blue);border-radius:8px;padding:4px 10px;font-size:11px;color:var(--blue);cursor:pointer;font-weight:600">+ Nuovo portafoglio</button>`
+    +`</div>`;
   const rows=ops.map(op=>`<tr>
     <td style="padding:5px 8px">${op.date}</td>
     <td style="padding:5px 8px"><span style="color:${op.type==='buy'?'var(--green)':'var(--red)'}">
@@ -5493,6 +5508,11 @@ function closeImport() {
 
 function confirmImport() {
   if (!_importOps.length) return;
+  // Switcha al portafoglio selezionato se diverso dall'attivo
+  const selPf = document.getElementById('import-pf-sel')?.value;
+  if (selPf && selPf !== ALL.activePortfolioId) {
+    switchPortfolio(selPf);
+  }
   const snap=calcPF();
   _importOps.forEach(op=>{
     const sameDisp=(S.ops||[]).find(o=>fc(o.displayTicker||o.ticker)===fc(op.displayTicker||'')&&o.quoteTicker);
@@ -5504,7 +5524,7 @@ function confirmImport() {
   const n=_importOps.length;
   _importOps=[];
   save(); closeImport(); renderAll();
-  showToast(`✓ Importate ${n} operazioni — verifica ticker e categorie`);
+  showToast(`✓ Importate ${n} operazioni in "${S.name}" — verifica ticker e categorie`);
 }
 
 function getTZTime(tz){
