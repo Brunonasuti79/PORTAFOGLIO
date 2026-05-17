@@ -4546,7 +4546,8 @@ async function loadSingleTickerHistory(){
   }
   if(!loaded)showToast('⚠ Storico non trovato');
   renderHistory();
-  renderPF(); // aggiorna sparkline nel portafoglio
+  renderPF();
+  renderOpsChart(); // aggiorna grafico in Operazioni
 }
 
 function calcPortfolioHistory(){return[];}
@@ -6241,9 +6242,12 @@ async function renderOpsChart() {
   // Carica storico
   const ticker = _opsChartTicker;
   const period = _opsChartPeriod;
-  let th = S.tickerHistory?.[ticker]?.[period];
+  // Cerca storia con tutti i ticker alternativi (quoteTicker, displayTicker, ecc.)
+  const hld = calcPF().find(h=>h.ticker===ticker||h.displayTicker===ticker||h.quoteTicker===ticker);
+  const altTickers = [ticker, hld?.ticker, hld?.quoteTicker, hld?.displayTicker].filter(Boolean);
+  let th = null;
+  for (const t of altTickers) { th = S.tickerHistory?.[t]?.[period]; if (th) break; }
   if (!th) {
-    const hld = calcPF().find(h=>h.ticker===ticker);
     if (hld) {
       for (const sym of candidatesForHolding(hld)) {
         try {
