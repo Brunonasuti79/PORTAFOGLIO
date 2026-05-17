@@ -212,8 +212,8 @@ html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
   color:#7ba7ff;border-radius:8px;padding:3px 8px;
   transition:border-color .15s,background .15s}
 .proj-rate-inp:focus{border-color:var(--blue);background:rgba(123,167,255,.18);outline:none}
-.proj-infl-row{display:flex;align-items:center;gap:10px;margin-top:8px;
-  background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.25);border-radius:10px;padding:8px 12px}
+.proj-infl-row{display:flex;align-items:center;gap:10px;margin-top:6px;
+  background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.25);border-radius:8px;padding:5px 10px}
 .proj-sub-row{display:flex;align-items:center;justify-content:space-between;
   background:rgba(7,11,20,.35);border-left:3px solid #1a3060;
   padding:5px 8px 5px 20px;gap:8px;margin-top:2px;border-radius:0 8px 8px 0}
@@ -526,8 +526,8 @@ html.light .ops-group-body{border-color:var(--border)}
 .tbtn{padding:12px;border-radius:12px;cursor:pointer;font-family:'Outfit',sans-serif;
   font-size:14px;font-weight:600;border:2px solid var(--border2);
   background:var(--bg);color:var(--text3);transition:all .2s;-webkit-tap-highlight-color:transparent}
-.tbtn.active.buy{background:var(--green-bg);border-color:var(--green);color:var(--green)}
-.tbtn.active.sell{background:var(--red-bg);border-color:var(--red);color:var(--red)}
+.tbtn.active.buy{background:rgba(123,167,255,.15);border-color:var(--blue);color:var(--blue)}
+.tbtn.active.sell{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b}
 
 /* form */
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px 12px;align-content:start}
@@ -1150,8 +1150,8 @@ input[type=number]{-moz-appearance:textfield}
   <div class="msh">
     <div class="mtit" id="modal-title">NUOVA OPERAZIONE</div>
     <div class="ttog">
-      <button class="tbtn buy active" id="tbuy" onclick="setOpType('buy')">📈 ACQUISTO</button>
-      <button class="tbtn sell" id="tsell" onclick="setOpType('sell')">📉 VENDITA</button>
+      <button class="tbtn buy active" id="tbuy" onclick="setOpType('buy')">ACQUISTO</button>
+      <button class="tbtn sell" id="tsell" onclick="setOpType('sell')">VENDITA</button>
     </div>
     <div class="fgrid">
       <div class="fld"><label>Data</label>
@@ -2991,14 +2991,14 @@ function renderProjection() {
     <div class="sdesc">Modifica i valori — grafico e tabella si aggiornano in tempo reale.</div>
     <div class="proj-rates-grid">${ratesHtml}</div>
     <div class="proj-infl-row">
-      <span style="font-size:11px;color:#ff9944;font-weight:700;flex:1">📉 Inflazione annua stimata</span>
+      <span style="font-size:13px;color:#ff9944;font-weight:700;flex:1">Inflazione annua stimata</span>
       <input type="number" class="proj-rate-inp" value="${inflRate}" step="0.1" min="0" max="20"
         inputmode="decimal"
         oninput="setProjectionInflation(this.value)" style="border-color:rgba(255,153,68,.4);width:68px">
       <span style="font-size:12px;color:var(--text3)">%</span>
     </div>
     <button class="bbtn" onclick="exportProjectionExcel()" style="margin-top:10px;background:rgba(34,212,126,.12);border-color:rgba(34,212,126,.3);color:#22d47e">
-      📥 Esporta Excel
+      Esporta Excel
     </button>
   </div>
   <div id="proj-output"></div>`;
@@ -3100,6 +3100,12 @@ function refreshProjectionOutput() {
     ${xTicks.map(y=>`<text x="${sx(y).toFixed(1)}" y="${(pt+ch+20).toFixed(1)}" text-anchor="middle" fill="#4b6090" font-size="10">${y}a</text>`).join('')}
     <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
     <line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
+    <line id="pcv" x1="0" y1="${pt}" x2="0" y2="${pt+ch}" stroke="rgba(255,255,255,.3)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>
+    <rect id="pcbox" x="0" y="0" width="150" height="62" rx="6" fill="#0d1322" stroke="rgba(123,167,255,.5)" stroke-width="1" opacity="0"/>
+    <text id="pct0" x="0" y="0" font-size="9" fill="rgba(255,255,255,.5)" font-family="monospace" text-anchor="middle" opacity="0"></text>
+    <text id="pct1" x="0" y="0" font-size="10" fill="#7ba7ff" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
+    <text id="pct2" x="0" y="0" font-size="10" fill="#22d47e" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
+    <text id="pct3" x="0" y="0" font-size="10" fill="#ff9944" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
   </svg>`;
 
   const rowHtml = Array.from({length:YRS}, (_,y) => {
@@ -3159,6 +3165,39 @@ function refreshProjectionOutput() {
       <tbody>${rowHtml}</tbody>
     </table>
   </div>`;
+
+  // ── Crosshair proiezione ──────────────────────────────────────
+  (function(){
+    const svg = document.getElementById('proj-output')?.querySelector('svg');
+    if (!svg) return;
+    const W2=700,pl2=44,pt2=14,H2=220,pb2=28;
+    const cw2=W2-pl2-8, ch2=H2-pt2-pb2;
+    const mx2=Math.max(...attuale,...(obiettivo||[0]),...inflaz)||1;
+    const sx2=y=>pl2+(y/MAXYRS)*cw2;
+    const bw=150, hasO=finalO!=null;
+    const setA=(id,attrs)=>{const el=svg.querySelector('#'+id);if(el)Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));};
+    svg.style.cursor='crosshair';
+    svg.addEventListener('mousemove',function(e){
+      const r=svg.getBoundingClientRect();
+      const mx=(e.clientX-r.left)*(W2/r.width);
+      const yr=Math.max(0,Math.min(MAXYRS,Math.round((mx-pl2)/cw2*MAXYRS)));
+      const px=sx2(yr);
+      const bx=Math.min(pl2+cw2-bw-4,Math.max(pl2+4,px-bw/2));
+      const by=pt2+8;
+      setA('pcv',{x1:px,x2:px,opacity:1});
+      setA('pcbox',{x:bx,y:by,opacity:1});
+      setA('pct0',{x:bx+bw/2,y:by+13,opacity:1});
+      svg.querySelector('#pct0').textContent='Anno '+yr;
+      setA('pct1',{x:bx+bw/2,y:by+27,opacity:1});
+      svg.querySelector('#pct1').textContent='Att: '+fmtK(attuale[yr]||0);
+      if(hasO){setA('pct2',{x:bx+bw/2,y:by+41,opacity:1});if(svg.querySelector('#pct2'))svg.querySelector('#pct2').textContent='Obj: '+fmtK((obiettivo||[])[yr]||0);}
+      setA('pct3',{x:bx+bw/2,y:by+(hasO?55:41),opacity:1});
+      svg.querySelector('#pct3').textContent='Infl: '+fmtK(inflaz[yr]||0);
+    });
+    svg.addEventListener('mouseleave',function(){
+      ['pcv','pcbox','pct0','pct1','pct2','pct3'].forEach(id=>{const el=svg.querySelector('#'+id);if(el)el.setAttribute('opacity','0');});
+    });
+  })();
 }
 function setCash() {
   const current = (S.cashEUR || 0).toFixed(2).replace('.',',');
@@ -4223,7 +4262,7 @@ function calcAndRenderPAC() {
   </div>
   <div style="margin:0 14px 10px">
     <button class="bbtn" onclick="exportPACExcel()" style="background:rgba(34,212,126,.12);border-color:rgba(34,212,126,.3);color:#22d47e">
-      📥 Esporta Excel
+      Esporta Excel
     </button>
   </div>
   <div class="pac-plan-wrap">
@@ -4603,7 +4642,7 @@ function renderHistory(){
     if (!th2?.pts?.length) return;
     const ptsF = th2.pts.filter(p=>p.c>0);
     if (ptsF.length < 2) return;
-    const W2=800,H2=240,pl2=44,pr2=8,pt2=16,pb2=28;
+    const W2=800,H2=180,pl2=44,pr2=8,pt2=12,pb2=22;
     const cw2=W2-pl2-pr2, ch2=H2-pt2-pb2;
     const prices=ptsF.map(p=>p.c);
     const mn2=Math.min(...prices), mx2=Math.max(...prices), rng2=mx2-mn2||1;
@@ -5967,7 +6006,7 @@ function renderPortfolioHeader() {
     if (daily) {
       const sign = daily.eur >= 0 ? '+' : '';
       dayEl.textContent = sign + daily.eur.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2,style:'currency',currency:'EUR'}).replace('€\xa0','€\u00a0');
-      dayEl.textContent = (daily.eur>=0?'+':'')+'€ '+(Math.abs(daily.eur)).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2});
+      dayEl.textContent = (daily.eur>=0?'+':'')+(Math.abs(daily.eur)).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
       dayEl.style.color = daily.eur >= 0 ? '#1fe07e' : '#ff5252';
       if (dayPctEl) { dayPctEl.textContent = (daily.pct>=0?'+':'')+daily.pct.toFixed(2)+'%'; dayPctEl.style.color = daily.pct>=0?'#1fe07e':'#ff5252'; }
     } else {
