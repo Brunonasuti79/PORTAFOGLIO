@@ -6266,7 +6266,7 @@ async function renderOpsChart() {
   const visOps = tickerOps.filter(o=>{ const d=new Date(o.date).getTime(); return d>=t0&&d<=t1; });
 
   // SVG chart
-  const W=600, H=130, pl=8, pr=8, pt=10, pb=20;
+  const W=560, H=130, pl=8, pr=50, pt=12, pb=22;
   const cw=W-pl-pr, ch=H-pt-pb;
   const prices = pts.map(p=>p.c);
   const mn=Math.min(...prices), mx=Math.max(...prices), rng=mx-mn||1;
@@ -6293,9 +6293,33 @@ async function renderOpsChart() {
   const areaPath='M'+firstX+','+sy(prices[0]).toFixed(1)+' L'+linePts.split(' ').slice(1).join(' L')+' L'+lastX+','+(pt+ch)+' L'+firstX+','+(pt+ch)+' Z';
   const fillCol = col==='#22d47e'?'rgba(34,212,126,.1)':'rgba(255,82,82,.1)';
 
-  inner.innerHTML = '<svg viewBox="0 0 '+W+' '+H+'" class="ops-chart-svg" style="height:130px">'
-    +'<path d="'+areaPath+'" fill="'+fillCol+'"/>'
-    +'<polyline points="'+linePts+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+  // Assi X (tempo) e Y (prezzo)
+  const lineCol = '#38bdf8'; // azzurro neutro
+  const fillColNew = 'rgba(56,189,248,.08)';
+  // Y axis labels
+  const ySteps = 4;
+  let yLabels = '';
+  for (let i=0;i<=ySteps;i++) {
+    const v = mn + (rng/ySteps)*i;
+    const y = sy(v);
+    yLabels += '<line x1="'+(pl+cw)+'" y1="'+y.toFixed(0)+'" x2="'+(pl+cw+4)+'" y2="'+y.toFixed(0)+'" stroke="rgba(255,255,255,.2)" stroke-width="0.5"/>';
+    yLabels += '<line x1="'+pl+'" y1="'+y.toFixed(0)+'" x2="'+(pl+cw)+'" y2="'+y.toFixed(0)+'" stroke="rgba(255,255,255,.05)" stroke-width="0.5" stroke-dasharray="2,4"/>';
+    yLabels += '<text x="'+(pl+cw+6)+'" y="'+(y+3).toFixed(0)+'" font-size="8" fill="rgba(255,255,255,.35)" font-family="monospace">'+v.toFixed(0)+'</text>';
+  }
+  // X axis labels — mostra 4-5 date
+  let xLabels = '';
+  const xStep = Math.floor(pts.length/4);
+  for (let i=0;i<pts.length;i+=xStep) {
+    const d = new Date(pts[i].t*1000);
+    const lbl = d.toLocaleDateString('it-IT',{month:'short',year:'2-digit'});
+    const x = sx(i);
+    xLabels += '<text x="'+x.toFixed(0)+'" y="'+(pt+ch+14)+'" font-size="8" fill="rgba(255,255,255,.35)" font-family="monospace" text-anchor="middle">'+lbl+'</text>';
+  }
+  const pillsRow = pillsHtml;
+  inner.innerHTML = pillsRow + '<svg viewBox="0 0 '+(W+40)+' '+H+'" class="ops-chart-svg" style="height:140px">'
+    +'<path d="'+areaPath+'" fill="'+fillColNew+'"/>'
+    +'<polyline points="'+linePts+'" fill="none" stroke="'+lineCol+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + yLabels + xLabels
     + svgDots
     +'</svg>';
 }
