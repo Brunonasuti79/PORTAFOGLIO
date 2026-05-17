@@ -5590,46 +5590,22 @@ function confirmImport() {
   const selPf = document.getElementById('import-pf-sel')?.value;
   if (selPf && selPf !== ALL.activePortfolioId) switchPortfolio(selPf);
 
-  // Consolida per ISIN: accorpa acquisti e vendite, calcola saldo netto
-  const byIsin = {};
-  _importOps.forEach(op => {
-    const key = op.isin || op.ticker;
-    if (!byIsin[key]) byIsin[key] = { ops:[], buys:0, sells:0, buyAmt:0, sellAmt:0, ref:op };
-    const qty = op.qty * (op.type==='buy'?1:-1);
-    if (op.type==='buy') { byIsin[key].buys += op.qty; byIsin[key].buyAmt += op.totalCost||0; }
-    else { byIsin[key].sells += op.qty; byIsin[key].sellAmt += op.totalCost||0; }
-    byIsin[key].ops.push(op);
-  });
-
-  const consolidated = [];
-  Object.values(byIsin).forEach(g => {
-    const netQty = g.buys - g.sells;
-    if (netQty <= 0.0001) return; // tutto venduto, salta
-    const avgPrice = g.buys > 0 ? g.buyAmt / g.buys : g.ref.price;
-    const op = Object.assign({}, g.ref, {
-      id: Date.now().toString(36)+Math.random().toString(36).slice(2,5),
-      type: 'buy',
-      qty: Math.round(netQty * 10000) / 10000,
-      price: Math.round(avgPrice * 100) / 100,
-      totalCost: Math.round(avgPrice * netQty * 100) / 100,
-      commissions: 0
-    });
-    consolidated.push(op);
-  });
-
+  // Importa tutte le operazioni individuali — calcPF le aggrega automaticamente
+  // Rimuove duplicati (stessa data+ticker+qty già presenti)
+  const existing = new Set((S.ops||[]).map(o=>o.date+'|'+(o.isin||o.ticker)+'|'+o.qty));
+  const toAdd = _importOps.filter(op => !existing.has(op.date+'|'+(op.isin||op.ticker)+'|'+op.qty));
   const snap = calcPF();
-  consolidated.forEach(op => {
+  toAdd.forEach(op => {
     const sameDisp=(S.ops||[]).find(o=>fc(o.displayTicker||o.ticker)===fc(op.displayTicker||'')&&o.quoteTicker);
     if (sameDisp) op.quoteTicker = sameDisp.quoteTicker;
     normalizeOp(op);
     S.ops.push(op);
-    updateCashForOp(op, snap);
+    if (op.type==='buy') updateCashForOp(op, snap);
   });
-
   const nOrig = _importOps.length;
   _importOps = [];
   save(); closeImport(); renderAll();
-  showToast(`✓ ${consolidated.length} posizioni (da ${nOrig} operazioni) in "${S.name}"`);
+  showToast(`✓ ${toAdd.length} operazioni importate in "${S.name}"`);
 }
 
 function getTZTime(tz){
@@ -6319,12 +6295,13 @@ async function renderOpsChart() {
   }
   // X axis labels — mostra 4-5 date
   let xLabels = '';
-  const xStep = Math.floor(pts.length/4);
-  for (let i=0;i<pts.length;i+=xStep) {
+  const nLabels = Math.min(5, pts.length);
+  for (let li=0;li<nLabels;li++) {
+    const i = Math.round(li/(nLabels-1)*(pts.length-1));
     const d = new Date(pts[i].t*1000);
     const lbl = d.toLocaleDateString('it-IT',{month:'short',year:'2-digit'});
     const x = sx(i);
-    xLabels += '<text x="'+x.toFixed(0)+'" y="'+(pt+ch+14)+'" font-size="8" fill="rgba(255,255,255,.35)" font-family="monospace" text-anchor="middle">'+lbl+'</text>';
+    xLabels += '<text x="'+x.toFixed(0)+'" y="'+(pt+ch+14)+'" font-size="8.5" fill="rgba(255,255,255,.4)" font-family="monospace" text-anchor="middle">'+lbl+'</text>';
   }
   const svgId = 'ops-svg-'+Date.now();
   inner.innerHTML = '<svg id="'+svgId+'" viewBox="0 0 '+W+' '+H+'" class="ops-chart-svg" style="width:100%;height:auto">'
@@ -6351,7 +6328,7 @@ async function renderOpsChart() {
       const idx = Math.max(0, Math.min(pts.length-1, Math.round(rawIdx)));
       const p2 = pts[idx];
       const px = sx(idx), py = sy(p2.c);
-      const d = new Date(p2.t*1000).toLocaleDateString('it-IT',{day:'2-digit',month:'long',year:'numeric'});
+      const d = new Date(p2.t*1000).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
       const vTxt = p2.c.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
       // Box tooltip più grande
       const bw=130, bh=40;
