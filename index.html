@@ -2230,7 +2230,6 @@ function switchPortfolio(id) {
   S = pf;
   expandedHoldings = {};
   pfFilterCategory = 'Tutte';
-  pfSortMode = 'name';
   save();
   renderAll();
 }
@@ -2299,9 +2298,17 @@ function _closePfOverlay() {
 }
 
 function _selectPf(idx) {
-  const overlay = document.getElementById('pf-overlay');
-  if (overlay) document.body.removeChild(overlay);
-  switchPfByIndex(idx);
+  _closePfOverlay();
+  const pf = (ALL.portfolios || [])[idx];
+  if (!pf) { showToast('Errore: portafoglio non trovato'); return; }
+  ALL.activePortfolioId = pf.id;
+  S = pf;
+  if (!S.ops) S.ops = [];
+  expandedHoldings = {};
+  pfFilterCategory = 'Tutte';
+  save();
+  renderAll();
+  showToast('✓ Portafoglio: ' + (S.name||''));
 }
 function closePfDropdown() {
   _pfDdOpen = false;
