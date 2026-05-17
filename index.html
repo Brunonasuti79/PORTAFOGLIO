@@ -741,14 +741,14 @@ input[type=number]{-moz-appearance:textfield}
 
 .opcard{cursor:pointer;transition:background .12s}
 .opcard:hover{background:rgba(123,167,255,.08)!important}
-.ops-search-wrap{padding:6px 14px 4px;position:relative}
-.ops-search-inp{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:7px 12px 7px 32px;font-size:13px;color:var(--text);font-family:'Outfit',sans-serif}
+.ops-search-wrap{padding:4px 14px 2px;position:relative}
+.ops-search-inp{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:4px 10px 4px 28px;font-size:12px;color:var(--text);font-family:'Outfit',sans-serif}
 .ops-search-inp::placeholder{color:var(--text3)}
 .ops-search-icon{position:absolute;left:24px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
 
-.ops-chart-wrap{margin:4px 14px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 14px;overflow:hidden}
+.ops-chart-wrap{margin:2px 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:7px 12px;overflow:hidden}
 .ops-chart-controls{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
-.ops-chart-sel{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:6px 12px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;width:100%}
+.ops-chart-sel{background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:4px 10px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;width:100%}
 .ops-period-pills{display:flex;gap:4px;flex-wrap:wrap}
 .ops-period-pill{background:none;border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .15s}
 .ops-period-pill.active{background:var(--blue);border-color:var(--blue);color:#fff}
@@ -840,9 +840,9 @@ input[type=number]{-moz-appearance:textfield}
     <div class="ph">
       <div class="ph-left"><div class="pt">OPERAZIONI</div><div class="pt-sub" id="ops-sub">0 registrate</div></div>
       <div class="ph-actions">
-        <button onclick="document.getElementById('import-csv-file').click()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 12px;cursor:pointer;color:rgba(255,255,255,.8);font-size:12px;font-weight:700">📤 Importa</button>
+        <button onclick="document.getElementById('import-csv-file').click()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 12px;cursor:pointer;color:rgba(255,255,255,.7);font-size:12px;font-weight:700">Importa</button>
         <input type="file" id="import-csv-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(this)">
-        <button onclick="resolveIsins()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 10px;cursor:pointer;color:rgba(255,255,255,.7);font-size:12px;font-weight:700" title="Risolvi ISIN">🔍</button>
+        <button onclick="resolveIsins()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 10px;cursor:pointer;color:rgba(255,255,255,.7);font-size:12px;font-weight:700" title="Risolvi ISIN">Risolvi</button>
         <button onclick="openModal()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;cursor:pointer;color:#fff;font-size:14px;font-weight:700">+ Nuova</button>
       </div>
     </div>
@@ -4603,7 +4603,8 @@ function renderHistoryChart(ticker,th,hlds,period){
     <line x1="${pl}" y1="${minY.toFixed(1)}" x2="${pl+cw}" y2="${minY.toFixed(1)}" stroke="#ff4d6d" stroke-width="1" stroke-dasharray="4,3" opacity="0.7"/>
     <rect x="${pl+cw-52}" y="${(minY-14).toFixed(1)}" width="50" height="13" rx="3" fill="#2e0a15" opacity="0.85"/>
     <text x="${(pl+cw-2).toFixed(1)}" y="${(minY-4).toFixed(1)}" text-anchor="end" fill="#ff4d6d" font-size="9" font-weight="700">▼ ${minPrice.toFixed(2)} ${sym}</text>`;
-  const svg=`<svg viewBox="0 0 ${W} ${H}" style="width:100%;height:auto" xmlns="http://www.w3.org/2000/svg">${yL}${xL}<path d="${gainArea}" fill="rgba(34,212,126,.18)"/><path d="${lossArea}" fill="rgba(255,77,109,.18)"/>${maxPriceLines}${minPriceLines}<polyline points="${linePts}" fill="none" stroke="#7ba7ff" stroke-width="2"/><line x1="${pl}" y1="${avgY.toFixed(1)}" x2="${pl+cw}" y2="${avgY.toFixed(1)}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,4"/><circle cx="${sx(pts.length-1).toFixed(1)}" cy="${sy(last.c).toFixed(1)}" r="3.5" fill="#7ba7ff"/><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/><line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/></svg>`;
+  const svgId='hist-svg-'+Date.now();
+  const svg=`<svg id="${svgId}" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;cursor:crosshair" xmlns="http://www.w3.org/2000/svg">${yL}${xL}<path d="${gainArea}" fill="rgba(34,212,126,.18)"/><path d="${lossArea}" fill="rgba(255,77,109,.18)"/>${maxPriceLines}${minPriceLines}<polyline points="${linePts}" fill="none" stroke="#7ba7ff" stroke-width="2"/><line x1="${pl}" y1="${avgY.toFixed(1)}" x2="${pl+cw}" y2="${avgY.toFixed(1)}" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="6,4"/><circle cx="${sx(pts.length-1).toFixed(1)}" cy="${sy(last.c).toFixed(1)}" r="3.5" fill="#7ba7ff"/><line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/><line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/><line id="hcv" x1="0" y1="${pt}" x2="0" y2="${pt+ch}" stroke="rgba(255,255,255,.4)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/><line id="hch" x1="${pl}" y1="0" x2="${pl+cw}" y2="0" stroke="rgba(255,255,255,.4)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/><rect id="hcbox" x="0" y="0" width="130" height="42" rx="6" fill="#0d1322" stroke="#7ba7ff" stroke-width="1" opacity="0"/><circle id="hcdot" cx="0" cy="0" r="4" fill="#7ba7ff" stroke="#0d1322" stroke-width="2" opacity="0"/><text id="hct1" x="0" y="0" font-size="9" fill="rgba(255,255,255,.55)" font-family="monospace" text-anchor="middle" opacity="0"/><text id="hct2" x="0" y="0" font-size="11" fill="#7ba7ff" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"/></svg>`;
   const p0=pts[0].c,pCur=last.c,pDiff=pCur-p0,pPct=p0>0?pDiff/p0*100:0,kpiCls=pDiff>=0?'gain':'loss',kpiSign=pDiff>=0?'+':'';
   let kpiYrs=({'1M':1/12,'3M':3/12,'6M':0.5,'1A':1,'2A':2,'5A':5})[period];
   if(period==='YTD'){const j=new Date(new Date().getFullYear(),0,1).getTime();kpiYrs=(last.t-j)/(365.25*24*3600*1000);}
