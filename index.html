@@ -738,6 +738,21 @@ input[type=number]{-moz-appearance:textfield}
 .tm-tt-row{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:11px;margin-top:3px}
 .tm-tt-lbl{color:var(--text3);font-weight:500}
 .tm-tt-val{font-weight:700;color:var(--text2);font-family:'JetBrains Mono',monospace}
+
+.opcard{cursor:pointer;transition:background .12s}
+.opcard:hover{background:rgba(123,167,255,.08)!important}
+.ops-search-wrap{padding:6px 14px 4px;position:relative}
+.ops-search-inp{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:10px;padding:7px 12px 7px 32px;font-size:13px;color:var(--text);font-family:'Outfit',sans-serif}
+.ops-search-inp::placeholder{color:var(--text3)}
+.ops-search-icon{position:absolute;left:24px;top:50%;transform:translateY(-50%);color:var(--text3);font-size:13px;pointer-events:none}
+
+.ops-chart-wrap{margin:4px 14px 8px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 14px;overflow:hidden}
+.ops-chart-controls{display:flex;align-items:center;gap:8px;margin-bottom:8px;flex-wrap:wrap}
+.ops-chart-sel{background:var(--bg3);border:1px solid var(--border2);border-radius:8px;padding:5px 10px;font-size:12px;font-weight:700;color:var(--text);cursor:pointer;max-width:180px}
+.ops-period-pills{display:flex;gap:4px;flex-wrap:wrap}
+.ops-period-pill{background:none;border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .15s}
+.ops-period-pill.active{background:var(--blue);border-color:var(--blue);color:#fff}
+.ops-chart-svg{width:100%;overflow:visible}
 </style>
 </head>
 <body>
@@ -825,10 +840,10 @@ input[type=number]{-moz-appearance:textfield}
     <div class="ph">
       <div class="ph-left"><div class="pt">OPERAZIONI</div><div class="pt-sub" id="ops-sub">0 registrate</div></div>
       <div class="ph-actions">
-        <button class="hbtn" onclick="document.getElementById('import-csv-file').click()" style="font-size:12px">📤 Importa</button>
+        <button onclick="document.getElementById('import-csv-file').click()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 12px;cursor:pointer;color:rgba(255,255,255,.8);font-size:12px;font-weight:700">📤 Importa</button>
         <input type="file" id="import-csv-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(this)">
-        <button class="hbtn" onclick="openModal()">+ Nuova</button>
-        <button class="hbtn" onclick="resolveIsins()" title="Risolvi ticker ISIN automaticamente" style="font-size:12px">🔍 Risolvi ticker</button>
+        <button onclick="resolveIsins()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 10px;cursor:pointer;color:rgba(255,255,255,.7);font-size:12px;font-weight:700" title="Risolvi ISIN">🔍</button>
+        <button onclick="openModal()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;cursor:pointer;color:#fff;font-size:14px;font-weight:700">+ Nuova</button>
       </div>
     </div>
     <div id="ops-list"></div>
@@ -2601,9 +2616,30 @@ function toggleOpGroup(cat) {
 }
 
 function renderOps() {
-  const ops = [...(S.ops||[])].sort((a,b) => b.date.localeCompare(a.date));
+  const filterTxt = (document.getElementById('ops-search-inp')?.value||'').toLowerCase().trim();
+  let ops = [...(S.ops||[])].sort((a,b) => b.date.localeCompare(a.date));
+  if (filterTxt) ops = ops.filter(op =>
+    (op.name||'').toLowerCase().includes(filterTxt) ||
+    (op.displayTicker||op.ticker||'').toLowerCase().includes(filterTxt) ||
+    (op.isin||'').toLowerCase().includes(filterTxt) ||
+    (op.assetClass||'').toLowerCase().includes(filterTxt)
+  );
   document.getElementById('ops-sub').textContent = `${ops.length} registrat${ops.length===1?'a':'e'}`;
   const ol = document.getElementById('ops-list');
+  // Search bar
+  if (!document.getElementById('ops-search-inp')) {
+    const sw = document.createElement('div');
+    sw.className = 'ops-search-wrap';
+    sw.innerHTML = '<span class="ops-search-icon">🔍</span><input id="ops-search-inp" class="ops-search-inp" placeholder="Cerca per nome, ticker, ISIN, categoria..." oninput="renderOps()">';
+    ol.parentElement.insertBefore(sw, ol);
+  }
+  // Chart area
+  if (!document.getElementById('ops-chart-area')) {
+    const ca = document.createElement('div');
+    ca.id = 'ops-chart-area';
+    ol.parentElement.insertBefore(ca, ol);
+  }
+  renderOpsChart();
   if (!ops.length) {
     ol.innerHTML = `<div class="empty">Nessuna operazione.<br>Tocca <strong>+ Nuova</strong> per iniziare.</div>`;
     return;
@@ -5550,23 +5586,49 @@ function closeImport() {
 
 function confirmImport() {
   if (!_importOps.length) return;
-  // Switcha al portafoglio selezionato se diverso dall'attivo
   const selPf = document.getElementById('import-pf-sel')?.value;
-  if (selPf && selPf !== ALL.activePortfolioId) {
-    switchPortfolio(selPf);
-  }
-  const snap=calcPF();
-  _importOps.forEach(op=>{
+  if (selPf && selPf !== ALL.activePortfolioId) switchPortfolio(selPf);
+
+  // Consolida per ISIN: accorpa acquisti e vendite, calcola saldo netto
+  const byIsin = {};
+  _importOps.forEach(op => {
+    const key = op.isin || op.ticker;
+    if (!byIsin[key]) byIsin[key] = { ops:[], buys:0, sells:0, buyAmt:0, sellAmt:0, ref:op };
+    const qty = op.qty * (op.type==='buy'?1:-1);
+    if (op.type==='buy') { byIsin[key].buys += op.qty; byIsin[key].buyAmt += op.totalCost||0; }
+    else { byIsin[key].sells += op.qty; byIsin[key].sellAmt += op.totalCost||0; }
+    byIsin[key].ops.push(op);
+  });
+
+  const consolidated = [];
+  Object.values(byIsin).forEach(g => {
+    const netQty = g.buys - g.sells;
+    if (netQty <= 0.0001) return; // tutto venduto, salta
+    const avgPrice = g.buys > 0 ? g.buyAmt / g.buys : g.ref.price;
+    const op = Object.assign({}, g.ref, {
+      id: Date.now().toString(36)+Math.random().toString(36).slice(2,5),
+      type: 'buy',
+      qty: Math.round(netQty * 10000) / 10000,
+      price: Math.round(avgPrice * 100) / 100,
+      totalCost: Math.round(avgPrice * netQty * 100) / 100,
+      commissions: 0
+    });
+    consolidated.push(op);
+  });
+
+  const snap = calcPF();
+  consolidated.forEach(op => {
     const sameDisp=(S.ops||[]).find(o=>fc(o.displayTicker||o.ticker)===fc(op.displayTicker||'')&&o.quoteTicker);
-    if (sameDisp) op.quoteTicker=sameDisp.quoteTicker;
+    if (sameDisp) op.quoteTicker = sameDisp.quoteTicker;
     normalizeOp(op);
     S.ops.push(op);
-    if (op.type==='buy') updateCashForOp(op, snap);
+    updateCashForOp(op, snap);
   });
-  const n=_importOps.length;
-  _importOps=[];
+
+  const nOrig = _importOps.length;
+  _importOps = [];
   save(); closeImport(); renderAll();
-  showToast(`✓ Importate ${n} operazioni in "${S.name}" — verifica ticker e categorie`);
+  showToast(`✓ ${consolidated.length} posizioni (da ${nOrig} operazioni) in "${S.name}"`);
 }
 
 function getTZTime(tz){
@@ -6141,6 +6203,103 @@ async function resolveIsins() {
   showToast('✓ Risolti ' + resolved + '/' + toResolve.length + ' ticker');
 }
 
+let _opsChartTicker = null;
+let _opsChartPeriod = '1A';
+
+async function renderOpsChart() {
+  const wrap = document.getElementById('ops-chart-area');
+  if (!wrap) return;
+
+  // Raccogli tutti i ticker unici con operazioni
+  const ops = S.ops || [];
+  const tickers = [...new Set(ops.filter(o=>o.ticker!=='__CASH__').map(o=>o.ticker||o.displayTicker))].filter(Boolean);
+  if (!tickers.length) { wrap.innerHTML = ''; return; }
+  if (!_opsChartTicker || !tickers.includes(_opsChartTicker)) _opsChartTicker = tickers[0];
+
+  const periods = ['1M','3M','6M','1A','2A','5A','MAX'];
+
+  // Select ticker
+  const selHtml = '<select class="ops-chart-sel" id="ops-tk-sel" onchange="_opsChartTicker=this.value;renderOpsChart()">'
+    + tickers.map(t => '<option value="'+t+'"'+(t===_opsChartTicker?' selected':'')+'>'+t+'</option>').join('')
+    + '</select>';
+
+  // Period pills
+  const pillsHtml = '<div class="ops-period-pills">'
+    + periods.map(p => { const act=p===_opsChartPeriod; return '<button class="ops-period-pill'+(act?' active':'')+'" onclick="setOpsChartPeriod(this)">'+p+'</button>'; }).join('')
+    + '</div>';
+
+  wrap.innerHTML = '<div class="ops-chart-wrap">'
+    + '<div class="ops-chart-controls">'+selHtml+pillsHtml+'</div>'
+    + '<div id="ops-chart-inner" style="min-height:120px;display:flex;align-items:center;justify-content:center"><span style="color:var(--text3);font-size:12px">Caricamento...</span></div>'
+    + '</div>';
+
+  // Carica storico
+  const ticker = _opsChartTicker;
+  const period = _opsChartPeriod;
+  let th = S.tickerHistory?.[ticker]?.[period];
+  if (!th) {
+    const hld = calcPF().find(h=>h.ticker===ticker);
+    if (hld) {
+      for (const sym of candidatesForHolding(hld)) {
+        try {
+          const res = await fetchTickerHistory(sym, PERIOD_CFG[period]?.interval||'1wk', PERIOD_CFG[period]?.range||'1y');
+          if (res?.pts?.length >= 3) {
+            if (!S.tickerHistory) S.tickerHistory = {};
+            if (!S.tickerHistory[ticker]) S.tickerHistory[ticker] = {};
+            S.tickerHistory[ticker][period] = {pts:res.pts, ccy:res.ccy, sym, updated:Date.now()};
+            th = S.tickerHistory[ticker][period];
+            save(); break;
+          }
+        } catch(e) {}
+      }
+    }
+  }
+
+  const inner = document.getElementById('ops-chart-inner');
+  if (!inner) return;
+  if (!th?.pts?.length) { inner.innerHTML = '<span style="color:var(--text3);font-size:12px">Storico non disponibile per '+ticker+'</span>'; return; }
+
+  // Filtra operazioni del ticker nel periodo
+  const pts = th.pts.filter(p=>p.c>0);
+  const t0 = pts[0].t*1000, t1 = pts[pts.length-1].t*1000;
+  const tickerOps = ops.filter(o=>(o.ticker===ticker||o.displayTicker===ticker||o.quoteTicker===ticker));
+  const visOps = tickerOps.filter(o=>{ const d=new Date(o.date).getTime(); return d>=t0&&d<=t1; });
+
+  // SVG chart
+  const W=600, H=130, pl=8, pr=8, pt=10, pb=20;
+  const cw=W-pl-pr, ch=H-pt-pb;
+  const prices = pts.map(p=>p.c);
+  const mn=Math.min(...prices), mx=Math.max(...prices), rng=mx-mn||1;
+  const sx=i=>pl+(i/(pts.length-1))*cw;
+  const sy=v=>pt+ch*(1-(v-mn)/rng);
+
+  // Linea prezzo
+  const linePts = pts.map((p,i)=>sx(i).toFixed(1)+','+sy(p.c).toFixed(1)).join(' ');
+  const col = prices[prices.length-1]>=prices[0]?'#22d47e':'#ff5252';
+  let svgDots = '';
+  visOps.forEach(op=>{
+    const opT = new Date(op.date).getTime();
+    // Trova il punto più vicino
+    let closest=0, minDiff=Infinity;
+    pts.forEach((p,i)=>{ const d=Math.abs(p.t*1000-opT); if(d<minDiff){minDiff=d;closest=i;} });
+    const cx=sx(closest), cy=sy(pts[closest].c);
+    const dotCol = op.type==='buy'?'#7ba7ff':'#f59e0b';
+    const label = (op.type==='buy'?'▲ Acq. ':'▼ Vend. ')+op.qty+' × '+(op.price||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+'€ ('+op.date+')';
+    svgDots += '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="5" fill="'+dotCol+'" stroke="var(--bg2)" stroke-width="1.5" style="cursor:pointer"><title>'+label+'</title></circle>';
+  });
+
+  // Area fill
+  const firstX=sx(0).toFixed(1), lastX=sx(pts.length-1).toFixed(1);
+  const areaPath='M'+firstX+','+sy(prices[0]).toFixed(1)+' L'+linePts.split(' ').slice(1).join(' L')+' L'+lastX+','+(pt+ch)+' L'+firstX+','+(pt+ch)+' Z';
+  const fillCol = col==='#22d47e'?'rgba(34,212,126,.1)':'rgba(255,82,82,.1)';
+
+  inner.innerHTML = '<svg viewBox="0 0 '+W+' '+H+'" class="ops-chart-svg" style="height:130px">'
+    +'<path d="'+areaPath+'" fill="'+fillCol+'"/>'
+    +'<polyline points="'+linePts+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+    + svgDots
+    +'</svg>';
+}
+
 function renderAll() {
   renderSwitcher();
   renderPF();
@@ -6187,6 +6346,11 @@ renderAll();
 showPage('portfolio');  // inizializza stato subtabs bar
 startAutoRefresh();
 loadSparklines();
+function setOpsChartPeriod(btn) {
+  _opsChartPeriod = btn.textContent;
+  renderOpsChart();
+}
+
 </script>
 </body>
 </html>
