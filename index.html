@@ -222,7 +222,7 @@ html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
 .proj-sub-lbl span:last-child{font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace}
 .proj-rate-row{position:relative}
 .proj-rate-row .rb-expand-btn{position:absolute;left:-2px;top:50%;transform:translateY(-50%);font-size:9px;padding:1px 4px}
-.proj-chart-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 0 6px}
+.proj-chart-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:6px 0 4px}
 .proj-legend{display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:4px 0 10px;font-size:11px}
 .proj-leg-dot{width:10px;height:10px;border-radius:50%;display:inline-block;margin-right:4px}
 .proj-table-wrap{margin:6px 14px 80px;overflow-x:auto}
@@ -2603,12 +2603,12 @@ function renderPF() {
         <div class="pf-name" style="display:flex;align-items:center;gap:6px">
           ${renderSparkline(getSparkPts(h.ticker))}
           <span style="min-width:0;overflow:hidden;text-overflow:ellipsis">${esc(h.name||h.displayTicker)}${arrow}${getMedalBadge(h.ticker, S.prices&&S.prices[h.ticker])}</span>
-          <button class="pf-chart-btn" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico">📈</button>
+          <button class="pf-chart-btn" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:18px"><svg width=\"18\" height=\"12\" viewBox=\"0 0 18 12\" fill=\"none\" style=\"vertical-align:middle\"><path d=\"M1,11 L4,6 L8,8.5 L12,2 L17,4 L17,11 L1,11 Z\" fill=\"rgba(123,167,255,.18)\"/><polyline points=\"1,11 4,6 8,8.5 12,2 17,4\" fill=\"none\" stroke=\"#7ba7ff\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button>
         </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
       </td>
-      <td class="pf-col-g ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
-      <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
+      <td class="pf-col-g ${gc}">${S.hideValues?'<span style="filter:blur(6px);user-select:none">●●●●</span>':gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
+      <td class="${gc}">${S.hideValues?'<span style="filter:blur(6px);user-select:none">●●%</span>':gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
       <td class="${dCls}">${dayPct!==null?(dayPct>=0?'+':'')+dayPct.toFixed(2)+'%':'<span class="pf-no-price">—</span>'}</td>
       <td style="color:var(--text)">${priceNative!=null?n3(priceNative)+' '+symNative:'<span class="pf-no-price">—</span>'}</td>
       
@@ -2616,7 +2616,7 @@ function renderPF() {
   }).join('');
 
   pl.innerHTML = `${filterBar}
-    <div class="pf-table-wrap">
+    <div class="pf-table-wrap" style="margin-top:3px">
       <table class="pf-table">
         <thead><tr>
           <th class="${thCls('name')}" onclick="pfSort('name')" style="text-align:left;padding-left:14px">Titolo</th>
@@ -3129,10 +3129,14 @@ function refreshProjectionOutput() {
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
     ${[5,10,15,20,25,30,35,40].map(y=>`<button onclick="setProjYears(${y})" style="padding:4px 12px;border-radius:20px;border:1px solid ${MAXYRS===y?'var(--blue)':'var(--border2)'};background:${MAXYRS===y?'var(--blue)':'none'};color:${MAXYRS===y?'#fff':'var(--text2)'};font-size:11px;font-weight:700;cursor:pointer">${y}a</button>`).join('')}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(${finalO!=null?3:2},1fr);gap:8px;margin-bottom:10px">
-    <div style="background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.2);border-radius:8px;padding:4px 8px;text-align:center">
-      <div style="font-size:7px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:0px">Portafoglio attuale</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#7ba7ff">${fmtK(finalA)}</div>
+  <div style="display:grid;grid-template-columns:repeat(${finalO!=null?4:3},1fr);gap:5px;margin-bottom:4px">
+    <div style="background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.2);border-radius:7px;padding:4px 8px;text-align:center;display:flex;flex-direction:column;justify-content:center">
+      <div style="font-size:7px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:1px;line-height:1.1">Portafoglio attuale</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:#7ba7ff;line-height:1.1">${fmtK(finalA)}</div>
+    </div>
+    <div style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2);border-radius:7px;padding:4px 8px;text-align:center;display:flex;flex-direction:column;justify-content:center">
+      <div style="font-size:7px;color:#94a3b8;text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:1px;line-height:1.1">Capitale investito</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:800;color:#94a3b8;line-height:1.1">${fmtK(total)}</div>
     </div>
     ${finalO!=null?`<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:8px;padding:4px 8px;text-align:center">
       <div style="font-size:7px;color:#22d47e;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:0px">Allocazione obiettivo</div>
