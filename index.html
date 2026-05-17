@@ -775,17 +775,17 @@ input[type=number]{-moz-appearance:textfield}
         <!-- Centro: Oggi + Mercati -->
         <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:18px">
           <div style="text-align:center">
-            <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Oggi</div>
-            <div id="ph-today-val" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;white-space:nowrap;line-height:1;color:var(--text3)">—</div>
-            <div id="ph-today-pct" style="font-size:10px;color:var(--text3);margin-top:3px"></div>
+            <div style="font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.8px;margin-bottom:3px">Oggi</div>
+            <div id="ph-today-val" style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;white-space:nowrap;line-height:1;color:rgba(255,255,255,.5)">—</div>
+            <div id="ph-today-pct" style="font-size:11px;font-weight:700;color:rgba(255,255,255,.5);margin-top:3px"></div>
           </div>
           <div style="width:1px;height:32px;background:var(--border)"></div>
-          <div style="display:flex;flex-direction:column;gap:6px">
-            <div style="display:flex;align-items:center;gap:6px">
+          <div style="display:flex;flex-direction:row;gap:10px;align-items:center">
+            <div style="display:flex;align-items:center;gap:5px">
               <div id="ph-eu-dot" style="width:7px;height:7px;border-radius:50%;background:#ff5252;flex-shrink:0"></div>
               <span style="font-size:11px;color:var(--text2);font-weight:600">Europa</span>
             </div>
-            <div style="display:flex;align-items:center;gap:6px">
+            <div style="display:flex;align-items:center;gap:5px">
               <div id="ph-us-dot" style="width:7px;height:7px;border-radius:50%;background:#ff5252;flex-shrink:0"></div>
               <span style="font-size:11px;color:var(--text2);font-weight:600">NYSE</span>
             </div>
@@ -4594,6 +4594,51 @@ function renderHistory(){
     <div id="hist-chart-area" style="padding-bottom:80px">
       ${th?renderHistoryChart(sel,th,hlds,period):'<div class="empty" style="padding:40px 20px">Seleziona un titolo e premi <strong>↻ Aggiorna</strong>.</div>'}
     </div>`;
+  // ── Attiva crosshair storico ──
+  (function(){
+    const svg = document.getElementById('history-area')?.querySelector('svg[id^="hist-svg-"]');
+    if (!svg) return;
+    const sel2 = S._histSel, period2 = S._histPeriod||'1A';
+    const th2 = (S.tickerHistory||{})[sel2]?.[period2];
+    if (!th2?.pts?.length) return;
+    const ptsF = th2.pts.filter(p=>p.c>0);
+    if (ptsF.length < 2) return;
+    const W2=800,H2=240,pl2=44,pr2=8,pt2=16,pb2=28;
+    const cw2=W2-pl2-pr2, ch2=H2-pt2-pb2;
+    const prices=ptsF.map(p=>p.c);
+    const mn2=Math.min(...prices), mx2=Math.max(...prices), rng2=mx2-mn2||1;
+    const sx2=i=>pl2+(i/(ptsF.length-1))*cw2;
+    const sy2=v=>pt2+ch2*(1-(v-mn2)/rng2);
+    const bw=130, bh=42;
+    const _mesi=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
+    const setAttr=(id,attrs)=>{const el=svg.querySelector('#'+id);if(el)Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));};
+    svg.addEventListener('mousemove',function(e){
+      const r=svg.getBoundingClientRect();
+      const mx=(e.clientX-r.left)*(W2/r.width);
+      const idx=Math.max(0,Math.min(ptsF.length-1,Math.round((mx-pl2)/cw2*(ptsF.length-1))));
+      const pt3=ptsF[idx];
+      const px=sx2(idx), py=sy2(pt3.c);
+      const d=new Date(pt3.t);
+      const dateStr=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+      const sym = th2.ccy==='USD'?'$':'€';
+      const v=pt3.c.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+sym;
+      const bx=Math.min(pl2+cw2-bw-4,Math.max(pl2+4,px-bw/2));
+      const by=py>pt2+ch2/2?py-bh-8:py+8;
+      setAttr('hcv',{x1:px,x2:px,opacity:1});
+      setAttr('hch',{y1:py,y2:py,opacity:1});
+      setAttr('hcbox',{x:bx,y:by,opacity:1});
+      setAttr('hcdot',{cx:px,cy:py,opacity:1});
+      setAttr('hct1',{x:bx+bw/2,y:by+13,opacity:1});
+      svg.querySelector('#hct1').textContent=dateStr;
+      setAttr('hct2',{x:bx+bw/2,y:by+30,opacity:1});
+      svg.querySelector('#hct2').textContent=v;
+    });
+    svg.addEventListener('mouseleave',function(){
+      ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id=>{
+        const el=svg.querySelector('#'+id);if(el)el.setAttribute('opacity','0');
+      });
+    });
+  })();
 }
 
 function renderHistoryChart(ticker,th,hlds,period){
