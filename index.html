@@ -1421,6 +1421,21 @@ function todayRome() {
   } catch(e) { return new Date().toISOString().slice(0,10); }
 }
 
+
+function localDateKeyFromMs(ms) {
+  // Converte un timestamp già in millisecondi nel giorno locale italiano YYYY-MM-DD.
+  // Serve per confrontare storico prezzi e date operazione senza moltiplicare per 1000.
+  try {
+    return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(ms));
+  } catch(e) {
+    const d = new Date(ms);
+    const y = d.getFullYear();
+    const m = String(d.getMonth()+1).padStart(2,'0');
+    const day = String(d.getDate()).padStart(2,'0');
+    return y + '-' + m + '-' + day;
+  }
+}
+
 function parseLocalDateMs(s) {
   // Interpreta le date operative (YYYY-MM-DD) come giorno locale italiano,
   // evitando lo slittamento UTC che può spostare i marker sul grafico.
@@ -6258,7 +6273,7 @@ async function renderOpsChart() {
 
   // Filtra operazioni del ticker nel periodo
   const pts = th.pts.filter(p=>p.c>0);
-  const t0 = pts[0].t*1000, t1 = pts[pts.length-1].t*1000;
+  const t0 = pts[0].t, t1 = pts[pts.length-1].t;
   // Cerca ops con tutti i ticker alternativi
   const allOpTickers = new Set([ticker,...altTickers]);
   const tickerOps = ops.filter(o=> allOpTickers.has(o.ticker)||allOpTickers.has(o.displayTicker)||allOpTickers.has(o.quoteTicker)||(o.isin&&hld?.isin&&o.isin===hld.isin));
@@ -6272,7 +6287,8 @@ async function renderOpsChart() {
   const cw=W-pl-pr, ch=H-pt-pb;
   const prices = pts.map(p=>p.c);
   const mn=Math.min(...prices), mx=Math.max(...prices), rng=mx-mn||1;
-  const sx=i=>pl+(i/(pts.length-1))*cw;
+  const sxT=t=>pl+((Math.max(t0, Math.min(t1, t))-t0)/(t1-t0||1))*cw;
+  const sx=i=>sxT(pts[i].t);
   const sy=v=>pt+ch*(1-(v-mn)/rng);
 
   // Linea prezzo
@@ -6284,9 +6300,10 @@ async function renderOpsChart() {
     if (opT === null) return;
     // Aggancia l'operazione alla prima candela disponibile successiva/uguale.
     // Se la data cade in weekend/festivo, evita di spostarla alla candela precedente.
-    let closest = pts.findIndex(p => p.t * 1000 >= opT);
+    const opDay = String(op.date || '').slice(0,10);
+    let closest = pts.findIndex(p => localDateKeyFromMs(p.t) >= opDay);
     if (closest < 0) closest = pts.length - 1;
-    const cx=sx(closest), cy=sy(pts[closest].c);
+    const cx=sxT(opT), cy=sy(pts[closest].c);
     const dotCol = op.type==='buy'?'#7ba7ff':'#f59e0b';
     const label = (op.type==='buy'?'▲ Acq. ':'▼ Vend. ')+op.qty+' × '+(op.price||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+'€ ('+op.date+')';
     svgDots += '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="5" fill="'+dotCol+'" stroke="var(--bg2)" stroke-width="1.5" style="cursor:pointer"><title>'+label+'</title></circle>';
@@ -6314,7 +6331,7 @@ async function renderOpsChart() {
   const nLabels = Math.min(5, pts.length);
   for (let li=0;li<nLabels;li++) {
     const i = Math.round(li/(nLabels-1)*(pts.length-1));
-    const d = new Date(pts[i].t*1000);
+    const d = new Date(pts[i].t);
     const lbl = d.toLocaleDateString('it-IT',{month:'short',year:'2-digit'});
     const x = sx(i);
     xLabels += '<text x="'+x.toFixed(0)+'" y="'+(pt+ch+14)+'" font-size="8.5" fill="rgba(255,255,255,.4)" font-family="monospace" text-anchor="middle">'+lbl+'</text>';
@@ -6344,7 +6361,7 @@ async function renderOpsChart() {
       const idx = Math.max(0, Math.min(pts.length-1, Math.round(rawIdx)));
       const p2 = pts[idx];
       const px = sx(idx), py = sy(p2.c);
-      const d = new Date(p2.t*1000).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
+      const d = new Date(p2.t).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
       const vTxt = p2.c.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
       // Box tooltip più grande
       const bw=130, bh=40;
