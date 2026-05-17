@@ -828,6 +828,7 @@ input[type=number]{-moz-appearance:textfield}
         <button class="hbtn" onclick="document.getElementById('import-csv-file').click()" style="font-size:12px">📤 Importa</button>
         <input type="file" id="import-csv-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(this)">
         <button class="hbtn" onclick="openModal()">+ Nuova</button>
+        <button class="hbtn" onclick="resolveIsins()" title="Risolvi ticker ISIN automaticamente" style="font-size:12px">🔍 Risolvi ticker</button>
       </div>
     </div>
     <div id="ops-list"></div>
@@ -6094,6 +6095,50 @@ function moveTmTip(e) {
 function hideTmTip() {
   const tt = document.getElementById('tm-tooltip');
   if (tt) tt.classList.remove('show');
+}
+
+// ── Risolvi ticker da ISIN via Yahoo Finance ──────────────────────
+async function resolveIsins() {
+  const hlds = calcPF();
+  const toResolve = hlds.filter(h => h.isin && /^[A-Z]{2}[A-Z0-9]{10}$/.test(h.ticker));
+  if (!toResolve.length) { showToast('✓ Nessun ISIN da risolvere'); return; }
+  showToast('🔍 Risolvo ' + toResolve.length + ' ticker...');
+  let resolved = 0;
+  for (const h of toResolve) {
+    try {
+      const url = 'https://query2.finance.yahoo.com/v1/finance/search?q=' + h.isin + '&quotesCount=5&newsCount=0';
+      const proxies = [
+        s => 'https://corsproxy.io/?' + encodeURIComponent(s),
+        s => 'https://api.allorigins.win/raw?url=' + encodeURIComponent(s)
+      ];
+      let data = null;
+      for (const proxy of proxies) {
+        try {
+          const r = await fetch(proxy(url), {signal: AbortSignal.timeout(5000)});
+          if (r.ok) { data = await r.json(); break; }
+        } catch(e) {}
+      }
+      if (!data?.quotes?.length) continue;
+      // Preferisce ETF europei (.MI, .DE, .PA, .AS) o prende il primo
+      const quotes = data.quotes.filter(q => q.symbol && q.quoteType);
+      const eu = quotes.find(q => /\.(MI|DE|PA|AS|L|SW|ST|CO|HE|OL|BR)$/.test(q.symbol));
+      const best = eu || quotes[0];
+      if (!best?.symbol) continue;
+      // Aggiorna tutte le operazioni con questo ISIN
+      (S.ops||[]).forEach(op => {
+        if (op.isin === h.isin) {
+          op.ticker = best.symbol;
+          op.displayTicker = best.symbol;
+          op.quoteTicker = best.symbol;
+          if (!op.name || op.name === op.isin) op.name = best.longname || best.shortname || op.name;
+        }
+      });
+      resolved++;
+    } catch(e) {}
+  }
+  save();
+  renderAll();
+  showToast('✓ Risolti ' + resolved + '/' + toResolve.length + ' ticker');
 }
 
 function renderAll() {
