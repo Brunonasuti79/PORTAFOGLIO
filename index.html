@@ -3165,26 +3165,31 @@ function refreshProjectionOutput() {
     </table>
   </div>`;
 
-  // ── Crosshair proiezione ──────────────────────────────────────
+  // ── Crosshair proiezione — coordinate SVG native ─────────────
   (function(){
     const svg = document.getElementById('proj-output')?.querySelector('svg');
     if (!svg) return;
-    const W2=800,pl2=44,pt2=12,H2=180,pb2=22;
-    const cw2=W2-pl2-8, ch2=H2-pt2-pb2;
-    const allVals2=[...attuale,...(obiettivo||[]),...inflaz].filter(Boolean);
-    const mx2=(Math.max(...allVals2)||1)*1.06;
+    // Legge le dimensioni esatte direttamente dall'SVG
+    const vb = svg.viewBox.baseVal;
+    const W2=vb.width, H2=vb.height;
+    const pl2=44, pr2=8, pt2=12, pb2=22;
+    const cw2=W2-pl2-pr2, ch2=H2-pt2-pb2;
+    const allVals2=[...attuale,...(obiettivo||[]),...inflaz];
+    const mx2=(Math.max(...allVals2.filter(v=>v>0))||1)*1.06;
     const sx2=y=>pl2+(y/MAXYRS)*cw2;
+    const sy2=v=>pt2+ch2*(1-v/mx2);
     const bw=150, hasO=finalO!=null;
     const setA=(id,attrs)=>{const el=svg.querySelector('#'+id);if(el)Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));};
     svg.style.cursor='crosshair';
-    const sy3=v=>pt2+ch2*(1-v/mx2);
     svg.addEventListener('mousemove',function(e){
-      const r=svg.getBoundingClientRect();
-      const scaleX=W2/r.width;
-      const mx=(e.clientX-r.left)*scaleX;
+      // Converti coordinate schermo → coordinate SVG usando la matrice CTM
+      const pt3=svg.createSVGPoint();
+      pt3.x=e.clientX; pt3.y=e.clientY;
+      const svgP=pt3.matrixTransform(svg.getScreenCTM().inverse());
+      const mx=svgP.x;
       const yr=Math.max(0,Math.min(MAXYRS,Math.round((mx-pl2)/cw2*MAXYRS)));
       const px=sx2(yr);
-      const pyA=sy3(attuale[yr]||0);
+      const pyA=sy2(attuale[yr]||0);
       const bx=Math.min(pl2+cw2-bw-4,Math.max(pl2+4,px-bw/2));
       const by=pt2+8;
       setA('pcv',{x1:px,x2:px,opacity:1});
