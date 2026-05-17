@@ -2291,7 +2291,8 @@ function closePfDropdown() {
   if (arrow) arrow.classList.remove('open');
 }
 function handlePfDdClick(el) {
-  const id = el.getAttribute('data-pfid');
+  const target = el.closest('[data-pfid]');
+  const id = target ? target.getAttribute('data-pfid') : null;
   if (!id) return;
   closePfDropdown();
   switchPortfolio(id);
