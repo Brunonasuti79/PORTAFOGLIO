@@ -5296,8 +5296,18 @@ async function handleImportFile(input) {
     }
   } catch(e) { alert('Errore lettura file: '+e.message); return; }
   if (!rows.length) { alert('File vuoto o non leggibile.'); return; }
-  const header = rows[0].map(h => (h||'').toLowerCase().trim());
-  const {broker, ops} = parseImportRows(header, rows.slice(1));
+  // Cerca la riga header reale (salta righe di metadati Fineco ecc.)
+  let headerIdx = 0;
+  for (let i = 0; i < Math.min(rows.length, 15); i++) {
+    const r = rows[i];
+    const joined = (r||[]).join('|').toLowerCase();
+    if (joined.includes('segno') || joined.includes('isin') || joined.includes('operazione')
+        || joined.includes('tipo op') || joined.includes('product')) {
+      headerIdx = i; break;
+    }
+  }
+  const header = (rows[headerIdx]||[]).map(h => (h||'').toLowerCase().trim());
+  const {broker, ops} = parseImportRows(header, rows.slice(headerIdx + 1));
   if (!ops.length) {
     alert('Nessuna operazione riconosciuta.\nVerifica che il file sia esportato correttamente dal broker.');
     return;
@@ -5309,6 +5319,7 @@ async function handleImportFile(input) {
 function detectBroker(header) {
   const h = header.join('|');
   if (h.includes('product') && h.includes('isin') && h.includes('exchange')) return 'degiro';
+  if (h.includes('segno') && h.includes('controvalore')) return 'fineco_mov'; // Movimenti Dossier
   if (h.includes('tipo operazione') || h.includes('tipo op.') || h.includes('tipo op')) return 'fineco';
   if (h.includes('cod. isin') || h.includes("qta'") || h.includes('qta')) return 'directa';
   return 'generic';
@@ -5359,6 +5370,38 @@ function parseImportRows(header, rows) {
         displayTicker:isin||name.slice(0,8).toUpperCase(),quoteTicker:'',isin,market:exch,
         qty:Math.abs(qty),price,commissions:comm,assetClass:'',
         titleCcy:ccy.includes('USD')?'USD':'EUR',purchCcy:'EUR',fxRate:null};
+    }
+    else if (broker==='fineco_mov') {
+      // Formato: Operazione(data) | Data valuta | Descrizione | Titolo | Isin | Segno(A/V) | Quantita | Divisa | Prezzo | Cambio | Controvalore
+      const desc = (impCol(row,header,'descrizione')||'').toLowerCase();
+      if (!desc.includes('compravendita') && !desc.includes('acquisto') && !desc.includes('vendita')) return;
+      const segno = (impCol(row,header,'segno')||'').toUpperCase();
+      if (segno !== 'A' && segno !== 'V') return;
+      const type = segno === 'A' ? 'buy' : 'sell';
+      const name = impCol(row,header,'titolo','descrizione strumento');
+      const isin = impCol(row,header,'isin');
+      const qty  = Math.abs(parseImpNum(impCol(row,header,'quantita','quantità','qty')));
+      const price= parseImpNum(impCol(row,header,'prezzo'));
+      const tot  = Math.abs(parseImpNum(impCol(row,header,'controvalore')));
+      const ccy  = (impCol(row,header,'divisa')||'EUR').toUpperCase();
+      const cambio = parseImpNum(impCol(row,header,'cambio'))||1;
+      // Data operazione: prima colonna (DD/MM/YYYY)
+      const dateRaw = row[0] || impCol(row,header,'operazione','data');
+      const date = parseImpDate(dateRaw);
+      if (!date||!qty||!price) return;
+      const displayTk = isin ? isin.slice(0,12) : (name||'').slice(0,10).toUpperCase().replace(/\s+/g,'');
+      op = {
+        id: uid(), date, type, name: name||displayTk,
+        ticker: displayTk, displayTicker: displayTk, quoteTicker: '',
+        isin: isin||'', market: 'Fineco',
+        qty, price,
+        commissions: tot > 0 ? Math.max(0, tot - qty*price) : 0,
+        totalCost: tot||qty*price,
+        assetClass: '',
+        titleCcy: ccy === 'USD' ? 'USD' : 'EUR',
+        purchCcy: 'EUR',
+        fxRate: cambio !== 1 ? cambio : null
+      };
     }
     else if (broker==='fineco') {
       const tipo=(impCol(row,header,'tipo','type')||'').toLowerCase();
