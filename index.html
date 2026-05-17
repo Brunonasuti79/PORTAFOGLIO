@@ -509,8 +509,8 @@ html.light .ops-group-body{border-color:var(--border)}
   font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;padding:12px 20px;
   border-radius:10px;cursor:pointer;width:100%;-webkit-tap-highlight-color:transparent}
 .bbtn{background:var(--bg);border:1px solid var(--border2);color:var(--blue);
-  font-family:'Outfit',sans-serif;font-size:14px;font-weight:600;padding:12px 14px;
-  border-radius:10px;cursor:pointer;width:100%;margin-top:8px;-webkit-tap-highlight-color:transparent}
+  font-family:'Outfit',sans-serif;font-size:12px;font-weight:600;padding:6px 14px;
+  border-radius:8px;cursor:pointer;width:100%;margin-top:5px;-webkit-tap-highlight-color:transparent}
 
 /* ──────────────────────── MODAL ──────────────────────── */
 .mov{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(4px);
@@ -3106,6 +3106,7 @@ function refreshProjectionOutput() {
     <text id="pct1" x="0" y="0" font-size="10" fill="#7ba7ff" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
     <text id="pct2" x="0" y="0" font-size="10" fill="#22d47e" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
     <text id="pct3" x="0" y="0" font-size="10" fill="#ff9944" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
+    <circle id="pcdot" cx="0" cy="0" r="4" fill="#7ba7ff" stroke="#0d1322" stroke-width="2" opacity="0"/>
   </svg>`;
 
   const rowHtml = Array.from({length:YRS}, (_,y) => {
@@ -3129,18 +3130,16 @@ function refreshProjectionOutput() {
     ${[5,10,15,20,25,30,35,40].map(y=>`<button onclick="setProjYears(${y})" style="padding:4px 12px;border-radius:20px;border:1px solid ${MAXYRS===y?'var(--blue)':'var(--border2)'};background:${MAXYRS===y?'var(--blue)':'none'};color:${MAXYRS===y?'#fff':'var(--text2)'};font-size:11px;font-weight:700;cursor:pointer">${y}a</button>`).join('')}
   </div>
   <div style="display:grid;grid-template-columns:repeat(${finalO!=null?3:2},1fr);gap:8px;margin-bottom:10px">
-    <div style="background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.2);border-radius:10px;padding:8px 12px">
-      <div style="font-size:9px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">Portafoglio attuale</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#7ba7ff">${fmtK(finalA)}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:1px">tra ${MAXYRS} anni</div>
+    <div style="background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.2);border-radius:8px;padding:5px 8px;text-align:center">
+      <div style="font-size:8px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:1px">Portafoglio attuale</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#7ba7ff">${fmtK(finalA)}</div>
     </div>
-    ${finalO!=null?`<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:10px;padding:8px 12px">
-      <div style="font-size:9px;color:#22d47e;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">Allocazione obiettivo</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#22d47e">${fmtK(finalO)}</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:1px">tra ${MAXYRS} anni</div>
-    </div>`:''}
-    <div style="background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.2);border-radius:10px;padding:8px 12px">
-      <div style="font-size:9px;color:#ff9944;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">Inflazione ${inflRate}%</div>
+    ${finalO!=null?`<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:8px;padding:5px 8px;text-align:center">
+      <div style="font-size:8px;color:#22d47e;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:1px">Allocazione obiettivo</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#22d47e">${fmtK(finalO)}</div>
+      </div>`:''}
+    <div style="background:rgba(255,153,68,.08);border:1px solid rgba(255,153,68,.2);border-radius:10px;padding:5px 8px;text-align:center">
+      <div style="font-size:8px;color:#ff9944;text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:3px">Inflazione ${inflRate}%</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700;color:#ff9944">${fmtK(finalI)}</div>
       <div style="font-size:10px;color:var(--text3);margin-top:1px">potere d'acquisto</div>
     </div>
@@ -3177,14 +3176,19 @@ function refreshProjectionOutput() {
     const bw=150, hasO=finalO!=null;
     const setA=(id,attrs)=>{const el=svg.querySelector('#'+id);if(el)Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));};
     svg.style.cursor='crosshair';
+    const mn3=0, mx3=Math.max(...attuale,...(obiettivo||[0]),...inflaz)||1;
+    const sy3=v=>pt2+ch2*(1-v/mx3);
     svg.addEventListener('mousemove',function(e){
       const r=svg.getBoundingClientRect();
-      const mx=(e.clientX-r.left)*(W2/r.width);
+      const scaleX=W2/r.width;
+      const mx=(e.clientX-r.left)*scaleX;
       const yr=Math.max(0,Math.min(MAXYRS,Math.round((mx-pl2)/cw2*MAXYRS)));
       const px=sx2(yr);
+      const pyA=sy3(attuale[yr]||0);
       const bx=Math.min(pl2+cw2-bw-4,Math.max(pl2+4,px-bw/2));
       const by=pt2+8;
       setA('pcv',{x1:px,x2:px,opacity:1});
+      setA('pcdot',{cx:px,cy:pyA,opacity:1});
       setA('pcbox',{x:bx,y:by,opacity:1});
       setA('pct0',{x:bx+bw/2,y:by+13,opacity:1});
       svg.querySelector('#pct0').textContent='Anno '+yr;
@@ -3195,7 +3199,7 @@ function refreshProjectionOutput() {
       svg.querySelector('#pct3').textContent='Infl: '+fmtK(inflaz[yr]||0);
     });
     svg.addEventListener('mouseleave',function(){
-      ['pcv','pcbox','pct0','pct1','pct2','pct3'].forEach(id=>{const el=svg.querySelector('#'+id);if(el)el.setAttribute('opacity','0');});
+      ['pcv','pcdot','pcbox','pct0','pct1','pct2','pct3'].forEach(id=>{const el=svg.querySelector('#'+id);if(el)el.setAttribute('opacity','0');});
     });
   })();
 }
