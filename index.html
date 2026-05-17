@@ -2290,6 +2290,12 @@ function closePfDropdown() {
   if (dd) dd.style.display = 'none';
   if (arrow) arrow.classList.remove('open');
 }
+function switchPfByIndex(idx) {
+  const pf = ALL.portfolios[idx];
+  if (!pf) return;
+  switchPortfolio(pf.id);
+}
+
 function handlePfDdClick(el) {
   const target = el.closest('[data-pfid]');
   const id = target ? target.getAttribute('data-pfid') : null;
@@ -2303,14 +2309,14 @@ function renderPfDropdown() {
   if (!dd) return;
   const pfs = ALL.portfolios || [];
   const activeId = ALL.activePortfolioId;
-  dd.innerHTML = pfs.map(pf => {
+  dd.innerHTML = pfs.map((pf,idx) => {
     const active = pf.id === activeId;
-    return `<div class="pf-dd-item ${active?'active':''}" data-pfid="${esc(pf.id)}" onclick="handlePfDdClick(this)">
-      <span style="width:16px;font-size:14px">${active?'✓':''}</span>
-      <span style="flex:1">${esc(pf.name)}</span>
-      ${active?`<button onclick="event.stopPropagation();renamePortfolio('${esc(pf.id)}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px" title="Rinomina">✎</button>`:''}
-      ${pfs.length>1&&!active?`<button onclick="event.stopPropagation();deletePortfolio('${esc(pf.id)}')" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px" title="Elimina">×</button>`:''}
-    </div>`;
+    return '<div class="pf-dd-item '+(active?'active':'')+'" onclick="switchPfByIndex('+idx+');closePfDropdown()">'
+      +'<span style="width:16px;font-size:14px">'+(active?'✓':'')+'</span>'
+      +'<span style="flex:1">'+esc(pf.name)+'</span>'
+      +(active?'<button onclick="event.stopPropagation();renamePortfolio(ALL.portfolios['+idx+'].id)" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px">✎</button>':'')
+      +(pfs.length>1&&!active?'<button onclick="event.stopPropagation();deletePortfolio(ALL.portfolios['+idx+'].id)" style="background:none;border:none;color:var(--text3);cursor:pointer;font-size:12px;padding:2px 4px">×</button>':'')
+      +'</div>';
   }).join('') +
   `<div class="pf-dd-item pf-dd-add" onclick="addPortfolio();closePfDropdown()">
     <span style="width:16px;font-size:14px">＋</span>
