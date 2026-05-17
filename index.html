@@ -846,7 +846,7 @@ input[type=number]{-moz-appearance:textfield}
         <button onclick="openModal()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;cursor:pointer;color:#fff;font-size:14px;font-weight:700">+ Nuova</button>
       </div>
     </div>
-    <div id="ops-list"></div>
+    <div id="ops-list" style="margin-top:8px"></div>
   </div>
 
   <!-- CHARTS PAGE -->
@@ -3169,15 +3169,15 @@ function refreshProjectionOutput() {
   (function(){
     const svg = document.getElementById('proj-output')?.querySelector('svg');
     if (!svg) return;
-    const W2=700,pl2=44,pt2=14,H2=220,pb2=28;
+    const W2=800,pl2=44,pt2=12,H2=180,pb2=22;
     const cw2=W2-pl2-8, ch2=H2-pt2-pb2;
-    const mx2=Math.max(...attuale,...(obiettivo||[0]),...inflaz)||1;
+    const allVals2=[...attuale,...(obiettivo||[]),...inflaz].filter(Boolean);
+    const mx2=(Math.max(...allVals2)||1)*1.06;
     const sx2=y=>pl2+(y/MAXYRS)*cw2;
     const bw=150, hasO=finalO!=null;
     const setA=(id,attrs)=>{const el=svg.querySelector('#'+id);if(el)Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));};
     svg.style.cursor='crosshair';
-    const mn3=0, mx3=Math.max(...attuale,...(obiettivo||[0]),...inflaz)||1;
-    const sy3=v=>pt2+ch2*(1-v/mx3);
+    const sy3=v=>pt2+ch2*(1-v/mx2);
     svg.addEventListener('mousemove',function(e){
       const r=svg.getBoundingClientRect();
       const scaleX=W2/r.width;
@@ -6010,7 +6010,7 @@ function renderPortfolioHeader() {
     if (daily) {
       const sign = daily.eur >= 0 ? '+' : '';
       dayEl.textContent = sign + daily.eur.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2,style:'currency',currency:'EUR'}).replace('€\xa0','€\u00a0');
-      dayEl.textContent = (daily.eur>=0?'+':'')+(Math.abs(daily.eur)).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+      dayEl.textContent = (daily.eur>=0?'+ ':'- ')+(Math.abs(daily.eur)).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
       dayEl.style.color = daily.eur >= 0 ? '#1fe07e' : '#ff5252';
       if (dayPctEl) { dayPctEl.textContent = (daily.pct>=0?'+':'')+daily.pct.toFixed(2)+'%'; dayPctEl.style.color = daily.pct>=0?'#1fe07e':'#ff5252'; }
     } else {
