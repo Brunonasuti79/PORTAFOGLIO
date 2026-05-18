@@ -979,6 +979,22 @@ input[type=number]{-moz-appearance:textfield}
       <input type="file" id="backup-file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
     </div>
     <div class="ssec">
+      <div class="slbl">☁️ Sync Cloud — GitHub Gist</div>
+      <div class="sdesc">Salva automaticamente su un <strong>Gist privato GitHub</strong>. I dati rimangono tuoi.<br><br>
+        1. Vai su <a href="https://github.com/settings/tokens/new?scopes=gist&description=PortafoglioBIT" target="_blank" style="color:var(--blue)">github.com/settings/tokens</a><br>
+        2. Crea token con scope <strong>gist</strong> (classic token)<br>
+        3. Incolla qui sotto
+      </div>
+      <input class="sinput" type="password" id="github-token-inp"
+        placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"
+        oninput="onGithubTokenChange(this.value)">
+      <div id="gist-status" style="margin-top:8px"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="bbtn" id="gist-upload-btn" onclick="syncToGist()" style="flex:1">☁ Carica su Gist</button>
+        <button class="bbtn" id="gist-download-btn" onclick="syncFromGist()" style="flex:1;background:rgba(34,212,126,.08);border-color:rgba(34,212,126,.25);color:#22d47e">⬇ Ripristina da Gist</button>
+      </div>
+    </div>
+    <div class="ssec">
       <div class="slbl">🔐 Sicurezza</div>
       <div class="sdesc">Il backup può contenere API key. Conservalo solo su dispositivi personali.</div>
     </div>
@@ -5105,6 +5121,7 @@ function showPage(pg) {
   if (pg==='pnl')       renderPnL();
   if (pg==='history')   renderHistory();
   if (pg==='settings')  renderSettingsUI();
+  if (pg==='backup')    renderGistUI();
   if (pg==='tax')       renderTaxUI();
 }
 
@@ -5685,6 +5702,138 @@ function onPortfolioNameInput() {
 // ════════════════════════════════════════════════════════════════
 //  BACKUP
 // ════════════════════════════════════════════════════════════════
+
+// ════════════════════════════════════════════════════════════════
+//  GITHUB GIST SYNC
+// ════════════════════════════════════════════════════════════════
+function onGithubTokenChange(val) {
+  ALL.settings.githubToken = val.trim();
+  save();
+  renderGistUI();
+}
+
+function renderGistUI() {
+  const inp = document.getElementById('github-token-inp');
+  if (inp && !inp.value && ALL.settings.githubToken)
+    inp.value = ALL.settings.githubToken;
+  const el = document.getElementById('gist-status');
+  if (!el) return;
+  const gistId   = ALL.settings.gistId || '';
+  const lastSync = ALL.settings.lastGistSync || '';
+  const token    = ALL.settings.githubToken || '';
+  if (!token) {
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3)">Inserisci il token per abilitare il sync.</div>';
+    return;
+  }
+  if (gistId) {
+    const syncTime = lastSync ? new Date(lastSync).toLocaleString('it-IT') : 'mai';
+    el.innerHTML = `<div style="font-size:11px;color:var(--green);font-weight:600">✓ Gist connesso</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:2px">ID: ${gistId.slice(0,12)}… · Ultimo sync: ${syncTime}</div>
+      <a href="https://gist.github.com/${gistId}" target="_blank"
+        style="font-size:10px;color:var(--blue);display:inline-block;margin-top:4px">Apri su GitHub →</a>`;
+  } else {
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3)">Token inserito — premi <strong>Carica su Gist</strong> per creare il backup.</div>';
+  }
+}
+
+async function syncToGist() {
+  const token = ALL.settings.githubToken || '';
+  if (!token) { showToast('⚠ Inserisci prima il token GitHub'); return; }
+  const btn = document.getElementById('gist-upload-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Caricamento...'; }
+  try {
+    const backup = JSON.stringify({
+      version: SK,
+      exportedAt: new Date().toISOString(),
+      multiPortfolio: true,
+      portfolios: ALL.portfolios.map(pf => ({...pf, dailyChanges:{}})),
+      activePortfolioId: ALL.activePortfolioId,
+      settings: ALL.settings,
+      fxRates: ALL.fxRates || {}
+    });
+    const headers = {
+      'Authorization': 'token ' + token,
+      'Content-Type': 'application/json',
+      'Accept': 'application/vnd.github+json'
+    };
+    const body = JSON.stringify({
+      description: 'Portafoglio BIT — ' + new Date().toLocaleDateString('it-IT'),
+      public: false,
+      files: { 'portafoglio-bit.json': { content: backup } }
+    });
+    const gistId = ALL.settings.gistId;
+    const url = gistId
+      ? 'https://api.github.com/gists/' + gistId
+      : 'https://api.github.com/gists';
+    const method = gistId ? 'PATCH' : 'POST';
+    const res = await fetch(url, { method, headers, body });
+    if (!res.ok) {
+      const err = await res.json().catch(()=>({}));
+      throw new Error(err.message || 'HTTP ' + res.status);
+    }
+    const data = await res.json();
+    if (!gistId) ALL.settings.gistId = data.id;
+    ALL.settings.lastGistSync = new Date().toISOString();
+    save();
+    showToast('✓ Backup salvato su GitHub Gist');
+    renderGistUI();
+  } catch(e) {
+    showToast('⚠ Errore: ' + (e.message || 'Connessione fallita'));
+    console.error('Gist sync error:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '☁ Carica su Gist'; }
+  }
+}
+
+async function syncFromGist() {
+  const token  = ALL.settings.githubToken || '';
+  const gistId = ALL.settings.gistId || '';
+  if (!token)  { showToast('⚠ Inserisci prima il token GitHub'); return; }
+  if (!gistId) { showToast('⚠ Nessun Gist trovato — fai prima un upload'); return; }
+  if (!confirm('Sovrascrivere i dati locali con il backup da Gist?')) return;
+  const btn = document.getElementById('gist-download-btn');
+  if (btn) { btn.disabled = true; btn.textContent = 'Download...'; }
+  try {
+    const res = await fetch('https://api.github.com/gists/' + gistId, {
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    const raw  = data.files?.['portafoglio-bit.json']?.content;
+    if (!raw) throw new Error('File non trovato nel Gist');
+    const backup = JSON.parse(raw);
+    // Salva token e gistId prima di sovrascrivere settings
+    const savedToken  = token;
+    const savedGistId = gistId;
+    if (backup.multiPortfolio && Array.isArray(backup.portfolios)) {
+      ALL.portfolios = backup.portfolios.map(pf => ({
+        ...pf,
+        ops: (pf.ops||[]).map(op => { normalizeOp(op); return op; }).filter(op=>op.ticker),
+        prices: pf.prices||{}, priceHistory: pf.priceHistory||[],
+        tickerHistory: pf.tickerHistory||{}, dailyChanges:{},
+        rebalanceTargets: pf.rebalanceTargets||{}
+      }));
+      ALL.activePortfolioId = backup.activePortfolioId || ALL.portfolios[0]?.id;
+      ALL.settings = Object.assign({ak:'',anthropicKey:''}, backup.settings||{});
+      ALL.fxRates  = backup.fxRates || {};
+    }
+    // Ripristina token e gistId (non sovrascrivere con quelli del backup)
+    ALL.settings.githubToken  = savedToken;
+    ALL.settings.gistId       = savedGistId;
+    ALL.settings.lastGistSync = new Date().toISOString();
+    if (!ALL.portfolios.length) ALL.portfolios = [newPortfolio('Portafoglio principale')];
+    ALL.activePortfolioId = ALL.portfolios.find(p=>p.id===ALL.activePortfolioId)?.id || ALL.portfolios[0].id;
+    S = ALL.portfolios.find(p=>p.id===ALL.activePortfolioId);
+    save(); renderAll(); renderGistUI();
+    showToast('✓ Dati ripristinati da Gist');
+  } catch(e) {
+    showToast('⚠ Errore: ' + (e.message || 'Download fallito'));
+    console.error('Gist download error:', e);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '⬇ Ripristina da Gist'; }
+  }
+}
+
 function exportBackup() {
   const data = {
     version: SK,
@@ -6844,6 +6993,7 @@ function renderAll() {
   renderPF();
   renderOps();
   syncSettingsUI();
+  renderGistUI();
   // Mantieni stato subtabs bar corretto
   const activePg = Object.values(PAGE_GROUPS).flatMap(g=>g.pages)
     .find(p => document.getElementById('pg-'+p)?.classList.contains('active'));
