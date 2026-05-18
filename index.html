@@ -867,6 +867,11 @@ input[type=number]{-moz-appearance:textfield}
     <div id="proj-area"></div>
   </div>
 
+  <!-- PAC SIMULATOR PAGE -->
+  <div id="pg-pac-sim" class="page">
+    <div class="ph"><div class="ph-left"><div class="pt">SIMULATORE PAC</div><div class="pt-sub">PAC mensile vs investimento unico — partendo da zero</div></div></div>
+    <div id="pac-sim-area"></div>
+  </div>
   <!-- HISTORY PAGE -->
   <div id="pg-history" class="page">
     <div class="ph">
@@ -1201,6 +1206,217 @@ input[type=number]{-moz-appearance:textfield}
 </div>
 
 <script>
+function getPACSuggestion(rate) {
+  if (rate > 15) return {warn:2, label:'Non realistico', color:'#ef4444',
+    msg:'Nessun portafoglio diversificato ha storicamente sostenuto >15% annuo. S&P500: ~10.5% lordo (1928-2023).'};
+  if (rate > 12) return {warn:1, label:'Molto aggressivo', color:'#f59e0b',
+    msg:'Rendimento elevato. Richiede portafoglio 100% azionario su mercati emergenti o small-cap con alta volatilità.'};
+  const T=[
+    {max:1.5, label:'Monetario',      az:0,  ob:10, liq:90, color:'#64748b'},
+    {max:3,   label:'Conservativo',   az:15, ob:70, liq:15, color:'#3b82f6'},
+    {max:5,   label:'Prudente',       az:35, ob:55, liq:10, color:'#6366f1'},
+    {max:7,   label:'Bilanciato',     az:60, ob:35, liq:5,  color:'#8b5cf6'},
+    {max:9,   label:'Moderato',       az:75, ob:22, liq:3,  color:'#a855f7'},
+    {max:11,  label:'Crescita',       az:90, ob:8,  liq:2,  color:'#c084fc'},
+    {max:13,  label:'Aggressivo',     az:97, ob:3,  liq:0,  color:'#ec4899'},
+  ];
+  return {...(T.find(x=>rate<=x.max)||T[T.length-1]), warn:0};
+}
+
+function setPacSim(key, val) {
+  if (!ALL.settings.pacSim) ALL.settings.pacSim={};
+  const n = parseFloat(val);
+  ALL.settings.pacSim[key] = isNaN(n) ? 0 : n;
+  save(); renderPACSim();
+}
+
+function renderPACSim() {
+  const area = document.getElementById('pac-sim-area');
+  if (!area) return;
+  const sim = ALL.settings.pacSim || {};
+  const pac    = sim.pac  || 0;
+  const rate   = sim.rate ?? 7;
+  const MAXYRS = sim.anni || 20;
+  const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
+  const YRS = MAXYRS + 1;
+  const sug = getPACSuggestion(rate);
+
+  // Input panel
+  const inputHtml = `
+  <div class="proj-section" style="margin-bottom:8px">
+    <div class="slbl" style="margin-bottom:8px">⚙️ Parametri simulazione</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+      <div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">PAC mensile (€)</div>
+        <input type="number" class="proj-rate-inp" style="width:100%" value="${pac||''}"
+          min="0" step="100" inputmode="decimal" placeholder="es. 500"
+          oninput="setPacSim('pac',this.value)">
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">Rendimento atteso (%)</div>
+        <input type="number" class="proj-rate-inp" style="width:100%" value="${rate}"
+          min="0" max="25" step="0.5" inputmode="decimal"
+          oninput="setPacSim('rate',this.value)">
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;white-space:nowrap">Orizzonte:</div>
+      ${[5,10,15,20,25,30].map(y=>`<button onclick="setPacSim('anni',${y})" style="padding:3px 10px;border-radius:20px;border:1px solid ${MAXYRS===y?'var(--blue)':'var(--border2)'};background:${MAXYRS===y?'var(--blue)':'none'};color:${MAXYRS===y?'#fff':'var(--text2)'};font-size:11px;font-weight:700;cursor:pointer">${y}a</button>`).join('')}
+    </div>
+  </div>`;
+
+  // Portfolio suggestion box
+  let sugHtml = '';
+  if (sug.warn === 2) {
+    sugHtml = `<div style="margin:0 14px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 14px">
+      <div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:4px">⚠️ Rendimento non realistico (${rate}%)</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.5">${sug.msg}</div>
+    </div>`;
+  } else if (sug.warn === 1) {
+    sugHtml = `<div style="margin:0 14px 10px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:10px 14px">
+      <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:4px">⚡ Rendimento elevato (${rate}%)</div>
+      <div style="font-size:11px;color:var(--text2);line-height:1.5">${sug.msg}</div>
+    </div>`;
+  } else {
+    sugHtml = `<div style="margin:0 14px 10px;background:rgba(123,167,255,.07);border:1px solid rgba(123,167,255,.18);border-radius:10px;padding:10px 14px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <span style="font-size:12px;font-weight:700;color:${sug.color}">${sug.label}</span>
+        <span style="font-size:11px;color:var(--text3)">per un rendimento del ${rate}% atteso</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        ${sug.az>0?`<div style="background:rgba(123,167,255,.12);border:1px solid rgba(123,167,255,.25);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#7ba7ff">📈 Azionario ${sug.az}%</div>`:''}
+        ${sug.ob>0?`<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#22d47e">📄 Obbligazionario ${sug.ob}%</div>`:''}
+        ${sug.liq>0?`<div style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#94a3b8">💶 Liquidità ${sug.liq}%</div>`:''}
+      </div>
+      <div style="font-size:10px;color:var(--text3);margin-top:6px">⚠ Rendimenti storici non garantiscono rendimenti futuri. Solo a scopo illustrativo.</div>
+    </div>`;
+  }
+
+  if (pac <= 0) {
+    area.innerHTML = `<div style="margin:0 14px">${inputHtml}</div>${sugHtml}<div class="empty">Inserisci un importo PAC mensile per vedere la simulazione.</div>`;
+    return;
+  }
+
+  // Computations
+  const totalInvested = pac * 12 * MAXYRS;
+  const r = rate / 100, rm = r / 12;
+  const inflR = inflRate / 100;
+
+  // PAC: FV mensile (da 0 a anno y)
+  const pacArr = Array.from({length:YRS},(_,y)=>{
+    if(y===0)return 0;
+    return rm>1e-10?pac*((Math.pow(1+rm,y*12)-1)/rm):pac*12*y;
+  });
+  // Lump sum equiv: stesso totale investito tutto subito a t=0
+  const lumpArr = Array.from({length:YRS},(_,y)=>totalInvested*Math.pow(1+r,y));
+  // Inflaz su totale investito
+  const inflArr = Array.from({length:YRS},(_,y)=>totalInvested*Math.pow(1+inflR,y));
+
+  const finalPAC  = pacArr[MAXYRS];
+  const finalLump = lumpArr[MAXYRS];
+  const finalInfl = inflArr[MAXYRS];
+  const fmtK = v=>v>=1e6?(v/1e6).toFixed(2)+'M€':v>=1e3?Math.round(v/1e3)+'k€':Math.round(v)+'€';
+
+  // SVG
+  const W=720,H=260,pl=64,pr=16,pt=18,pb=36,cw=W-pl-pr,ch=H-pt-pb;
+  const allVals=[...pacArr,...lumpArr,...inflArr];
+  const maxV=Math.max(...allVals)*1.06;
+  const sx=y=>pl+(y/MAXYRS)*cw, sy=v=>pt+ch*(1-v/maxV);
+  const fY=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?Math.round(v/1e3)+'k':''+Math.round(v);
+  const pts=arr=>arr.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+  const gridY=Array.from({length:5},(_,i)=>maxV*(i+1)/5);
+  const xTicks=Array.from({length:Math.floor(MAXYRS/5)+1},(_,i)=>i*5).filter(y=>y<=MAXYRS);
+
+  const svg=`<svg id="pac-sim-svg" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;cursor:crosshair">
+    ${gridY.map(v=>`<line x1="${pl}" y1="${sy(v).toFixed(1)}" x2="${pl+cw}" y2="${sy(v).toFixed(1)}" stroke="#1a2a4a" stroke-width="1"/>`).join('')}
+    ${xTicks.map(y=>`<line x1="${sx(y).toFixed(1)}" y1="${pt+ch}" x2="${sx(y).toFixed(1)}" y2="${pt+ch+5}" stroke="#1a2a4a" stroke-width="1"/>`).join('')}
+    <polyline points="${pts(inflArr)}" fill="none" stroke="#ff9944" stroke-width="1.5" stroke-dasharray="5,3"/>
+    <polyline points="${pts(lumpArr)}" fill="none" stroke="#38bdf8" stroke-width="2.5"/>
+    <polyline points="${pts(pacArr)}"  fill="none" stroke="#c084fc" stroke-width="2.5"/>
+    ${gridY.map(v=>`<text x="${pl-5}" y="${(sy(v)+4).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="10">${fY(v)}€</text>`).join('')}
+    ${xTicks.map(y=>`<text x="${sx(y).toFixed(1)}" y="${(pt+ch+20).toFixed(1)}" text-anchor="middle" fill="#4b6090" font-size="10">${y}a</text>`).join('')}
+    <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
+    <line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
+    <line id="ps-cv" x1="0" y1="${pt}" x2="0" y2="${pt+ch}" stroke="rgba(255,255,255,.3)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>
+    <circle id="ps-dp" cx="0" cy="0" r="4" fill="#c084fc" stroke="#0d1322" stroke-width="2" opacity="0"/>
+    <circle id="ps-dl" cx="0" cy="0" r="4" fill="#38bdf8" stroke="#0d1322" stroke-width="2" opacity="0"/>
+    <rect id="ps-box" x="0" y="0" width="160" height="68" rx="6" fill="#0d1322" stroke="rgba(123,167,255,.5)" stroke-width="1" opacity="0"/>
+    <text id="ps-t0" x="0" y="0" font-size="9"  fill="rgba(255,255,255,.5)" font-family="monospace" text-anchor="middle" opacity="0"></text>
+    <text id="ps-t1" x="0" y="0" font-size="10" fill="#c084fc" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
+    <text id="ps-t2" x="0" y="0" font-size="10" fill="#38bdf8" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
+    <text id="ps-t3" x="0" y="0" font-size="10" fill="#ff9944" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
+  </svg>`;
+
+  const diffFinal = finalLump - finalPAC;
+  const diffPct   = finalPAC > 0 ? diffFinal/finalPAC*100 : 0;
+
+  area.innerHTML = `<div style="margin:0 14px">${inputHtml}</div>${sugHtml}
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:0 14px 10px">
+    <div style="background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.2);border-radius:6px;padding:4px 8px;text-align:center">
+      <div style="font-size:7px;color:#94a3b8;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:2px">Totale versato</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#94a3b8">${fmtK(totalInvested)}</div>
+    </div>
+    <div style="background:rgba(192,132,252,.07);border:1px solid rgba(192,132,252,.2);border-radius:6px;padding:4px 8px;text-align:center">
+      <div style="font-size:7px;color:#c084fc;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:2px">PAC finale</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#c084fc">${fmtK(finalPAC)}</div>
+    </div>
+    <div style="background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.2);border-radius:6px;padding:4px 8px;text-align:center">
+      <div style="font-size:7px;color:#38bdf8;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:2px">Lump sum finale</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#38bdf8">${fmtK(finalLump)}</div>
+    </div>
+    <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:4px 8px;text-align:center">
+      <div style="font-size:7px;color:#f87171;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:2px">Lump batte PAC di</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#f87171">+${fmtK(diffFinal)}</div>
+    </div>
+  </div>
+  <div class="proj-chart-wrap" style="margin:0 14px 8px">
+    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:4px 0 10px;font-size:11px">
+      <span><span class="proj-leg-dot" style="background:#c084fc"></span>PAC mensile</span>
+      <span><span class="proj-leg-dot" style="background:#38bdf8"></span>Lump sum equiv.</span>
+      <span><span class="proj-leg-dot" style="background:#ff9944"></span>Inflazione</span>
+    </div>
+    ${svg}
+  </div>
+  <div style="margin:4px 14px 80px;background:rgba(123,167,255,.05);border:1px solid rgba(123,167,255,.15);border-radius:10px;padding:10px 14px;font-size:11px;color:var(--text2);line-height:1.6">
+    📊 <strong style="color:var(--text)">Lump sum vs PAC:</strong> Investire ${fmtK(totalInvested)} tutto subito genera
+    <strong style="color:#38bdf8">${fmtK(finalLump)}</strong> in ${MAXYRS} anni, vs
+    <strong style="color:#c084fc">${fmtK(finalPAC)}</strong> con PAC da ${fmtK(pac)}/mese.
+    Il lump sum rende di più perché tutto il capitale lavora dal giorno 1.
+    Il PAC è però accessibile a chi non dispone del capitale iniziale completo.
+  </div>`;
+
+  // Crosshair
+  requestAnimationFrame(()=>{
+    const svgEl=document.getElementById('pac-sim-svg');
+    if(!svgEl)return;
+    const bw=160, setA=(id,a)=>{const el=svgEl.querySelector('#'+id);if(el)Object.entries(a).forEach(([k,v])=>el.setAttribute(k,v));};
+    svgEl.addEventListener('mousemove',function(e){
+      const rect=svgEl.getBoundingClientRect();
+      const svgX=(e.clientX-rect.left)/rect.width*W;
+      const yr=Math.max(0,Math.min(MAXYRS,Math.round((svgX-pl)/cw*MAXYRS)));
+      const px=sx(yr);
+      const pyP=sy(pacArr[yr]), pyL=sy(lumpArr[yr]);
+      const bx=px+bw+12>pl+cw?px-bw-8:px+8;
+      const by=Math.max(pt+2, Math.min(pt+ch-72,pyP-34));
+      setA('ps-cv',{x1:px,x2:px,opacity:1});
+      setA('ps-dp',{cx:px,cy:pyP,opacity:1});
+      setA('ps-dl',{cx:px,cy:pyL,opacity:1});
+      setA('ps-box',{x:bx,y:by,opacity:1});
+      let ly=by+13;
+      setA('ps-t0',{x:bx+bw/2,y:ly,opacity:1});svgEl.querySelector('#ps-t0').textContent='Anno '+yr;ly+=15;
+      setA('ps-t1',{x:bx+bw/2,y:ly,opacity:1});svgEl.querySelector('#ps-t1').textContent='PAC: '+fmtK(pacArr[yr]);ly+=14;
+      setA('ps-t2',{x:bx+bw/2,y:ly,opacity:1});svgEl.querySelector('#ps-t2').textContent='Lump: '+fmtK(lumpArr[yr]);ly+=14;
+      setA('ps-t3',{x:bx+bw/2,y:ly,opacity:1});svgEl.querySelector('#ps-t3').textContent='Infl.: '+fmtK(inflArr[yr]);
+    });
+    svgEl.addEventListener('mouseleave',function(){
+      ['ps-cv','ps-dp','ps-dl','ps-box','ps-t0','ps-t1','ps-t2','ps-t3'].forEach(id=>{
+        const el=svgEl.querySelector('#'+id);if(el)el.setAttribute('opacity','0');
+      });
+    });
+  });
+}
+
+
 'use strict';
 // ════════════════════════════════════════════════════════════════
 //  CONSTANTS
@@ -3003,33 +3219,20 @@ function renderProjection() {
     </div>${subRows}`;
   }).join('');
 
-  // Calcola total per default capitale
-  const _hlds = calcPF();
-  let _tot = 0;
-  _hlds.forEach(h => { _tot += currentValueAllEUR(h) ?? costBasisAllEUR(h); });
-  if (S.cashEUR>0) _tot += S.cashEUR;
-  const _capDefault = ALL.settings.projCapital ?? _tot;
-  const _pacDefault = ALL.settings.projPAC || '';
-
   area.innerHTML = `
   <div class="proj-section" style="margin-bottom:8px">
-    <div class="slbl" style="margin-bottom:6px">🎯 Scenario</div>
+    <div class="slbl" style="margin-bottom:6px">📈 Scenario aggiuntivo (opzionale)</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
       <div>
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">Capitale (€)</div>
-        <div style="display:flex;align-items:center;gap:5px">
-          <input type="number" class="proj-rate-inp" style="flex:1;min-width:0"
-            value="${_capDefault.toFixed(0)}" min="0" step="1000" inputmode="decimal"
-            oninput="ALL.settings.projCapital=parseFloat(this.value)||0;save();debouncedRenderProj()">
-          <button onclick="ALL.settings.projCapital=null;save();renderProjection()"
-            title="Ripristina valore portafoglio"
-            style="background:none;border:1px solid var(--border2);border-radius:6px;padding:2px 6px;cursor:pointer;color:var(--text3);font-size:11px;flex-shrink:0">↺</button>
-        </div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">+ Lump sum oggi (€)</div>
+        <input type="number" class="proj-rate-inp" style="width:100%"
+          value="${ALL.settings.projLumpSum||''}" min="0" step="1000" inputmode="decimal" placeholder="0 = disabilitato"
+          oninput="ALL.settings.projLumpSum=parseFloat(this.value)||0;save();debouncedRenderProj()">
       </div>
       <div>
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">PAC mensile (€)</div>
-        <input type="number" class="proj-rate-inp" style="width:100%" value="${_pacDefault}"
-          min="0" step="100" inputmode="decimal" placeholder="0 = disabilitato"
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">+ PAC mensile (€)</div>
+        <input type="number" class="proj-rate-inp" style="width:100%"
+          value="${ALL.settings.projPAC||''}" min="0" step="100" inputmode="decimal" placeholder="0 = disabilitato"
           oninput="ALL.settings.projPAC=parseFloat(this.value)||0;save();debouncedRenderProj()">
       </div>
     </div>
@@ -3119,41 +3322,31 @@ function refreshProjectionOutput() {
   }
 
   // Capitale: usa input utente o default = total portafoglio
-  const capitalInput = (ALL.settings.projCapital != null && ALL.settings.projCapital > 0)
-    ? ALL.settings.projCapital : total;
-  const scaleFactor = total > 0 ? capitalInput / total : 1;
-
-  const attuale   = project(tkAttualeMap).map(v => v * scaleFactor);
-  const obiettivo = hasTarget ? project(tkObjMap).map(v => v * scaleFactor) : null;
-  const inflaz    = Array.from({length:YRS}, (_,y) => capitalInput*Math.pow(1+inflRate/100, y));
-
-  // PAC mensile — 2 curve aggiuntive
-  const pacMonthly = ALL.settings.projPAC || 0;
-  // Tasso medio ponderato allocazione attuale
-  let _rW=0, _vW=0;
-  Object.entries(tkAttualeMap).forEach(([k,v])=>{ _vW+=v; _rW+=v*getRate(k); });
-  const rAvgCurrent = _vW > 0 ? _rW/_vW : 0.07;
-  // Tasso medio ponderato allocazione obiettivo
-  let _rWO=0, _totalTarget=0;
+  // Normalizza tkObjMap a total
   if (hasTarget) {
-    Object.entries(targets).forEach(([cat,pct])=>{
-      const w=(Number(pct)||0)/100; _totalTarget+=w;
-      _rWO += w * (rates[cat]||0)/100;
-    });
-    if (_totalTarget>0) _rWO = _rWO/_totalTarget;
+    const tkObjSum=Object.values(tkObjMap).reduce((s,v)=>s+v,0);
+    if(tkObjSum>0&&Math.abs(tkObjSum-total)>0.01){const n=total/tkObjSum;Object.keys(tkObjMap).forEach(k=>{tkObjMap[k]*=n;});}
   }
-  const rAvgTarget = _totalTarget>0 ? _rWO : rAvgCurrent;
-  const pacFV = (r) => Array.from({length:YRS},(_,y)=>{
-    if(y===0||pacMonthly<=0) return 0;
-    const rm=r/12; return rm>1e-10 ? pacMonthly*((Math.pow(1+rm,y*12)-1)/rm) : pacMonthly*12*y;
+  const attuale=project(tkAttualeMap);
+  const obiettivo=hasTarget?project(tkObjMap):null;
+  const inflaz=Array.from({length:YRS},(_,y)=>total*Math.pow(1+inflRate/100,y));
+  let _rW=0,_vW=0;
+  Object.entries(tkAttualeMap).forEach(([k,v])=>{_vW+=v;_rW+=v*getRate(k);});
+  const rAvgCurrent=_vW>0?_rW/_vW:0.07;
+  const lumpSum=ALL.settings.projLumpSum||0;
+  const attuale_lump=lumpSum>0?attuale.map((v,y)=>v+lumpSum*Math.pow(1+rAvgCurrent,y)):null;
+  const pacMonthly=ALL.settings.projPAC||0;
+  const _rm=rAvgCurrent/12;
+  const _pacFV=Array.from({length:YRS},(_,y)=>{
+    if(y===0||pacMonthly<=0)return 0;
+    return _rm>1e-10?pacMonthly*((Math.pow(1+_rm,y*12)-1)/_rm):pacMonthly*12*y;
   });
-  const pac_attuale   = pacMonthly > 0 ? pacFV(rAvgCurrent) : null;
-  const pac_obiettivo = pacMonthly > 0 && hasTarget ? pacFV(rAvgTarget) : null;
+  const attuale_pac=pacMonthly>0?attuale.map((v,y)=>v+_pacFV[y]):null;
 
   // SVG
   const pl=72,pr=16,pt=18,pb=36,W=740,H=260;
   const cw=W-pl-pr, ch=H-pt-pb;
-  const allVals=[...attuale,...(obiettivo||[]),...inflaz,...(pac_attuale||[]),...(pac_obiettivo||[])];
+  const allVals=[...attuale,...(obiettivo||[]),...inflaz,...(attuale_lump||[]),...(attuale_pac||[])];
   const maxV=Math.max(...allVals)*1.06;
   const sx=y=>pl+(y/MAXYRS)*cw, sy=v=>pt+ch*(1-v/maxV);
   const fY=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?Math.round(v/1e3)+'k':''+Math.round(v);
@@ -3172,8 +3365,8 @@ function refreshProjectionOutput() {
     <polyline points="${pts(inflaz)}" fill="none" stroke="#ff9944" stroke-width="1.5" stroke-dasharray="5,3"/>
     ${obiettivo?`<polyline points="${pts(obiettivo)}" fill="none" stroke="#22d47e" stroke-width="2"/>`:''}
     <polyline points="${pts(attuale)}" fill="none" stroke="#7ba7ff" stroke-width="2.5"/>
-    ${pac_attuale?`<polyline points="${pts(pac_attuale)}" fill="none" stroke="#c084fc" stroke-width="1.8" stroke-dasharray="7,4"/>`:''}
-    ${pac_obiettivo?`<polyline points="${pts(pac_obiettivo)}" fill="none" stroke="#86efac" stroke-width="1.8" stroke-dasharray="7,4"/>`:''}
+  ${attuale_lump?`<polyline points="${pts(attuale_lump)}" fill="none" stroke="#22d47e" stroke-width="2" stroke-dasharray="8,4"/>`:''}
+    ${attuale_pac?`<polyline points="${pts(attuale_pac)}" fill="none" stroke="#c084fc" stroke-width="2" stroke-dasharray="8,4"/>`:''}
     ${gridY.map(v=>`<text x="${pl-5}" y="${(sy(v)+4).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="10">${fY(v)}€</text>`).join('')}
     ${xTicks.map(y=>`<text x="${sx(y).toFixed(1)}" y="${(pt+ch+20).toFixed(1)}" text-anchor="middle" fill="#4b6090" font-size="10">${y}a</text>`).join('')}
     <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
@@ -3184,6 +3377,7 @@ function refreshProjectionOutput() {
     <text id="pct1" x="0" y="0" font-size="10" fill="#7ba7ff" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
     <text id="pct2" x="0" y="0" font-size="10" fill="#22d47e" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
     <text id="pct3" x="0" y="0" font-size="10" fill="#ff9944" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
+    <text id="pct4" x="0" y="0" font-size="10" fill="#c084fc" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
     <circle id="pcdot" cx="0" cy="0" r="4" fill="#7ba7ff" stroke="#0d1322" stroke-width="2" opacity="0"/>
   </svg>`;
 
@@ -3191,26 +3385,28 @@ function refreshProjectionOutput() {
     const va=attuale[y], vo=obiettivo?.[y], base=inflaz[y];
     const na=va-base, no=vo!=null?vo-base:null;
     const yr=y===0?'<strong>Oggi</strong>':`Anno ${y}`;
-    const vpa=pac_attuale?.[y], vpo=pac_obiettivo?.[y];
+    const vl=attuale_lump?.[y],vp=attuale_pac?.[y];
     return `<tr>
       <td>${yr}</td>
       <td class="col-att">${e2(va)}</td>
       ${obiettivo?`<td class="col-obj">${e2(vo)}</td>`:''}
       <td class="col-net-att ${na>=0?'gain':'loss'}">${na>=0?'+':''}${e2(na)}</td>
       ${obiettivo?`<td class="col-net-obj ${no>=0?'gain':'loss'}">${no>=0?'+':''}${e2(no)}</td>`:''}
-      ${pac_attuale?`<td style="color:#c084fc;font-weight:700">${e2(vpa)}</td>`:''}
-      ${pac_obiettivo?`<td style="color:#86efac;font-weight:700">${e2(vpo)}</td>`:''}
+      ${attuale_lump?`<td style="color:#22d47e;font-weight:700">${e2(vl)}</td>`:''}
+      ${attuale_pac?`<td style="color:#c084fc;font-weight:700">${e2(vp)}</td>`:''}
     </tr>`;
+  
   }).join('');
 
-  const fmtK = v => v>=1e6?(v/1e6).toFixed(2)+'M€':v>=1e3?Math.round(v/1e3)+'k€':Math.round(v)+'€';
-  const finalA = attuale[MAXYRS], finalO = obiettivo?.[MAXYRS], finalI = inflaz[MAXYRS];
+  const fmtK=v=>v>=1e6?(v/1e6).toFixed(2)+'M€':v>=1e3?Math.round(v/1e3)+'k€':Math.round(v)+'€';
+  const finalA=attuale[MAXYRS],finalO=obiettivo?.[MAXYRS],finalI=inflaz[MAXYRS];
+  const finalL=attuale_lump?.[MAXYRS],finalP=attuale_pac?.[MAXYRS];
 
   out.innerHTML = `
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
     ${[5,10,15,20,25,30,35,40].map(y=>`<button onclick="setProjYears(${y})" style="padding:4px 12px;border-radius:20px;border:1px solid ${MAXYRS===y?'var(--blue)':'var(--border2)'};background:${MAXYRS===y?'var(--blue)':'none'};color:${MAXYRS===y?'#fff':'var(--text2)'};font-size:11px;font-weight:700;cursor:pointer">${y}a</button>`).join('')}
   </div>
-  <div style="display:grid;grid-template-columns:repeat(${finalO!=null?4:3},1fr);gap:4px;margin-bottom:4px">
+  <div style="display:grid;grid-template-columns:repeat(${2+(finalO!=null?1:0)+(finalL!=null?1:0)+(finalP!=null?1:0)},1fr);gap:4px;margin-bottom:4px">
     <div style="background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
       <div style="font-size:7px;color:#94a3b8;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Capitale investito</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#94a3b8;line-height:1.1">${fmtK(capitalInput)}</div>
@@ -3223,7 +3419,7 @@ function refreshProjectionOutput() {
       <div style="font-size:7px;color:#22d47e;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Allocazione obiettivo</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#22d47e;line-height:1.1">${fmtK(finalO)}</div>
     </div>`:''}
-    <div style="background:rgba(255,153,68,.07);border:1px solid rgba(255,153,68,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
+    ${finalL!=null?`<div style="background:rgba(34,212,126,.07);border:1px solid rgba(34,212,126,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px"><div style="font-size:7px;color:#22d47e;text-transform:uppercase;letter-spacing:.7px;font-weight:800;margin-bottom:1px;line-height:1.1">+ Lump sum</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#22d47e;line-height:1.1">${fmtK(finalL)}</div></div>`:''}\n    ${finalP!=null?`<div style="background:rgba(192,132,252,.07);border:1px solid rgba(192,132,252,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px"><div style="font-size:7px;color:#c084fc;text-transform:uppercase;letter-spacing:.7px;font-weight:800;margin-bottom:1px;line-height:1.1">+ PAC mensile</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#c084fc;line-height:1.1">${fmtK(finalP)}</div></div>`:''}\n        <div style="background:rgba(255,153,68,.07);border:1px solid rgba(255,153,68,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
       <div style="font-size:7px;color:#ff9944;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Inflazione ${inflRate}%</div>
       <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#ff9944;line-height:1.1">${fmtK(finalI)}</div>
     </div>
@@ -3233,8 +3429,7 @@ function refreshProjectionOutput() {
       <span><span class="proj-leg-dot" style="background:#7ba7ff"></span>Portafoglio attuale</span>
       ${obiettivo?`<span><span class="proj-leg-dot" style="background:#22d47e"></span>Allocazione obiettivo</span>`:''}
       <span><span class="proj-leg-dot" style="background:#ff9944"></span>Inflazione ${inflRate}%</span>
-      ${pac_attuale?`<span><span class="proj-leg-dot" style="background:#c084fc"></span>PAC ${e2(pacMonthly)}/mese · tasso attuale</span>`:''}
-      ${pac_obiettivo?`<span><span class="proj-leg-dot" style="background:#86efac"></span>PAC · tasso obiettivo</span>`:''}
+      ${attuale_lump?`<span><span class="proj-leg-dot" style="background:#22d47e;opacity:.8"></span>+ Lump sum ${fmtK(lumpSum)}</span>`:''}\n      ${attuale_pac?`<span><span class="proj-leg-dot" style="background:#c084fc;opacity:.8"></span>+ PAC ${fmtK(pacMonthly)}/mese</span>`:''}\n      
     </div>
     ${svg}
   </div>
@@ -3246,8 +3441,8 @@ function refreshProjectionOutput() {
         ${obiettivo?'<th>Portafoglio obiettivo</th>':''}
         <th>Guadagno acc. netto infl.</th>
         ${obiettivo?'<th>Guadagno acc. netto infl. (obiettivo)</th>':''}
-        ${pac_attuale?'<th style="color:#c084fc">PAC · tasso attuale</th>':''}
-        ${pac_obiettivo?'<th style="color:#86efac">PAC · tasso obiettivo</th>':''}
+        ${attuale_lump?'<th style="color:#22d47e">+ Lump sum</th>':''}h>':''}
+        ${attuale_pac?'<th style="color:#c084fc">+ PAC mensile</th>':''}''}
       </tr></thead>
       <tbody>${rowHtml}</tbody>
     </table>
@@ -4857,7 +5052,7 @@ function renderHistoryChart(ticker,th,hlds,period){
 const PAGE_GROUPS = {
   portfolio:  { pages:['portfolio'],                                         single:true },
   operations: { pages:['operations'],                                        single:true },
-  analisi:    { pages:['charts','proj','pnl','history'],    labels:['Grafici','Proiezione','P&L','Storico'] },
+  analisi:    { pages:['charts','proj','pac-sim','pnl','history'], labels:['Grafici','Proiezione','Simulatore PAC','P&L','Storico'] },
   pianifica:  { pages:['rebalance','pac'],                  labels:['Ribilanciamento','PAC'] },
   gestione:   { pages:['settings','tax','backup'],          labels:['Impostazioni','Tassazione','Backup'] },
 };
@@ -4905,6 +5100,7 @@ function showPage(pg) {
   if (pg==='charts')    renderCharts();
   if (pg==='rebalance') renderRebalance();
   if (pg==='proj')      renderProjection();
+  if (pg==='pac-sim')   renderPACSim();
   if (pg==='pac')       renderPAC();
   if (pg==='pnl')       renderPnL();
   if (pg==='history')   renderHistory();
