@@ -1590,6 +1590,7 @@ function load() {
 
 function save() {
   try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
+  scheduleAutoGistSync('save');
 }
 
 function normalizePortfolio(pf) {
@@ -6173,6 +6174,27 @@ function onPortfolioNameInput() {
 // ════════════════════════════════════════════════════════════════
 //  GITHUB GIST SYNC
 // ════════════════════════════════════════════════════════════════
+let _autoGistTimer = null;
+let _gistSyncBusy = false;
+let _suppressAutoGist = false;
+
+function hasGistSyncConfigured() {
+  return !!(ALL.settings && ALL.settings.githubToken && ALL.settings.gistId);
+}
+
+function scheduleAutoGistSync(reason='auto') {
+  if (_suppressAutoGist) return;
+  if (!hasGistSyncConfigured()) return;
+  clearTimeout(_autoGistTimer);
+  _autoGistTimer = setTimeout(() => syncToGist(true, reason), 2500);
+}
+
+async function autoSyncFromGistOnStartup() {
+  if (!hasGistSyncConfigured()) return;
+  // Scarica automaticamente il Gist all'avvio, ma senza cancellare dati locali se il Gist è vuoto/incompleto.
+  setTimeout(() => syncFromGist(true), 800);
+}
+
 function onGithubTokenChange(val) {
   ALL.settings.githubToken = val.trim();
   save();
@@ -6251,19 +6273,25 @@ async function readCurrentGistBackup(token, gistId) {
   } catch(e) { return null; }
 }
 
-async function syncToGist() {
-  const token = ALL.settings.githubToken || '';
-  if (!token) { showToast('⚠ Inserisci prima il token GitHub'); return; }
+async function syncToGist(silent=false, reason='manual') {
+  const token = String(ALL.settings.githubToken || '').trim();
+  if (!token) { if (!silent) showToast('⚠ Inserisci prima il token GitHub'); return false; }
+  if (_gistSyncBusy) return false;
+  _gistSyncBusy = true;
+  _suppressAutoGist = true;
   const btn = document.getElementById('gist-upload-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Caricamento...'; }
+  if (!silent && btn) { btn.disabled = true; btn.textContent = 'Caricamento...'; }
   try {
     const gistId = ALL.settings.gistId;
     const remoteBackup = gistId ? await readCurrentGistBackup(token, gistId) : null;
+    // Preserva le chiusure create da GitHub Actions e già presenti sul Gist.
     ALL.officialCloses = mergeOfficialCloses(ALL.officialCloses || {}, remoteBackup?.officialCloses || {});
     ALL.officialClosesMeta = mergeObjectsPreferRemote(ALL.officialClosesMeta || {}, remoteBackup?.officialClosesMeta || {});
+
     const backup = JSON.stringify({
       version: SK,
       exportedAt: new Date().toISOString(),
+      autoSyncReason: reason,
       multiPortfolio: true,
       portfolios: ALL.portfolios.map(pf => ({...pf, dailyChanges:{}})),
       activePortfolioId: ALL.activePortfolioId,
@@ -6294,25 +6322,33 @@ async function syncToGist() {
     const data = await res.json();
     if (!gistId) ALL.settings.gistId = data.id;
     ALL.settings.lastGistSync = new Date().toISOString();
-    save();
-    showToast('✓ Backup salvato su GitHub Gist');
+    try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
+    if (!silent) showToast('✓ Backup salvato su GitHub Gist');
+    else console.log('Auto Gist sync OK:', reason);
     renderGistUI();
+    return true;
   } catch(e) {
-    showToast('⚠ Errore: ' + (e.message || 'Connessione fallita'));
+    if (!silent) showToast('⚠ Errore: ' + (e.message || 'Connessione fallita'));
     console.error('Gist sync error:', e);
+    return false;
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '☁ Carica su Gist'; }
+    _gistSyncBusy = false;
+    _suppressAutoGist = false;
+    if (!silent && btn) { btn.disabled = false; btn.textContent = '☁ Carica su Gist'; }
   }
 }
 
-async function syncFromGist() {
-  const token  = ALL.settings.githubToken || '';
-  const gistId = ALL.settings.gistId || '';
-  if (!token)  { showToast('⚠ Inserisci prima il token GitHub'); return; }
-  if (!gistId) { showToast('⚠ Nessun Gist trovato — fai prima un upload'); return; }
-  if (!confirm('Sovrascrivere i dati locali con il backup da Gist?')) return;
+async function syncFromGist(silent=false) {
+  const token  = String(ALL.settings.githubToken || '').trim();
+  const gistId = String(ALL.settings.gistId || '').trim();
+  if (!token)  { if (!silent) showToast('⚠ Inserisci prima il token GitHub'); return false; }
+  if (!gistId) { if (!silent) showToast('⚠ Nessun Gist trovato — fai prima un upload'); return false; }
+  if (!silent && !confirm('Sovrascrivere i dati locali con il backup da Gist?')) return false;
+  if (_gistSyncBusy) return false;
+  _gistSyncBusy = true;
+  _suppressAutoGist = true;
   const btn = document.getElementById('gist-download-btn');
-  if (btn) { btn.disabled = true; btn.textContent = 'Download...'; }
+  if (!silent && btn) { btn.disabled = true; btn.textContent = 'Download...'; }
   try {
     const res = await fetch('https://api.github.com/gists/' + gistId, {
       headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github+json' }
@@ -6349,12 +6385,17 @@ async function syncFromGist() {
     ALL.activePortfolioId = ALL.portfolios.find(p=>p.id===ALL.activePortfolioId)?.id || ALL.portfolios[0].id;
     S = ALL.portfolios.find(p=>p.id===ALL.activePortfolioId);
     save(); renderAll(); renderGistUI();
-    showToast('✓ Dati ripristinati da Gist');
+    if (!silent) showToast('✓ Dati ripristinati da Gist');
+    else console.log('Auto Gist download OK');
+    return true;
   } catch(e) {
-    showToast('⚠ Errore: ' + (e.message || 'Download fallito'));
+    if (!silent) showToast('⚠ Errore: ' + (e.message || 'Download fallito'));
     console.error('Gist download error:', e);
+    return false;
   } finally {
-    if (btn) { btn.disabled = false; btn.textContent = '⬇ Ripristina da Gist'; }
+    _gistSyncBusy = false;
+    _suppressAutoGist = false;
+    if (!silent && btn) { btn.disabled = false; btn.textContent = '⬇ Ripristina da Gist'; }
   }
 }
 
@@ -7573,6 +7614,7 @@ setupPWA();
 applyTheme(ALL.settings?.theme || 'dark');
 renderAll();
 showPage('portfolio');  // inizializza stato subtabs bar
+autoSyncFromGistOnStartup();
 startAutoRefresh();
 loadSparklines();
 function setOpsChartPeriod(btn) {
