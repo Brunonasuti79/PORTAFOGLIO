@@ -2428,9 +2428,17 @@ function sortHoldings(list) {
       case 'gain':    return cmp(gainBuyCcy(a), gainBuyCcy(b));
       case 'gainpct': return cmp(gainPctBuyCcy(a), gainPctBuyCcy(b));
       case 'oggi': {
-        const pa = S.dailyChanges?.[a.ticker]?.pct;
-        const pb = S.dailyChanges?.[b.ticker]?.pct;
-        return cmp(pa==null?null:Number(pa), pb==null?null:Number(pb));
+        const _EU = new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS']);
+        const _todayPct = h => {
+          const dc = S.dailyChanges?.[h.ticker];
+          if (!dc || dc.pct == null) return null;
+          const mkt = (h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
+          const isEU = _EU.has(mkt)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
+          if (isEU && !hasEUTradedToday()) return null;
+          if (!isEU && !hasUSTradedToday()) return null;
+          return Number(dc.pct);
+        };
+        return cmp(_todayPct(a), _todayPct(b));
       }
       case 'prezzo':  return cmp(currentPriceBuyCcy(a), currentPriceBuyCcy(b));
       default: return d*(a.name||a.displayTicker).localeCompare(b.name||b.displayTicker,'it');
@@ -2995,7 +3003,37 @@ function renderProjection() {
     </div>${subRows}`;
   }).join('');
 
+  // Calcola total per default capitale
+  const _hlds = calcPF();
+  let _tot = 0;
+  _hlds.forEach(h => { _tot += currentValueAllEUR(h) ?? costBasisAllEUR(h); });
+  if (S.cashEUR>0) _tot += S.cashEUR;
+  const _capDefault = ALL.settings.projCapital ?? _tot;
+  const _pacDefault = ALL.settings.projPAC || '';
+
   area.innerHTML = `
+  <div class="proj-section" style="margin-bottom:8px">
+    <div class="slbl" style="margin-bottom:6px">🎯 Scenario</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+      <div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">Capitale (€)</div>
+        <div style="display:flex;align-items:center;gap:5px">
+          <input type="number" class="proj-rate-inp" style="flex:1;min-width:0"
+            value="${_capDefault.toFixed(0)}" min="0" step="1000" inputmode="decimal"
+            oninput="ALL.settings.projCapital=parseFloat(this.value)||0;save();debouncedRenderProj()">
+          <button onclick="ALL.settings.projCapital=null;save();renderProjection()"
+            title="Ripristina valore portafoglio"
+            style="background:none;border:1px solid var(--border2);border-radius:6px;padding:2px 6px;cursor:pointer;color:var(--text3);font-size:11px;flex-shrink:0">↺</button>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">PAC mensile (€)</div>
+        <input type="number" class="proj-rate-inp" style="width:100%" value="${_pacDefault}"
+          min="0" step="100" inputmode="decimal" placeholder="0 = disabilitato"
+          oninput="ALL.settings.projPAC=parseFloat(this.value)||0;save();debouncedRenderProj()">
+      </div>
+    </div>
+  </div>
   <div class="proj-section">
     <div class="slbl">📊 Tassi di rendimento annuo</div>
     <div class="sdesc">Modifica i valori — grafico e tabella si aggiornano in tempo reale.</div>
@@ -3080,14 +3118,42 @@ function refreshProjectionOutput() {
     });
   }
 
-  const attuale   = project(tkAttualeMap);
-  const obiettivo = hasTarget ? project(tkObjMap) : null;
-  const inflaz    = Array.from({length:YRS}, (_,y) => total*Math.pow(1+inflRate/100, y));
+  // Capitale: usa input utente o default = total portafoglio
+  const capitalInput = (ALL.settings.projCapital != null && ALL.settings.projCapital > 0)
+    ? ALL.settings.projCapital : total;
+  const scaleFactor = total > 0 ? capitalInput / total : 1;
+
+  const attuale   = project(tkAttualeMap).map(v => v * scaleFactor);
+  const obiettivo = hasTarget ? project(tkObjMap).map(v => v * scaleFactor) : null;
+  const inflaz    = Array.from({length:YRS}, (_,y) => capitalInput*Math.pow(1+inflRate/100, y));
+
+  // PAC mensile — 2 curve aggiuntive
+  const pacMonthly = ALL.settings.projPAC || 0;
+  // Tasso medio ponderato allocazione attuale
+  let _rW=0, _vW=0;
+  Object.entries(tkAttualeMap).forEach(([k,v])=>{ _vW+=v; _rW+=v*getRate(k); });
+  const rAvgCurrent = _vW > 0 ? _rW/_vW : 0.07;
+  // Tasso medio ponderato allocazione obiettivo
+  let _rWO=0, _totalTarget=0;
+  if (hasTarget) {
+    Object.entries(targets).forEach(([cat,pct])=>{
+      const w=(Number(pct)||0)/100; _totalTarget+=w;
+      _rWO += w * (rates[cat]||0)/100;
+    });
+    if (_totalTarget>0) _rWO = _rWO/_totalTarget;
+  }
+  const rAvgTarget = _totalTarget>0 ? _rWO : rAvgCurrent;
+  const pacFV = (r) => Array.from({length:YRS},(_,y)=>{
+    if(y===0||pacMonthly<=0) return 0;
+    const rm=r/12; return rm>1e-10 ? pacMonthly*((Math.pow(1+rm,y*12)-1)/rm) : pacMonthly*12*y;
+  });
+  const pac_attuale   = pacMonthly > 0 ? pacFV(rAvgCurrent) : null;
+  const pac_obiettivo = pacMonthly > 0 && hasTarget ? pacFV(rAvgTarget) : null;
 
   // SVG
   const pl=72,pr=16,pt=18,pb=36,W=740,H=260;
   const cw=W-pl-pr, ch=H-pt-pb;
-  const allVals=[...attuale,...(obiettivo||[]),...inflaz];
+  const allVals=[...attuale,...(obiettivo||[]),...inflaz,...(pac_attuale||[]),...(pac_obiettivo||[])];
   const maxV=Math.max(...allVals)*1.06;
   const sx=y=>pl+(y/MAXYRS)*cw, sy=v=>pt+ch*(1-v/maxV);
   const fY=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?Math.round(v/1e3)+'k':''+Math.round(v);
@@ -3106,6 +3172,8 @@ function refreshProjectionOutput() {
     <polyline points="${pts(inflaz)}" fill="none" stroke="#ff9944" stroke-width="1.5" stroke-dasharray="5,3"/>
     ${obiettivo?`<polyline points="${pts(obiettivo)}" fill="none" stroke="#22d47e" stroke-width="2"/>`:''}
     <polyline points="${pts(attuale)}" fill="none" stroke="#7ba7ff" stroke-width="2.5"/>
+    ${pac_attuale?`<polyline points="${pts(pac_attuale)}" fill="none" stroke="#c084fc" stroke-width="1.8" stroke-dasharray="7,4"/>`:''}
+    ${pac_obiettivo?`<polyline points="${pts(pac_obiettivo)}" fill="none" stroke="#86efac" stroke-width="1.8" stroke-dasharray="7,4"/>`:''}
     ${gridY.map(v=>`<text x="${pl-5}" y="${(sy(v)+4).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="10">${fY(v)}€</text>`).join('')}
     ${xTicks.map(y=>`<text x="${sx(y).toFixed(1)}" y="${(pt+ch+20).toFixed(1)}" text-anchor="middle" fill="#4b6090" font-size="10">${y}a</text>`).join('')}
     <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
@@ -3123,12 +3191,15 @@ function refreshProjectionOutput() {
     const va=attuale[y], vo=obiettivo?.[y], base=inflaz[y];
     const na=va-base, no=vo!=null?vo-base:null;
     const yr=y===0?'<strong>Oggi</strong>':`Anno ${y}`;
+    const vpa=pac_attuale?.[y], vpo=pac_obiettivo?.[y];
     return `<tr>
       <td>${yr}</td>
       <td class="col-att">${e2(va)}</td>
       ${obiettivo?`<td class="col-obj">${e2(vo)}</td>`:''}
       <td class="col-net-att ${na>=0?'gain':'loss'}">${na>=0?'+':''}${e2(na)}</td>
       ${obiettivo?`<td class="col-net-obj ${no>=0?'gain':'loss'}">${no>=0?'+':''}${e2(no)}</td>`:''}
+      ${pac_attuale?`<td style="color:#c084fc;font-weight:700">${e2(vpa)}</td>`:''}
+      ${pac_obiettivo?`<td style="color:#86efac;font-weight:700">${e2(vpo)}</td>`:''}
     </tr>`;
   }).join('');
 
@@ -3142,7 +3213,7 @@ function refreshProjectionOutput() {
   <div style="display:grid;grid-template-columns:repeat(${finalO!=null?4:3},1fr);gap:4px;margin-bottom:4px">
     <div style="background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
       <div style="font-size:7px;color:#94a3b8;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Capitale investito</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#94a3b8;line-height:1.1">${fmtK(total)}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#94a3b8;line-height:1.1">${fmtK(capitalInput)}</div>
     </div>
     <div style="background:rgba(123,167,255,.07);border:1px solid rgba(123,167,255,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
       <div style="font-size:7px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Portafoglio attuale</div>
@@ -3162,6 +3233,8 @@ function refreshProjectionOutput() {
       <span><span class="proj-leg-dot" style="background:#7ba7ff"></span>Portafoglio attuale</span>
       ${obiettivo?`<span><span class="proj-leg-dot" style="background:#22d47e"></span>Allocazione obiettivo</span>`:''}
       <span><span class="proj-leg-dot" style="background:#ff9944"></span>Inflazione ${inflRate}%</span>
+      ${pac_attuale?`<span><span class="proj-leg-dot" style="background:#c084fc"></span>PAC ${e2(pacMonthly)}/mese · tasso attuale</span>`:''}
+      ${pac_obiettivo?`<span><span class="proj-leg-dot" style="background:#86efac"></span>PAC · tasso obiettivo</span>`:''}
     </div>
     ${svg}
   </div>
@@ -3173,6 +3246,8 @@ function refreshProjectionOutput() {
         ${obiettivo?'<th>Portafoglio obiettivo</th>':''}
         <th>Guadagno acc. netto infl.</th>
         ${obiettivo?'<th>Guadagno acc. netto infl. (obiettivo)</th>':''}
+        ${pac_attuale?'<th style="color:#c084fc">PAC · tasso attuale</th>':''}
+        ${pac_obiettivo?'<th style="color:#86efac">PAC · tasso obiettivo</th>':''}
       </tr></thead>
       <tbody>${rowHtml}</tbody>
     </table>
@@ -6118,10 +6193,10 @@ function getMedalBadge(ticker, currentPrice) {
 
   const near = (max, price) => max && Math.abs(price - max) / max <= THRESHOLD && price >= max * (1 - THRESHOLD);
 
-  if (near(all, currentPrice))  return ' 🏆';
-  if (near(m12, currentPrice))  return ' 🥇';
-  if (near(m6, currentPrice))   return ' 🥈';
-  if (near(m1, currentPrice))   return ' 🥉';
+  if (near(all, currentPrice))  return ' <span title="🏆 Massimo storico assoluto disponibile" style="cursor:help">🏆</span>';
+  if (near(m12, currentPrice))  return ' <span title="🥇 Massimo degli ultimi 12 mesi" style="cursor:help">🥇</span>';
+  if (near(m6, currentPrice))   return ' <span title="🥈 Massimo degli ultimi 6 mesi" style="cursor:help">🥈</span>';
+  if (near(m1, currentPrice))   return ' <span title="🥉 Massimo degli ultimi 30 giorni" style="cursor:help">🥉</span>';
   return '';
 }
 
@@ -6409,6 +6484,18 @@ async function renderOpsChart() {
   const inner = document.getElementById('ops-chart-inner');
   if (!inner) return;
   if (!th?.pts?.length) { inner.innerHTML = '<span style="color:var(--text3);font-size:12px">Storico non disponibile per '+ticker+'</span>'; return; }
+  // Bug A fix: appendi prezzo corrente se l'ultimo dato è vecchio
+  {
+    const hld2 = calcPF().find(h=>h.ticker===ticker||h.displayTicker===ticker||h.quoteTicker===ticker);
+    const curP = hld2 && S.prices?.[hld2.ticker] ? S.prices[hld2.ticker] : null;
+    const lastPt = th.pts[th.pts.length-1];
+    const lastDay = localDateKeyFromMs(lastPt.t);
+    const todayDay = todayRome();
+    if (curP && lastDay < todayDay) {
+      const todayTs = new Date(todayDay+'T12:00:00').getTime();
+      th = { ...th, pts: [...th.pts, { t: todayTs, c: curP }] };
+    }
+  }
 
   // Filtra operazioni del ticker nel periodo
   const pts = th.pts.filter(p=>p.c>0);
@@ -6440,9 +6527,10 @@ async function renderOpsChart() {
     // Aggancia l'operazione alla prima candela disponibile successiva/uguale.
     // Se la data cade in weekend/festivo, evita di spostarla alla candela precedente.
     const opDay = String(op.date || '').slice(0,10);
-    let closest = pts.findIndex(p => localDateKeyFromMs(p.t) >= opDay);
-    if (closest < 0) closest = pts.length - 1;
-    const cx=sxT(opT), cy=sy(pts[closest].c);
+    // Bug B fix: usa indice candle per X e Y → pallino esattamente sulla linea
+    let snapIdx = pts.findIndex(p => localDateKeyFromMs(p.t) >= opDay);
+    if (snapIdx < 0) snapIdx = pts.length - 1;
+    const cx=sx(snapIdx), cy=sy(pts[snapIdx].c);
     const dotCol = op.type==='buy'?'#7ba7ff':'#f59e0b';
     const label = (op.type==='buy'?'▲ Acq. ':'▼ Vend. ')+op.qty+' × '+(op.price||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+'€ ('+op.date+')';
     svgDots += '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="5" fill="'+dotCol+'" stroke="var(--bg2)" stroke-width="1.5" style="cursor:pointer"><title>'+label+'</title></circle>';
