@@ -6204,6 +6204,26 @@ function renderGistUI() {
 }
 
 
+function sanitizeSettingsForBackup(settings={}) {
+  const safe = { ...(settings || {}) };
+  // Non salvare mai token/chiavi segrete nel Gist o nei backup.
+  // Se GitHub vede un token esposto nel Gist, può revocarlo e poi Actions dà 401 Bad credentials.
+  delete safe.githubToken;
+  delete safe.ak;
+  delete safe.anthropicKey;
+  return safe;
+}
+
+function preserveLocalSecrets(currentSettings={}, importedSettings={}) {
+  const out = Object.assign({ak:'', anthropicKey:''}, importedSettings || {});
+  // Le credenziali devono restare locali al dispositivo, non arrivare dal backup remoto.
+  out.githubToken = currentSettings.githubToken || '';
+  out.gistId = currentSettings.gistId || out.gistId || '';
+  out.ak = currentSettings.ak || '';
+  out.anthropicKey = currentSettings.anthropicKey || '';
+  return out;
+}
+
 function mergeOfficialCloses(local={}, remote={}) {
   const out = JSON.parse(JSON.stringify(local || {}));
   for (const [tk, rows] of Object.entries(remote || {})) {
@@ -6247,7 +6267,7 @@ async function syncToGist() {
       multiPortfolio: true,
       portfolios: ALL.portfolios.map(pf => ({...pf, dailyChanges:{}})),
       activePortfolioId: ALL.activePortfolioId,
-      settings: ALL.settings,
+      settings: sanitizeSettingsForBackup(ALL.settings),
       fxRates: ALL.fxRates || {},
       officialCloses: ALL.officialCloses || {},
       officialClosesMeta: ALL.officialClosesMeta || {}
@@ -6314,7 +6334,7 @@ async function syncFromGist() {
         rebalanceTargets: pf.rebalanceTargets||{}
       }));
       ALL.activePortfolioId = backup.activePortfolioId || ALL.portfolios[0]?.id;
-      ALL.settings = Object.assign({ak:'',anthropicKey:''}, backup.settings||{});
+      ALL.settings = preserveLocalSecrets({githubToken:savedToken, gistId:savedGistId, ak:ALL.settings?.ak, anthropicKey:ALL.settings?.anthropicKey}, backup.settings||{});
       ALL.fxRates  = backup.fxRates || {};
       ALL.officialCloses = backup.officialCloses || {};
       ALL.officialClosesMeta = backup.officialClosesMeta || {};
@@ -6345,8 +6365,10 @@ function exportBackup() {
     multiPortfolio: true,
     portfolios: ALL.portfolios.map(pf => ({...pf, dailyChanges:{}})),
     activePortfolioId: ALL.activePortfolioId,
-    settings: ALL.settings,
-    fxRates: ALL.fxRates || {}
+    settings: sanitizeSettingsForBackup(ALL.settings),
+    fxRates: ALL.fxRates || {},
+    officialCloses: ALL.officialCloses || {},
+    officialClosesMeta: ALL.officialClosesMeta || {}
   };
   const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
   const url  = URL.createObjectURL(blob);
@@ -6377,8 +6399,10 @@ function importBackup(event) {
           rebalanceTargets: pf.rebalanceTargets || {}
         }));
         ALL.activePortfolioId = backup.activePortfolioId || ALL.portfolios[0]?.id;
-        ALL.settings = Object.assign({ak:'',anthropicKey:''}, backup.settings || {});
+        ALL.settings = preserveLocalSecrets(ALL.settings || {}, backup.settings || {});
         ALL.fxRates  = backup.fxRates || {};
+        ALL.officialCloses = backup.officialCloses || ALL.officialCloses || {};
+        ALL.officialClosesMeta = backup.officialClosesMeta || ALL.officialClosesMeta || {};
       } else {
         // Legacy format
         const state = backup.state || backup;
@@ -6388,7 +6412,7 @@ function importBackup(event) {
         pf.prices = state.prices || {};
         ALL.portfolios = [pf];
         ALL.activePortfolioId = pf.id;
-        ALL.settings = { ak: backup.apiKeyFinnhub || state.settings?.ak || '', anthropicKey:'' };
+        ALL.settings = preserveLocalSecrets(ALL.settings || {}, { ak: backup.apiKeyFinnhub || state.settings?.ak || '', anthropicKey:'' });
       }
 
       if (!ALL.portfolios.length) ALL.portfolios = [newPortfolio('Portafoglio principale')];
@@ -6408,7 +6432,8 @@ function importBackup(event) {
 function confirmReset() {
   if (!confirm('Sicuro? Verranno cancellati TUTTI i portafogli.')) return;
   const pf = newPortfolio('Portafoglio principale');
-  ALL = { portfolios:[pf], activePortfolioId:pf.id, settings:{ ak:ALL.settings.ak, anthropicKey:'' } };
+  const keepSettings = { githubToken:ALL.settings?.githubToken || '', gistId:ALL.settings?.gistId || '', ak:ALL.settings?.ak || '', anthropicKey:'' };
+  ALL = { portfolios:[pf], activePortfolioId:pf.id, settings:keepSettings, officialCloses:{}, officialClosesMeta:{} };
   S = pf;
   expandedHoldings = {};
   localStorage.removeItem(SK);
