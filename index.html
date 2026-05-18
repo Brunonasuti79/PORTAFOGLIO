@@ -1565,6 +1565,7 @@ function normalizePortfolio(pf) {
   if (!pf.ops)              pf.ops = [];
   if (!pf.prices)           pf.prices = {};
   if (!pf.dailyChanges)     pf.dailyChanges = {};
+  if (!pf.dailyCloses)      pf.dailyCloses = {};
   if (!pf.priceHistory)     pf.priceHistory = [];
   if (!pf.tickerHistory)    pf.tickerHistory = {}; // {quoteTicker: [{t,c}]}
   if (!pf.rebalanceTargets) pf.rebalanceTargets = {};
@@ -1957,7 +1958,7 @@ function readQuoteForm(prefix) {
 // ════════════════════════════════════════════════════════════════
 //  PRICE FETCHING — UNIFIED SYSTEM
 // ════════════════════════════════════════════════════════════════
-async function fetchWithTimeout(url, ms=8000, asText=false) {
+async function fetchWithTimeout(url, ms=5000, asText=false) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), ms);
   try {
@@ -2228,6 +2229,28 @@ function candidatesForHolding(h) {
   return [...new Set([saved, byMarket, ...aliases].map(fc).filter(Boolean))];
 }
 
+
+// ── Storico chiusure giornaliere ──────────────────────────────────
+function getPrevClose(ticker) {
+  const closes = S.dailyCloses?.[ticker];
+  if (!closes) return null;
+  const today = todayRome();
+  // Cerca la chiusura più recente PRIMA di oggi (gestisce weekend/festivi)
+  const dates = Object.keys(closes)
+    .filter(d => d < today && closes[d] != null && closes[d] > 0)
+    .sort().reverse();
+  return dates.length ? { date: dates[0], close: closes[dates[0]] } : null;
+}
+
+function saveDailyClose(ticker, price) {
+  if (!S.dailyCloses)         S.dailyCloses = {};
+  if (!S.dailyCloses[ticker]) S.dailyCloses[ticker] = {};
+  S.dailyCloses[ticker][todayRome()] = price;
+  // Tieni solo 90 giorni
+  const keys = Object.keys(S.dailyCloses[ticker]).sort();
+  if (keys.length > 90) keys.slice(0, keys.length - 90).forEach(k => delete S.dailyCloses[ticker][k]);
+}
+
 async function fetchPriceForHolding(h) {
   const ak  = ALL.settings.ak || '';
   const ant = ALL.settings.anthropicKey || '';
@@ -2241,20 +2264,27 @@ async function fetchPriceForHolding(h) {
   }
 
   const candidates = candidatesForHolding(h);
-  // Try each candidate symbol across sources
+  const isEU = /\.(MI|MOT|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker) ||
+               ['MI','MOT','DE','PA','L','SW','AS','F'].includes(h.market||'');
+
   for (const sym of candidates) {
-    // Finnhub (diretto, senza proxy — più affidabile)
-    const fh = await fetchFinnhub(sym, ak);
-    if (fh) return fh;
-    // Yahoo Chart v8 (proxy)
-    const yc = await fetchYahooChart(sym);
-    if (yc) return yc;
-    // Yahoo HTML scraping (non richiede auth)
-    const yh = await fetchYahooHTML(sym);
-    if (yh) return yh;
-    // Stooq CSV
-    const sq = await fetchStooq(sym, h.market);
-    if (sq) return sq;
+    if (isEU) {
+      // EU: Stooq prima (diretto, no proxy) → Finnhub → Yahoo
+      const sq = await fetchStooq(sym, h.market);
+      if (sq) return sq;
+      const fh = await fetchFinnhub(sym, ak);
+      if (fh) return fh;
+      const yc = await fetchYahooChart(sym);
+      if (yc) return yc;
+    } else {
+      // USA: Finnhub diretto (no proxy, affidabile) → Yahoo
+      const fh = await fetchFinnhub(sym, ak);
+      if (fh) return fh;
+      const yc = await fetchYahooChart(sym);
+      if (yc) return yc;
+      const yq = await fetchYahooQuote(sym);
+      if (yq) return yq;
+    }
   }
 
   // Anthropic as absolute last resort
@@ -2302,10 +2332,46 @@ async function fetchPrices() {
           S.peakPrices[h.ticker] = price;
         }
         sources[h.ticker] = q.source || 'Fonte prezzi';
-        const pct = num(q?.dailyPct);
-        const pctOk = pct !== null && Math.abs(pct) < 25;
-        // Aggiorna sempre dailyChanges quando c'è un prezzo — anche senza pct (es. BTP)
-        S.dailyChanges[h.ticker] = { pct: pctOk ? pct : null, value: pctOk ? (num(q.dailyValue)||0) : 0, source:q.source||'', price, prePct:q.prePct??null, postPct:q.postPct??null };
+
+        // ── Salva chiusura giornaliera ──────────────────────────
+        saveDailyClose(h.ticker, price);
+
+        // ── Calcola Oggi% da storico locale (affidabile) ────────
+        const prevCloseData = getPrevClose(h.ticker);
+        let finalPct, finalVal;
+        if (prevCloseData && prevCloseData.close > 0) {
+          // Dal Giorno 2: usa storico locale — 100% affidabile
+          finalPct = (price - prevCloseData.close) / prevCloseData.close * 100;
+          finalVal = price - prevCloseData.close;
+        } else {
+          // Giorno 1: usa pct dall'API + salva prevClose per domani
+          const pct = num(q?.dailyPct);
+          const pctOk = pct !== null && Math.abs(pct) < 25;
+          finalPct = pctOk ? pct : null;
+          finalVal = pctOk ? (num(q.dailyValue)||0) : 0;
+          // Bootstrap: salva la chiusura di ieri dall'API
+          if (finalPct !== null && price > 0) {
+            const prevCloseAPI = num(q.prevClose) || (price / (1 + finalPct/100));
+            if (prevCloseAPI > 0) {
+              if (!S.dailyCloses[h.ticker]) S.dailyCloses[h.ticker] = {};
+              // Trova il giorno lavorativo precedente (max 5 giorni fa)
+              for (let i=1; i<=5; i++) {
+                const d = localDateKeyFromMs(Date.now() - i*86400000);
+                if (d < todayRome() && !S.dailyCloses[h.ticker][d]) {
+                  S.dailyCloses[h.ticker][d] = prevCloseAPI;
+                  break;
+                }
+              }
+            }
+          }
+        }
+
+        S.dailyChanges[h.ticker] = {
+          pct: finalPct, value: finalVal,
+          source: q.source||'', price,
+          prePct: q.prePct??null, postPct: q.postPct??null,
+          fromLocal: !!prevCloseData
+        };
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
