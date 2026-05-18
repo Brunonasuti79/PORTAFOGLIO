@@ -1243,7 +1243,7 @@ function setPacSim(key, val) {
   if (!ALL.settings.pacSim) ALL.settings.pacSim={};
   const n = parseFloat(val);
   ALL.settings.pacSim[key] = isNaN(n) ? 0 : n;
-  save(); renderPACSim();
+  save(); debouncedPACSim();
 }
 
 function renderPACSim() {
@@ -1256,6 +1256,11 @@ function renderPACSim() {
   const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
   const YRS = MAXYRS + 1;
   const sug = getPACSuggestion(rate);
+
+  // Preserva focus e cursore prima di aggiornare chart
+  const _focusId = document.activeElement?.id;
+  const _focusVal = document.activeElement?.value;
+  const _focusSel = [document.activeElement?.selectionStart, document.activeElement?.selectionEnd];
 
   // Input panel
   const inputHtml = `
@@ -1400,6 +1405,15 @@ function renderPACSim() {
     Il lump sum rende di più perché tutto il capitale lavora dal giorno 1.
     Il PAC è però accessibile a chi non dispone del capitale iniziale completo.
   </div>`;
+
+  // Ripristina focus sull'input dopo re-render
+  if (_focusId) {
+    const el = document.getElementById(_focusId);
+    if (el) {
+      el.focus();
+      try { el.setSelectionRange(_focusSel[0], _focusSel[1]); } catch(e) {}
+    }
+  }
 
   // Crosshair
   requestAnimationFrame(()=>{
@@ -5118,8 +5132,8 @@ function renderHistoryChart(ticker,th,hlds,period){
 const PAGE_GROUPS = {
   portfolio:  { pages:['portfolio'],                                         single:true },
   operations: { pages:['operations'],                                        single:true },
-  analisi:    { pages:['charts','proj','pac-sim','pnl','history'], labels:['Grafici','Proiezione','Simulatore PAC','P&L','Storico'] },
-  pianifica:  { pages:['rebalance','pac'],                  labels:['Ribilanciamento','PAC'] },
+  analisi:    { pages:['charts','proj','pnl','history'], labels:['Grafici','Proiezione','P&L','Storico'] },
+  pianifica:  { pages:['rebalance','pac','pac-sim'],         labels:['Ribilanciamento','PAC','Simulatore'] },
   gestione:   { pages:['settings','tax','backup'],          labels:['Impostazioni','Tassazione','Backup'] },
 };
 const PAGE_TO_GROUP = {};
@@ -6777,6 +6791,8 @@ let _rbDebTimer = null;
 function debouncedRenderRB() { clearTimeout(_rbDebTimer); _rbDebTimer = setTimeout(renderRebalance, 400); }
 let _projDebTimer = null;
 function debouncedRenderProj() { clearTimeout(_projDebTimer); _projDebTimer = setTimeout(refreshProjectionOutput, 400); }
+let _pacSimTimer = null;
+function debouncedPACSim() { clearTimeout(_pacSimTimer); _pacSimTimer = setTimeout(renderPACSim, 600); }
 
 function showTmTip(e, name, cat, val, pct) {
   const tt = document.getElementById('tm-tooltip');
