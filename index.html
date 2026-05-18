@@ -1567,6 +1567,7 @@ function normalizePortfolio(pf) {
   if (!pf.dailyChanges)     pf.dailyChanges = {};
   if (!pf.dailyCloses)      pf.dailyCloses = {};
   if (!pf.sessionPrevCloses) pf.sessionPrevCloses = {};
+  if (!pf.sessionPrevCloseMeta) pf.sessionPrevCloseMeta = {};
   if (!pf.priceHistory)     pf.priceHistory = [];
   if (!pf.tickerHistory)    pf.tickerHistory = {}; // {quoteTicker: [{t,c}]}
   if (!pf.rebalanceTargets) pf.rebalanceTargets = {};
@@ -2319,6 +2320,12 @@ function getMarketRegion(h) {
   const EU = new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS','LSE','EPA','SWX','MIL','XETRA','FWB']);
   return (EU.has(mkt) || /\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h?.ticker||'')) ? 'EU' : 'US';
 }
+
+// Versione logica del calcolo chiusura precedente EU.
+// Se cambia questa stringa, le basi locali EU salvate con logiche vecchie
+// vengono ricalcolate e sovrascritte alla prima apertura mercato utile.
+const EU_PREVCLOSE_LOGIC_VERSION = 'eu-stooq-prevclose-v2-2026-05-18';
+
 function marketSessionDate(region) {
   const tz = region === 'US' ? 'America/New_York' : 'Europe/Rome';
   try {
@@ -2339,20 +2346,38 @@ function getSessionPrevClose(ticker, sessionDate) {
   const v = S.sessionPrevCloses?.[ticker]?.[sessionDate];
   return v && v > 0 ? v : null;
 }
-function saveSessionPrevClose(ticker, sessionDate, prevClose) {
+function getSessionPrevCloseMeta(ticker, sessionDate) {
+  return S.sessionPrevCloseMeta?.[ticker]?.[sessionDate] || null;
+}
+function saveSessionPrevClose(ticker, sessionDate, prevClose, opts={}) {
   prevClose = num(prevClose);
   if (!ticker || !sessionDate || !prevClose || prevClose <= 0) return null;
+  const force = !!opts.force;
   if (!S.sessionPrevCloses) S.sessionPrevCloses = {};
   if (!S.sessionPrevCloses[ticker]) S.sessionPrevCloses[ticker] = {};
-  if (!S.sessionPrevCloses[ticker][sessionDate]) S.sessionPrevCloses[ticker][sessionDate] = prevClose;
+  if (force || !S.sessionPrevCloses[ticker][sessionDate]) S.sessionPrevCloses[ticker][sessionDate] = prevClose;
+
+  // Metadati: servono per capire se la base è stata generata con la logica corrente.
+  if (!S.sessionPrevCloseMeta) S.sessionPrevCloseMeta = {};
+  if (!S.sessionPrevCloseMeta[ticker]) S.sessionPrevCloseMeta[ticker] = {};
+  if (force || !S.sessionPrevCloseMeta[ticker][sessionDate]) {
+    S.sessionPrevCloseMeta[ticker][sessionDate] = {
+      version: opts.version || null,
+      source: opts.source || null,
+      sourceDate: opts.sourceDate || null,
+      updatedAt: new Date().toISOString()
+    };
+  }
 
   // Mantieni anche una copia legacy leggibile in dailyCloses, ma NON salvare più prezzi intraday come chiusure.
   if (!S.dailyCloses) S.dailyCloses = {};
   if (!S.dailyCloses[ticker]) S.dailyCloses[ticker] = {};
-  if (!S.dailyCloses[ticker][sessionDate]) S.dailyCloses[ticker][sessionDate] = prevClose;
+  if (force || !S.dailyCloses[ticker][sessionDate]) S.dailyCloses[ticker][sessionDate] = prevClose;
 
   const keys = Object.keys(S.sessionPrevCloses[ticker]).sort();
   if (keys.length > 120) keys.slice(0, keys.length - 120).forEach(k => delete S.sessionPrevCloses[ticker][k]);
+  const metaKeys = Object.keys(S.sessionPrevCloseMeta[ticker]).sort();
+  if (metaKeys.length > 120) metaKeys.slice(0, metaKeys.length - 120).forEach(k => delete S.sessionPrevCloseMeta[ticker][k]);
   const legacyKeys = Object.keys(S.dailyCloses[ticker]).sort();
   if (legacyKeys.length > 120) legacyKeys.slice(0, legacyKeys.length - 120).forEach(k => delete S.dailyCloses[ticker][k]);
   return prevClose;
@@ -2372,7 +2397,7 @@ function ensureSessionPrevClose(ticker, q, region) {
   if (prevClose) return { sessionDate, prevClose, cached:true, marketReady:true };
   prevClose = extractPrevCloseFromQuote(q);
   if (prevClose) {
-    saveSessionPrevClose(ticker, sessionDate, prevClose);
+    saveSessionPrevClose(ticker, sessionDate, prevClose, {source:q?.source||'api', version: region === 'EU' ? EU_PREVCLOSE_LOGIC_VERSION : null});
     return { sessionDate, prevClose, cached:false, marketReady:true };
   }
   return { sessionDate, prevClose:null, cached:false, marketReady:true };
@@ -2392,6 +2417,128 @@ function saveDailyClose(ticker, price) {
   // Deprecated: lasciata per compatibilità. Le chiusure precedenti vengono salvate
   // con saveSessionPrevClose(), non con il prezzo intraday dell'aggiornamento.
   return null;
+}
+
+
+// ── EU: chiusura precedente ufficiale da Stooq ─────────────────────
+// Per titoli/ETF europei la base "Oggi" deve essere l'ultima chiusura
+// disponibile PRIMA della sessione corrente. Questo gestisce weekend,
+// festività e lunghi ponti senza affidarsi a Yahoo/Finnhub.
+async function fetchStooqCloseBeforeSession(sym, market, sessionDate) {
+  const mkt = market || marketFromSymbol(sym);
+  const base = baseTicker(sym).toLowerCase();
+  const sfx  = stooqSuffix(mkt);
+  const stooqSym = sfx ? base + sfx : sym.toLowerCase();
+  try {
+    const csv = await fetchTextWithProxies(`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`);
+    const lines = csv.trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2 || /^no data/i.test(lines[0])) return null;
+    const rows = lines.slice(1)
+      .map(l => l.split(','))
+      .filter(r => r.length >= 5 && r[0] < sessionDate)
+      .map(r => ({ date:r[0], close:num(r[4]) }))
+      .filter(r => r.close && r.close > 0)
+      .sort((a,b) => a.date.localeCompare(b.date));
+    if (!rows.length) return null;
+    const last = rows[rows.length - 1];
+    return { prevClose:last.close, date:last.date, source:'Stooq session prevClose' };
+  } catch(e) { return null; }
+}
+
+async function fetchEUPrevCloseForSession(h, sessionDate) {
+  const candidates = candidatesForHolding(h);
+  for (const sym of candidates) {
+    const r = await fetchStooqCloseBeforeSession(sym, h.market, sessionDate);
+    if (r && r.prevClose > 0) return r;
+  }
+  return null;
+}
+
+async function ensureEUSessionPrevClose(h, q) {
+  const region = 'EU';
+  const sessionDate = marketSessionDate(region);
+  if (!hasMarketOpenedForSession(region)) {
+    return { sessionDate, prevClose:null, cached:false, marketReady:false, source:null, prevCloseSourceDate:null, refreshed:false, reason:'market_not_open' };
+  }
+
+  const cached = getSessionPrevClose(h.ticker, sessionDate);
+  const meta = getSessionPrevCloseMeta(h.ticker, sessionDate);
+
+  // Se il dato locale è stato creato con la logica corrente, lo usiamo e NON richiediamo ogni volta.
+  // Se manca il meta/versione o cambia EU_PREVCLOSE_LOGIC_VERSION, lo consideriamo obsoleto e lo rigeneriamo.
+  const cacheIsCurrent = cached && meta && meta.version === EU_PREVCLOSE_LOGIC_VERSION;
+  if (cacheIsCurrent) {
+    return {
+      sessionDate,
+      prevClose:cached,
+      cached:true,
+      marketReady:true,
+      source:'local',
+      prevCloseSourceDate:meta.sourceDate || null,
+      refreshed:false,
+      reason:'cache_current'
+    };
+  }
+
+  // Fonte primaria EU: ultima close Stooq precedente alla sessione corrente.
+  // In apertura mercato o dopo cambio versione logica, sovrascrive il valore locale precedente.
+  const stooqPrev = await fetchEUPrevCloseForSession(h, sessionDate);
+  if (stooqPrev && stooqPrev.prevClose > 0) {
+    saveSessionPrevClose(h.ticker, sessionDate, stooqPrev.prevClose, {
+      force:true,
+      version:EU_PREVCLOSE_LOGIC_VERSION,
+      source:stooqPrev.source,
+      sourceDate:stooqPrev.date
+    });
+    return {
+      sessionDate,
+      prevClose:stooqPrev.prevClose,
+      cached:false,
+      marketReady:true,
+      source:stooqPrev.source,
+      prevCloseSourceDate:stooqPrev.date,
+      refreshed:true,
+      reason: cached ? 'cache_stale_or_version_changed' : 'new_session_open'
+    };
+  }
+
+  // Fallback conservativo: se Stooq non risolve il simbolo e abbiamo un cached, usiamolo.
+  // Non lo sovrascriviamo con Yahoo/Finnhub sugli EU, perché per ETF europei sono meno affidabili.
+  if (cached) {
+    return {
+      sessionDate,
+      prevClose:cached,
+      cached:true,
+      marketReady:true,
+      source:'local-stale-fallback',
+      prevCloseSourceDate:meta?.sourceDate || null,
+      refreshed:false,
+      reason:'stooq_unavailable_keep_cached'
+    };
+  }
+
+  // Ultimo fallback solo se non esiste nessuna base locale.
+  const fallback = extractPrevCloseFromQuote(q);
+  if (fallback && fallback > 0) {
+    saveSessionPrevClose(h.ticker, sessionDate, fallback, {
+      force:true,
+      version:EU_PREVCLOSE_LOGIC_VERSION,
+      source:q?.source || 'api-fallback',
+      sourceDate:null
+    });
+    return {
+      sessionDate,
+      prevClose:fallback,
+      cached:false,
+      marketReady:true,
+      source:q?.source || 'api-fallback',
+      prevCloseSourceDate:null,
+      refreshed:true,
+      reason:'api_fallback_no_stooq'
+    };
+  }
+
+  return { sessionDate, prevClose:null, cached:false, marketReady:true, source:null, prevCloseSourceDate:null, refreshed:false, reason:'no_prevclose' };
 }
 
 async function fetchPriceForHolding(h) {
@@ -2483,7 +2630,10 @@ async function fetchPrices() {
         // La prima volta che il mercato ha aperto oggi, salva q.prevClose
         // sotto la data di sessione. Poi ogni refresh usa SOLO il valore locale.
         const region = getMarketRegion(h);
-        const prevSession = ensureSessionPrevClose(h.ticker, q, region);
+        // USA: logica invariata. EU: base sessione da Stooq (ultima close prima della sessione).
+        const prevSession = region === 'EU'
+          ? await ensureEUSessionPrevClose(h, q)
+          : ensureSessionPrevClose(h.ticker, q, region);
         let finalPct = null, finalVal = 0;
         if (prevSession.marketReady && prevSession.prevClose && prevSession.prevClose > 0) {
           finalPct = (price - prevSession.prevClose) / prevSession.prevClose * 100;
@@ -2496,6 +2646,11 @@ async function fetchPrices() {
           prePct: q.prePct??null, postPct: q.postPct??null,
           prevClose: prevSession.prevClose || null,
           prevCloseDate: prevSession.sessionDate || null,
+          prevCloseSource: prevSession.source || null,
+          prevCloseSourceDate: prevSession.prevCloseSourceDate || null,
+          prevCloseLogicVersion: region === 'EU' ? EU_PREVCLOSE_LOGIC_VERSION : null,
+          prevCloseRefreshed: !!prevSession.refreshed,
+          prevCloseReason: prevSession.reason || null,
           fromLocal: !!prevSession.prevClose,
           marketReady: !!prevSession.marketReady,
           region
