@@ -1566,6 +1566,7 @@ function normalizePortfolio(pf) {
   if (!pf.prices)           pf.prices = {};
   if (!pf.dailyChanges)     pf.dailyChanges = {};
   if (!pf.dailyCloses)      pf.dailyCloses = {};
+  if (!pf.sessionPrevCloses) pf.sessionPrevCloses = {};
   if (!pf.priceHistory)     pf.priceHistory = [];
   if (!pf.tickerHistory)    pf.tickerHistory = {}; // {quoteTicker: [{t,c}]}
   if (!pf.rebalanceTargets) pf.rebalanceTargets = {};
@@ -2010,8 +2011,8 @@ function makeQuote(price, prevClose, source) {
 }
 
 async function fetchYahooQuote(sym) {
-  // v7/finance/quote → regularMarket + pre/postMarket
-  const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,preMarketChangePercent,preMarketChange,postMarketChangePercent,postMarketChange';
+  // v7/finance/quote → prezzo + previous close ufficiale Yahoo
+  const fields = 'regularMarketPrice,regularMarketChange,regularMarketChangePercent,regularMarketPreviousClose,regularMarketTime,marketState,preMarketChangePercent,preMarketChange,postMarketChangePercent,postMarketChange';
   const url = `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}&fields=${fields}`;
   try {
     const data = await fetchJsonWithProxies(url);
@@ -2021,6 +2022,8 @@ async function fetchYahooQuote(sym) {
     if (out) {
       if (q.regularMarketChangePercent != null) out.dailyPct   = q.regularMarketChangePercent;
       if (q.regularMarketChange != null)        out.dailyValue = q.regularMarketChange;
+      if (q.regularMarketTime != null)          out.marketTime = q.regularMarketTime;
+      if (q.marketState != null)                out.marketState = q.marketState;
       // Pre/post market (solo ticker USA)
       if (q.postMarketChangePercent != null)    out.postPct  = q.postMarketChangePercent;
       if (q.preMarketChangePercent  != null)    out.prePct   = q.preMarketChangePercent;
@@ -2043,20 +2046,16 @@ async function fetchYahooChart(sym) {
       const q      = r.indicators?.quote?.[0] || {};
       const closes = (q.close||[]).map(Number).filter(x => Number.isFinite(x) && x > 0);
 
-      const livePrice = num(meta.regularMarketPrice || meta.postMarketPrice);
+      const livePrice = num(meta.regularMarketPrice || meta.postMarketPrice || closes[closes.length-1]);
       const price     = livePrice || closes[closes.length-1];
       if (!price || price <= 0) continue;
 
-      // Con range=5d+interval=1d i close sono chiusure giornaliere storiche.
-      // Se mercato aperto: today non ha ancora candela chiusa →
-      //   closes[last] = chiusura IERI = prevClose corretto
-      // Se mercato chiuso: closes[last] = chiusura OGGI →
-      //   closes[last-1] = chiusura IERI = prevClose corretto
-      const lastClose  = closes[closes.length-1];
-      const marketOpen = livePrice && lastClose && Math.abs(livePrice - lastClose) > lastClose * 0.003;
-      const prevClose  = marketOpen
-        ? lastClose
-        : (closes.length >= 2 ? closes[closes.length-2] : null);
+      // Non dedurre più la chiusura precedente da closes[-2].
+      // Prima dell'apertura USA, closes[-1] è spesso già la chiusura precedente reale
+      // (es. venerdì); prendere closes[-2] genera delta a due sedute.
+      const prevFromMeta = num(meta.regularMarketPreviousClose || meta.chartPreviousClose || meta.previousClose);
+      const lastClose = closes[closes.length-1];
+      const prevClose = prevFromMeta && prevFromMeta > 0 ? prevFromMeta : lastClose;
 
       const out = makeQuote(price, prevClose, 'Yahoo');
       if (out) {
@@ -2064,6 +2063,10 @@ async function fetchYahooChart(sym) {
           out.dailyPct   = num(meta.regularMarketChangePercent);
         if (meta.regularMarketChange != null)
           out.dailyValue = num(meta.regularMarketChange);
+        if (meta.regularMarketTime != null)
+          out.marketTime = meta.regularMarketTime;
+        if (meta.marketState != null)
+          out.marketState = meta.marketState;
         return out;
       }
     } catch(e) {}
@@ -2230,25 +2233,165 @@ function candidatesForHolding(h) {
 }
 
 
-// ── Storico chiusure giornaliere ──────────────────────────────────
+// ── Chiusura precedente di sessione salvata localmente ────────────
+function ymdToUTCDate(dateKey) {
+  const [y,m,d] = String(dateKey||'').split('-').map(Number);
+  return new Date(Date.UTC(y, (m||1)-1, d||1));
+}
+function ymdFromUTCDate(dt) {
+  return dt.getUTCFullYear() + '-' + String(dt.getUTCMonth()+1).padStart(2,'0') + '-' + String(dt.getUTCDate()).padStart(2,'0');
+}
+function nthWeekdayUTC(year, month, weekday, n) {
+  // month 1-12, weekday 0=dom ... 6=sab
+  let d = new Date(Date.UTC(year, month-1, 1));
+  let add = (weekday - d.getUTCDay() + 7) % 7;
+  d.setUTCDate(1 + add + (n-1)*7);
+  return ymdFromUTCDate(d);
+}
+function lastWeekdayUTC(year, month, weekday) {
+  let d = new Date(Date.UTC(year, month, 0));
+  let sub = (d.getUTCDay() - weekday + 7) % 7;
+  d.setUTCDate(d.getUTCDate() - sub);
+  return ymdFromUTCDate(d);
+}
+function observedFixedHolidayUTC(year, month, day) {
+  const d = new Date(Date.UTC(year, month-1, day));
+  const wd = d.getUTCDay();
+  if (wd === 6) d.setUTCDate(d.getUTCDate() - 1); // sabato → venerdì
+  if (wd === 0) d.setUTCDate(d.getUTCDate() + 1); // domenica → lunedì
+  return ymdFromUTCDate(d);
+}
+function easterUTC(year) {
+  // algoritmo Meeus/Jones/Butcher
+  const a=year%19, b=Math.floor(year/100), c=year%100, d=Math.floor(b/4), e=b%4;
+  const f=Math.floor((b+8)/25), g=Math.floor((b-f+1)/3);
+  const h=(19*a+b-d-g+15)%30, i=Math.floor(c/4), k=c%4;
+  const l=(32+2*e+2*i-h-k)%7, m=Math.floor((a+11*h+22*l)/451);
+  const mo=Math.floor((h+l-7*m+114)/31), da=((h+l-7*m+114)%31)+1;
+  return new Date(Date.UTC(year, mo-1, da));
+}
+function addDaysUTC(dateKey, days) {
+  const d = ymdToUTCDate(dateKey);
+  d.setUTCDate(d.getUTCDate()+days);
+  return ymdFromUTCDate(d);
+}
+function isMarketHoliday(dateKey, region) {
+  const d = ymdToUTCDate(dateKey);
+  const y = d.getUTCFullYear();
+  const easter = ymdFromUTCDate(easterUTC(y));
+
+  if (region === 'US') {
+    const holidays = new Set([
+      observedFixedHolidayUTC(y,1,1),      // New Year
+      nthWeekdayUTC(y,1,1,3),              // Martin Luther King Jr. Day
+      nthWeekdayUTC(y,2,1,3),              // Presidents' Day
+      addDaysUTC(easter,-2),               // Good Friday
+      lastWeekdayUTC(y,5,1),               // Memorial Day
+      observedFixedHolidayUTC(y,6,19),     // Juneteenth
+      observedFixedHolidayUTC(y,7,4),      // Independence Day
+      nthWeekdayUTC(y,9,1,1),              // Labor Day
+      nthWeekdayUTC(y,11,4,4),             // Thanksgiving
+      observedFixedHolidayUTC(y,12,25),    // Christmas
+    ]);
+    return holidays.has(dateKey);
+  }
+
+  // Calendario europeo prudente: copre le chiusure comuni principali
+  // (Borsa Italiana/Xetra/Euronext possono differire su qualche festività locale).
+  const holidays = new Set([
+    observedFixedHolidayUTC(y,1,1),        // Capodanno
+    addDaysUTC(easter,-2),                 // Venerdì Santo
+    addDaysUTC(easter,1),                  // Lunedì dell'Angelo
+    observedFixedHolidayUTC(y,5,1),        // Festa del lavoro
+    observedFixedHolidayUTC(y,12,25),      // Natale
+    observedFixedHolidayUTC(y,12,26),      // Santo Stefano / Boxing Day
+  ]);
+  return holidays.has(dateKey);
+}
+function isMarketTradingDay(dateKey, region) {
+  const d = ymdToUTCDate(dateKey);
+  const wd = d.getUTCDay();
+  if (wd === 0 || wd === 6) return false;
+  return !isMarketHoliday(dateKey, region);
+}
+function getMarketRegion(h) {
+  const mkt = (h?.market || marketFromSymbol(h?.ticker||'') || '').toUpperCase();
+  const EU = new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS','LSE','EPA','SWX','MIL','XETRA','FWB']);
+  return (EU.has(mkt) || /\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h?.ticker||'')) ? 'EU' : 'US';
+}
+function marketSessionDate(region) {
+  const tz = region === 'US' ? 'America/New_York' : 'Europe/Rome';
+  try {
+    return new Intl.DateTimeFormat('en-CA',{timeZone:tz,year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  } catch(e) { return todayRome(); }
+}
+function hasMarketOpenedForSession(region) {
+  const dateKey = marketSessionDate(region);
+  if (!isMarketTradingDay(dateKey, region)) return false;
+  const tz = region === 'US' ? 'America/New_York' : 'Europe/Rome';
+  const openMins = region === 'US' ? 9*60+30 : 9*60;
+  try {
+    const t = getTZTime(tz);
+    return !t.isWeekend && t.mins >= openMins;
+  } catch(e) { return false; }
+}
+function getSessionPrevClose(ticker, sessionDate) {
+  const v = S.sessionPrevCloses?.[ticker]?.[sessionDate];
+  return v && v > 0 ? v : null;
+}
+function saveSessionPrevClose(ticker, sessionDate, prevClose) {
+  prevClose = num(prevClose);
+  if (!ticker || !sessionDate || !prevClose || prevClose <= 0) return null;
+  if (!S.sessionPrevCloses) S.sessionPrevCloses = {};
+  if (!S.sessionPrevCloses[ticker]) S.sessionPrevCloses[ticker] = {};
+  if (!S.sessionPrevCloses[ticker][sessionDate]) S.sessionPrevCloses[ticker][sessionDate] = prevClose;
+
+  // Mantieni anche una copia legacy leggibile in dailyCloses, ma NON salvare più prezzi intraday come chiusure.
+  if (!S.dailyCloses) S.dailyCloses = {};
+  if (!S.dailyCloses[ticker]) S.dailyCloses[ticker] = {};
+  if (!S.dailyCloses[ticker][sessionDate]) S.dailyCloses[ticker][sessionDate] = prevClose;
+
+  const keys = Object.keys(S.sessionPrevCloses[ticker]).sort();
+  if (keys.length > 120) keys.slice(0, keys.length - 120).forEach(k => delete S.sessionPrevCloses[ticker][k]);
+  const legacyKeys = Object.keys(S.dailyCloses[ticker]).sort();
+  if (legacyKeys.length > 120) legacyKeys.slice(0, legacyKeys.length - 120).forEach(k => delete S.dailyCloses[ticker][k]);
+  return prevClose;
+}
+function extractPrevCloseFromQuote(q) {
+  const direct = num(q?.prevClose);
+  if (direct && direct > 0) return direct;
+  const price = num(q?.price);
+  const pct = num(q?.dailyPct);
+  if (price && price > 0 && pct != null && Math.abs(pct) < 25) return price / (1 + pct/100);
+  return null;
+}
+function ensureSessionPrevClose(ticker, q, region) {
+  const sessionDate = marketSessionDate(region);
+  if (!hasMarketOpenedForSession(region)) return { sessionDate, prevClose:null, cached:false, marketReady:false };
+  let prevClose = getSessionPrevClose(ticker, sessionDate);
+  if (prevClose) return { sessionDate, prevClose, cached:true, marketReady:true };
+  prevClose = extractPrevCloseFromQuote(q);
+  if (prevClose) {
+    saveSessionPrevClose(ticker, sessionDate, prevClose);
+    return { sessionDate, prevClose, cached:false, marketReady:true };
+  }
+  return { sessionDate, prevClose:null, cached:false, marketReady:true };
+}
+
+// Compatibilità con vecchio codice/backup: non usare più per salvare prezzi intraday.
 function getPrevClose(ticker) {
   const closes = S.dailyCloses?.[ticker];
   if (!closes) return null;
   const today = todayRome();
-  // Cerca la chiusura più recente PRIMA di oggi (gestisce weekend/festivi)
   const dates = Object.keys(closes)
     .filter(d => d < today && closes[d] != null && closes[d] > 0)
     .sort().reverse();
   return dates.length ? { date: dates[0], close: closes[dates[0]] } : null;
 }
-
 function saveDailyClose(ticker, price) {
-  if (!S.dailyCloses)         S.dailyCloses = {};
-  if (!S.dailyCloses[ticker]) S.dailyCloses[ticker] = {};
-  S.dailyCloses[ticker][todayRome()] = price;
-  // Tieni solo 90 giorni
-  const keys = Object.keys(S.dailyCloses[ticker]).sort();
-  if (keys.length > 90) keys.slice(0, keys.length - 90).forEach(k => delete S.dailyCloses[ticker][k]);
+  // Deprecated: lasciata per compatibilità. Le chiusure precedenti vengono salvate
+  // con saveSessionPrevClose(), non con il prezzo intraday dell'aggiornamento.
+  return null;
 }
 
 async function fetchPriceForHolding(h) {
@@ -2269,21 +2412,24 @@ async function fetchPriceForHolding(h) {
 
   for (const sym of candidates) {
     if (isEU) {
-      // EU: Stooq prima (diretto, no proxy) → Finnhub → Yahoo
+      // EU: se il mercato ha aperto, evita di fermarti su Stooq se non ha previous close
+      // perché spesso è solo una chiusura storica non intraday.
       const sq = await fetchStooq(sym, h.market);
+      if (sq && (!hasMarketOpenedForSession('EU') || sq.prevClose != null)) return sq;
+      const fh = await fetchFinnhub(sym, ak);
+      if (fh) return fh;
+      const yc = await fetchYahooChart(sym);
+      if (yc) return yc;
       if (sq) return sq;
-      const fh = await fetchFinnhub(sym, ak);
-      if (fh) return fh;
-      const yc = await fetchYahooChart(sym);
-      if (yc) return yc;
     } else {
-      // USA: Finnhub diretto (no proxy, affidabile) → Yahoo
+      // USA: Finnhub diretto → Yahoo Quote → Yahoo Chart.
+      // Yahoo Quote espone regularMarketPreviousClose ed evita il problema closes[-2].
       const fh = await fetchFinnhub(sym, ak);
       if (fh) return fh;
-      const yc = await fetchYahooChart(sym);
-      if (yc) return yc;
       const yq = await fetchYahooQuote(sym);
       if (yq) return yq;
+      const yc = await fetchYahooChart(sym);
+      if (yc) return yc;
     }
   }
 
@@ -2333,44 +2479,26 @@ async function fetchPrices() {
         }
         sources[h.ticker] = q.source || 'Fonte prezzi';
 
-        // ── Salva chiusura giornaliera ──────────────────────────
-        saveDailyClose(h.ticker, price);
-
-        // ── Calcola Oggi% da storico locale (affidabile) ────────
-        const prevCloseData = getPrevClose(h.ticker);
-        let finalPct, finalVal;
-        if (prevCloseData && prevCloseData.close > 0) {
-          // Dal Giorno 2: usa storico locale — 100% affidabile
-          finalPct = (price - prevCloseData.close) / prevCloseData.close * 100;
-          finalVal = price - prevCloseData.close;
-        } else {
-          // Giorno 1: usa pct dall'API + salva prevClose per domani
-          const pct = num(q?.dailyPct);
-          const pctOk = pct !== null && Math.abs(pct) < 25;
-          finalPct = pctOk ? pct : null;
-          finalVal = pctOk ? (num(q.dailyValue)||0) : 0;
-          // Bootstrap: salva la chiusura di ieri dall'API
-          if (finalPct !== null && price > 0) {
-            const prevCloseAPI = num(q.prevClose) || (price / (1 + finalPct/100));
-            if (prevCloseAPI > 0) {
-              if (!S.dailyCloses[h.ticker]) S.dailyCloses[h.ticker] = {};
-              // Trova il giorno lavorativo precedente (max 5 giorni fa)
-              for (let i=1; i<=5; i++) {
-                const d = localDateKeyFromMs(Date.now() - i*86400000);
-                if (d < todayRome() && !S.dailyCloses[h.ticker][d]) {
-                  S.dailyCloses[h.ticker][d] = prevCloseAPI;
-                  break;
-                }
-              }
-            }
-          }
+        // ── Chiusura precedente locale della sessione ─────────────
+        // La prima volta che il mercato ha aperto oggi, salva q.prevClose
+        // sotto la data di sessione. Poi ogni refresh usa SOLO il valore locale.
+        const region = getMarketRegion(h);
+        const prevSession = ensureSessionPrevClose(h.ticker, q, region);
+        let finalPct = null, finalVal = 0;
+        if (prevSession.marketReady && prevSession.prevClose && prevSession.prevClose > 0) {
+          finalPct = (price - prevSession.prevClose) / prevSession.prevClose * 100;
+          finalVal = price - prevSession.prevClose;
         }
 
         S.dailyChanges[h.ticker] = {
           pct: finalPct, value: finalVal,
           source: q.source||'', price,
           prePct: q.prePct??null, postPct: q.postPct??null,
-          fromLocal: !!prevCloseData
+          prevClose: prevSession.prevClose || null,
+          prevCloseDate: prevSession.sessionDate || null,
+          fromLocal: !!prevSession.prevClose,
+          marketReady: !!prevSession.marketReady,
+          region
         };
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
@@ -6529,29 +6657,25 @@ function saveCashDeposit() {
 // ── Market status ────────────────────────────────────────────────
 function isEUMarketOpen() {
   try {
+    const dateKey = marketSessionDate('EU');
+    if (!isMarketTradingDay(dateKey, 'EU')) return false;
     const t = getTZTime('Europe/Rome');
-    if (t.isWeekend) return false;
     return t.mins >= 9*60 && t.mins < 17*60+30;
   } catch(e) { return false; }
 }
-// EU ha già aperto oggi (anche se ora è chiusa)
+// EU ha già aperto oggi (anche se ora è chiusa), con weekend/festivi
 function hasEUTradedToday() {
-  try {
-    const t = getTZTime('Europe/Rome');
-    return !t.isWeekend && t.mins >= 9*60;
-  } catch(e) { return false; }
+  return hasMarketOpenedForSession('EU');
 }
-// USA ha già aperto oggi (15:30 ora di Roma = 09:30 NY estate)
+// USA ha già aperto oggi, con weekend/festivi NYSE
 function hasUSTradedToday() {
-  try {
-    const t = getTZTime('Europe/Rome');
-    return !t.isWeekend && t.mins >= 15*60 + 30;
-  } catch(e) { return false; }
+  return hasMarketOpenedForSession('US');
 }
 function isUSMarketOpen() {
   try {
+    const dateKey = marketSessionDate('US');
+    if (!isMarketTradingDay(dateKey, 'US')) return false;
     const t = getTZTime('America/New_York');
-    if (t.isWeekend) return false;
     return t.mins >= 9*60+30 && t.mins < 16*60;
   } catch(e) { return false; }
 }
