@@ -1495,10 +1495,37 @@ const PROXIES = [
   url => `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`,
 ];
 
+// Cache per singolo ciclo di aggiornamento: evita doppie chiamate Stooq
+// per lo stesso ticker EU (prevClose + prezzo corrente). Viene svuotata
+// all'inizio di fetchPrices(), quindi non mantiene dati vecchi tra refresh diversi.
+const STOOQ_DAILY_CACHE = new Map();
+
+function stooqSymbolFor(sym, market) {
+  const mkt = market || marketFromSymbol(sym);
+  const base = baseTicker(sym).toLowerCase();
+  const sfx  = stooqSuffix(mkt);
+  return sfx ? base + sfx : sym.toLowerCase();
+}
+
+async function fetchStooqDailyRows(sym, market) {
+  const stooqSym = stooqSymbolFor(sym, market);
+  if (STOOQ_DAILY_CACHE.has(stooqSym)) return STOOQ_DAILY_CACHE.get(stooqSym);
+  const promise = (async () => {
+    const csv = await fetchTextWithProxies(`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`);
+    const lines = csv.trim().split(/
+?
+/).filter(Boolean);
+    if (lines.length < 2 || /^no data/i.test(lines[0])) return [];
+    return lines.slice(1).map(l => l.split(',')).filter(r => r.length >= 5);
+  })().catch(() => []);
+  STOOQ_DAILY_CACHE.set(stooqSym, promise);
+  return promise;
+}
+
 // ════════════════════════════════════════════════════════════════
 //  STATE
 // ════════════════════════════════════════════════════════════════
-let ALL = { portfolios:[], activePortfolioId:null, settings:{ak:'',anthropicKey:''} };
+let ALL = { portfolios:[], activePortfolioId:null, settings:{ak:'',anthropicKey:''}, officialCloses:{}, officialClosesMeta:{} };
 let S = null; // active portfolio shortcut
 let busy = false;
 let opType = 'buy';
@@ -1536,6 +1563,8 @@ function load() {
         ALL.activePortfolioId = d.activePortfolioId;
         ALL.settings = Object.assign({ak:'',anthropicKey:''}, d.settings || {});
         ALL.fxRates  = d.fxRates || {};
+        ALL.officialCloses = d.officialCloses || {};
+        ALL.officialClosesMeta = d.officialClosesMeta || {};
       } else {
         // Formato legacy — migrazione automatica
         const pf = newPortfolio(d.settings?.portfolioName || 'Portafoglio principale');
@@ -1544,6 +1573,8 @@ function load() {
         ALL.portfolios = [pf];
         ALL.activePortfolioId = pf.id;
         ALL.settings = Object.assign({ak:'',anthropicKey:''}, d.settings || {});
+        ALL.officialCloses = d.officialCloses || {};
+        ALL.officialClosesMeta = d.officialClosesMeta || {};
       }
     }
   } catch(e) {}
@@ -1552,6 +1583,8 @@ function load() {
   if (!ALL.portfolios.find(p => p.id === ALL.activePortfolioId))
     ALL.activePortfolioId = ALL.portfolios[0].id;
   ALL.fxRates = ALL.fxRates || {};
+  ALL.officialCloses = ALL.officialCloses || {};
+  ALL.officialClosesMeta = ALL.officialClosesMeta || {};
   // Normalize all portfolios
   ALL.portfolios.forEach(pf => normalizePortfolio(pf));
   S = ALL.portfolios.find(p => p.id === ALL.activePortfolioId);
@@ -2130,32 +2163,20 @@ async function fetchFinnhub(sym, ak) {
 }
 
 async function fetchStooq(sym, market) {
-  const mkt = market || marketFromSymbol(sym);
-  const base = baseTicker(sym).toLowerCase();
-  const sfx  = stooqSuffix(mkt);
-  const stooqSym = sfx ? base + sfx : sym.toLowerCase();
-  try {
-    const csv = await fetchTextWithProxies(`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`);
-    const lines = csv.trim().split(/\r?\n/).filter(Boolean);
-    if (lines.length < 2 || /^no data/i.test(lines[0])) return null;
-    const rows = lines.slice(1)
-      .map(l => l.split(','))
-      .filter(r => r.length >= 5);
-    if (!rows.length) return null;
-    const last = rows[rows.length-1];
-    const prev = rows.length >= 2 ? rows[rows.length-2] : null;
-    const price    = num(last[4]);
-    const prevClose = prev ? num(prev[4]) : null;
-    if (!price || price <= 0) return null;
-    // Controlla se l'ultima riga è di oggi — se non è di oggi non usare dailyPct
-    const lastDate = last[0]; // formato YYYY-MM-DD
-    const today = new Date().toISOString().slice(0,10);
-    if (lastDate !== today) {
-      // Dati storici (mercato non ancora aperto o chiuso) — mostra prezzo senza variazione odierna
-      return makeQuote(price, null, 'Stooq');
-    }
-    return makeQuote(price, prevClose, 'Stooq');
-  } catch(e) { return null; }
+  const rows = await fetchStooqDailyRows(sym, market);
+  if (!rows.length) return null;
+  const last = rows[rows.length-1];
+  const prev = rows.length >= 2 ? rows[rows.length-2] : null;
+  const price = num(last[4]);
+  const prevClose = prev ? num(prev[4]) : null;
+  if (!price || price <= 0) return null;
+
+  // Se Stooq ha già la riga della sessione corrente, può fornire anche il delta.
+  // Se è fermo all'ultima chiusura disponibile, torna solo il prezzo/close senza dailyPct.
+  const lastDate = last[0];
+  const today = todayRome();
+  if (lastDate !== today) return makeQuote(price, null, 'Stooq');
+  return makeQuote(price, prevClose, 'Stooq');
 }
 
 async function fetchBTPMOT(isin) {
@@ -2324,7 +2345,7 @@ function getMarketRegion(h) {
 // Versione logica del calcolo chiusura precedente EU.
 // Se cambia questa stringa, le basi locali EU salvate con logiche vecchie
 // vengono ricalcolate e sovrascritte alla prima apertura mercato utile.
-const EU_PREVCLOSE_LOGIC_VERSION = 'eu-stooq-prevclose-v2-2026-05-18';
+const EU_PREVCLOSE_LOGIC_VERSION = 'eu-stooq-prevclose-v3-2026-05-18';
 
 function marketSessionDate(region) {
   const tz = region === 'US' ? 'America/New_York' : 'Europe/Rome';
@@ -2403,6 +2424,42 @@ function ensureSessionPrevClose(ticker, q, region) {
   return { sessionDate, prevClose:null, cached:false, marketReady:true };
 }
 
+// ── Official closes da GitHub Actions / Gist ─────────────────────
+// Fonte prioritaria per il calcolo "Oggi": prende l'ultima chiusura ufficiale
+// salvata prima della sessione corrente. Gestisce weekend/festivi perché non
+// assume il giorno precedente: usa la data valida più recente nel Gist.
+function getOfficialPrevCloseForSession(h, region) {
+  const sessionDate = marketSessionDate(region);
+  if (!hasMarketOpenedForSession(region)) {
+    return { sessionDate, prevClose:null, cached:false, marketReady:false, source:null, prevCloseSourceDate:null, reason:'market_not_open' };
+  }
+  const candidates = candidatesForHolding(h);
+  for (const tk of candidates) {
+    const closes = ALL.officialCloses?.[tk];
+    if (!closes || typeof closes !== 'object') continue;
+    const dates = Object.keys(closes)
+      .filter(d => d < sessionDate && closes[d] && num(closes[d].close) > 0)
+      .sort()
+      .reverse();
+    if (!dates.length) continue;
+    const d = dates[0];
+    const rec = closes[d];
+    return {
+      sessionDate,
+      prevClose:num(rec.close),
+      cached:true,
+      marketReady:true,
+      source:rec.source ? `officialCloses/${rec.source}` : 'officialCloses',
+      prevCloseSourceDate:rec.sourceDate || rec.marketDate || d,
+      refreshed:false,
+      reason:'official_closes_gist',
+      official:true,
+      officialTicker:tk
+    };
+  }
+  return { sessionDate, prevClose:null, cached:false, marketReady:true, source:null, prevCloseSourceDate:null, reason:'official_closes_missing' };
+}
+
 // Compatibilità con vecchio codice/backup: non usare più per salvare prezzi intraday.
 function getPrevClose(ticker) {
   const closes = S.dailyCloses?.[ticker];
@@ -2425,24 +2482,16 @@ function saveDailyClose(ticker, price) {
 // disponibile PRIMA della sessione corrente. Questo gestisce weekend,
 // festività e lunghi ponti senza affidarsi a Yahoo/Finnhub.
 async function fetchStooqCloseBeforeSession(sym, market, sessionDate) {
-  const mkt = market || marketFromSymbol(sym);
-  const base = baseTicker(sym).toLowerCase();
-  const sfx  = stooqSuffix(mkt);
-  const stooqSym = sfx ? base + sfx : sym.toLowerCase();
-  try {
-    const csv = await fetchTextWithProxies(`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`);
-    const lines = csv.trim().split(/\r?\n/).filter(Boolean);
-    if (lines.length < 2 || /^no data/i.test(lines[0])) return null;
-    const rows = lines.slice(1)
-      .map(l => l.split(','))
-      .filter(r => r.length >= 5 && r[0] < sessionDate)
-      .map(r => ({ date:r[0], close:num(r[4]) }))
-      .filter(r => r.close && r.close > 0)
-      .sort((a,b) => a.date.localeCompare(b.date));
-    if (!rows.length) return null;
-    const last = rows[rows.length - 1];
-    return { prevClose:last.close, date:last.date, source:'Stooq session prevClose' };
-  } catch(e) { return null; }
+  const rows = await fetchStooqDailyRows(sym, market);
+  if (!rows.length) return null;
+  const valid = rows
+    .filter(r => r[0] < sessionDate)
+    .map(r => ({ date:r[0], close:num(r[4]) }))
+    .filter(r => r.close && r.close > 0)
+    .sort((a,b) => a.date.localeCompare(b.date));
+  if (!valid.length) return null;
+  const last = valid[valid.length - 1];
+  return { prevClose:last.close, date:last.date, source:'Stooq session prevClose' };
 }
 
 async function fetchEUPrevCloseForSession(h, sessionDate) {
@@ -2600,6 +2649,9 @@ async function fetchPrices() {
   eb.style.display = 'none';
 
   try {
+    // Svuota la cache Stooq a ogni aggiornamento: dentro lo stesso refresh
+    // prevClose e prezzo corrente condividono il CSV, ma al prossimo click si rilegge la fonte.
+    if (typeof STOOQ_DAILY_CACHE !== 'undefined') STOOQ_DAILY_CACHE.clear();
     if (!S.prices)       S.prices = {};
     if (!S.peakPrices)    S.peakPrices = {};
     if (S.hideValues===undefined) S.hideValues=false;
@@ -2631,9 +2683,12 @@ async function fetchPrices() {
         // sotto la data di sessione. Poi ogni refresh usa SOLO il valore locale.
         const region = getMarketRegion(h);
         // USA: logica invariata. EU: base sessione da Stooq (ultima close prima della sessione).
-        const prevSession = region === 'EU'
-          ? await ensureEUSessionPrevClose(h, q)
-          : ensureSessionPrevClose(h.ticker, q, region);
+        const officialPrev = getOfficialPrevCloseForSession(h, region);
+        const prevSession = (officialPrev.marketReady && officialPrev.prevClose)
+          ? officialPrev
+          : (region === 'EU'
+              ? await ensureEUSessionPrevClose(h, q)
+              : ensureSessionPrevClose(h.ticker, q, region));
         let finalPct = null, finalVal = 0;
         if (prevSession.marketReady && prevSession.prevClose && prevSession.prevClose > 0) {
           finalPct = (price - prevSession.prevClose) / prevSession.prevClose * 100;
@@ -2651,6 +2706,8 @@ async function fetchPrices() {
           prevCloseLogicVersion: region === 'EU' ? EU_PREVCLOSE_LOGIC_VERSION : null,
           prevCloseRefreshed: !!prevSession.refreshed,
           prevCloseReason: prevSession.reason || null,
+          prevCloseOfficial: !!prevSession.official,
+          prevCloseOfficialTicker: prevSession.officialTicker || null,
           fromLocal: !!prevSession.prevClose,
           marketReady: !!prevSession.marketReady,
           region
@@ -3837,7 +3894,7 @@ function refreshProjectionOutput() {
   <div style="display:grid;grid-template-columns:repeat(${2+(finalO!=null?1:0)+(finalL!=null?1:0)+(finalP!=null?1:0)},1fr);gap:4px;margin-bottom:4px">
     <div style="background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
       <div style="font-size:7px;color:#94a3b8;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Capitale investito</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#94a3b8;line-height:1.1">${fmtK(capitalInput)}</div>
+      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#94a3b8;line-height:1.1">${fmtK(total)}</div>
     </div>
     <div style="background:rgba(123,167,255,.07);border:1px solid rgba(123,167,255,.2);border-radius:6px;padding:3px 6px;text-align:center;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:34px">
       <div style="font-size:7px;color:#7ba7ff;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:1px;line-height:1.1">Portafoglio attuale</div>
@@ -3869,8 +3926,8 @@ function refreshProjectionOutput() {
         ${obiettivo?'<th>Portafoglio obiettivo</th>':''}
         <th>Guadagno acc. netto infl.</th>
         ${obiettivo?'<th>Guadagno acc. netto infl. (obiettivo)</th>':''}
-        ${attuale_lump?'<th style="color:#22d47e">+ Lump sum</th>':''}h>':''}
-        ${attuale_pac?'<th style="color:#c084fc">+ PAC mensile</th>':''}''}
+        ${attuale_lump?'<th style="color:#22d47e">+ Lump sum</th>':''}
+        ${attuale_pac?'<th style="color:#c084fc">+ PAC mensile</th>':''}
       </tr></thead>
       <tbody>${rowHtml}</tbody>
     </table>
@@ -6148,12 +6205,44 @@ function renderGistUI() {
   }
 }
 
+
+function mergeOfficialCloses(local={}, remote={}) {
+  const out = JSON.parse(JSON.stringify(local || {}));
+  for (const [tk, rows] of Object.entries(remote || {})) {
+    if (!out[tk]) out[tk] = {};
+    for (const [date, rec] of Object.entries(rows || {})) {
+      // Il Gist aggiornato dal workflow è autoritativo: se esiste, lo preserviamo.
+      out[tk][date] = rec;
+    }
+  }
+  return out;
+}
+function mergeObjectsPreferRemote(local={}, remote={}) {
+  return Object.assign({}, local || {}, remote || {});
+}
+async function readCurrentGistBackup(token, gistId) {
+  if (!token || !gistId) return null;
+  try {
+    const res = await fetch('https://api.github.com/gists/' + gistId, {
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    const raw = data.files?.['portafoglio-bit.json']?.content;
+    return raw ? JSON.parse(raw) : null;
+  } catch(e) { return null; }
+}
+
 async function syncToGist() {
   const token = ALL.settings.githubToken || '';
   if (!token) { showToast('⚠ Inserisci prima il token GitHub'); return; }
   const btn = document.getElementById('gist-upload-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Caricamento...'; }
   try {
+    const gistId = ALL.settings.gistId;
+    const remoteBackup = gistId ? await readCurrentGistBackup(token, gistId) : null;
+    ALL.officialCloses = mergeOfficialCloses(ALL.officialCloses || {}, remoteBackup?.officialCloses || {});
+    ALL.officialClosesMeta = mergeObjectsPreferRemote(ALL.officialClosesMeta || {}, remoteBackup?.officialClosesMeta || {});
     const backup = JSON.stringify({
       version: SK,
       exportedAt: new Date().toISOString(),
@@ -6161,7 +6250,9 @@ async function syncToGist() {
       portfolios: ALL.portfolios.map(pf => ({...pf, dailyChanges:{}})),
       activePortfolioId: ALL.activePortfolioId,
       settings: ALL.settings,
-      fxRates: ALL.fxRates || {}
+      fxRates: ALL.fxRates || {},
+      officialCloses: ALL.officialCloses || {},
+      officialClosesMeta: ALL.officialClosesMeta || {}
     });
     const headers = {
       'Authorization': 'token ' + token,
@@ -6173,7 +6264,6 @@ async function syncToGist() {
       public: false,
       files: { 'portafoglio-bit.json': { content: backup } }
     });
-    const gistId = ALL.settings.gistId;
     const url = gistId
       ? 'https://api.github.com/gists/' + gistId
       : 'https://api.github.com/gists';
@@ -6228,7 +6318,11 @@ async function syncFromGist() {
       ALL.activePortfolioId = backup.activePortfolioId || ALL.portfolios[0]?.id;
       ALL.settings = Object.assign({ak:'',anthropicKey:''}, backup.settings||{});
       ALL.fxRates  = backup.fxRates || {};
+      ALL.officialCloses = backup.officialCloses || {};
+      ALL.officialClosesMeta = backup.officialClosesMeta || {};
     }
+    ALL.officialCloses = backup.officialCloses || ALL.officialCloses || {};
+    ALL.officialClosesMeta = backup.officialClosesMeta || ALL.officialClosesMeta || {};
     // Ripristina token e gistId (non sovrascrivere con quelli del backup)
     ALL.settings.githubToken  = savedToken;
     ALL.settings.gistId       = savedGistId;
