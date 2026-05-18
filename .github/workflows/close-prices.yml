@@ -1,0 +1,52 @@
+name: Save official market closes
+
+on:
+  workflow_dispatch:
+    inputs:
+      market:
+        description: "Market to update: ALL, EU, US"
+        required: true
+        default: "ALL"
+        type: choice
+        options:
+          - ALL
+          - EU
+          - US
+      force:
+        description: "Overwrite existing close for the same market date"
+        required: false
+        default: false
+        type: boolean
+
+  schedule:
+    # Europe: 17:40 ora Roma, dopo chiusura mercati europei.
+    - cron: "40 17 * * 1-5"
+      timezone: "Europe/Rome"
+
+    # USA: 16:10 ora New York, dopo chiusura Wall Street.
+    # In Italia sarà normalmente 22:10, salvo settimane di disallineamento ora legale.
+    - cron: "10 16 * * 1-5"
+      timezone: "America/New_York"
+
+jobs:
+  save-closes:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Save official closes to Gist
+        env:
+          GIST_ID: ${{ secrets.PORTFOLIO_GIST_ID }}
+          GIST_TOKEN: ${{ secrets.PORTFOLIO_GIST_TOKEN }}
+          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
+          MARKET: ${{ github.event.inputs.market || 'ALL' }}
+          FORCE: ${{ github.event.inputs.force || 'false' }}
+        run: node scripts/update-official-closes.mjs
