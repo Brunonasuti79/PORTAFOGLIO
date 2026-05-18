@@ -4739,35 +4739,54 @@ function renderHistory(){
     if (!th2?.pts?.length) return;
     const ptsF = th2.pts.filter(p=>p.c>0);
     if (ptsF.length < 2) return;
-    const W2=800,H2=180,pl2=44,pr2=8,pt2=12,pb2=22;
+
+    // Dimensioni IDENTICHE a renderHistoryChart
+    const W2=720,H2=240,pl2=62,pr2=16,pt2=14,pb2=34;
     const cw2=W2-pl2-pr2, ch2=H2-pt2-pb2;
-    const prices=ptsF.map(p=>p.c);
-    const mn2=Math.min(...prices), mx2=Math.max(...prices), rng2=mx2-mn2||1;
-    const sx2=i=>pl2+(i/(ptsF.length-1))*cw2;
-    const sy2=v=>pt2+ch2*(1-(v-mn2)/rng2);
+
+    // Scala Y IDENTICA a renderHistoryChart (include avgLine nel min/max)
+    const hld2 = calcPF().find(h=>h.ticker===sel2);
+    const avgLine2 = hld2 ? (hld2.avgPrice||hld2.avgPriceBuyCcy||0) : 0;
+    const prices2 = ptsF.map(p=>p.c);
+    const minP2 = Math.min(...prices2, avgLine2>0?avgLine2:Infinity) * 0.97;
+    const maxP2 = Math.max(...prices2, avgLine2>0?avgLine2:0) * 1.03;
+    const rng2  = maxP2 - minP2 || 1;
+
+    const sx2 = i => pl2 + (i/(ptsF.length-1)) * cw2;
+    const sy2 = v => pt2 + ch2 * (1 - (v - minP2) / rng2);
+
     const bw=130, bh=42;
-    const _mesi=['gen','feb','mar','apr','mag','giu','lug','ago','set','ott','nov','dic'];
     const setAttr=(id,attrs)=>{const el=svg.querySelector('#'+id);if(el)Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));};
     svg.addEventListener('mousemove',function(e){
-      const r=svg.getBoundingClientRect();
-      const mx=(e.clientX-r.left)*(W2/r.width);
-      const idx=Math.max(0,Math.min(ptsF.length-1,Math.round((mx-pl2)/cw2*(ptsF.length-1))));
-      const pt3=ptsF[idx];
-      const px=sx2(idx), py=sy2(pt3.c);
-      const d=new Date(pt3.t);
-      const dateStr=String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
+      const r = svg.getBoundingClientRect();
+      // Scala correttamente dalle coordinate schermo a coordinate SVG
+      const svgX = (e.clientX - r.left) * (W2 / r.width);
+      const idx = Math.max(0, Math.min(ptsF.length-1, Math.round((svgX-pl2)/cw2*(ptsF.length-1))));
+      const pt3 = ptsF[idx];
+      const px = sx2(idx);         // X esatto del punto sulla curva
+      const py = sy2(pt3.c);       // Y esatto del punto sulla curva
+
+      const d = new Date(pt3.t);
+      const dateStr = String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear();
       const sym = th2.ccy==='USD'?'$':'€';
-      const v=pt3.c.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+sym;
-      const bx=Math.min(pl2+cw2-bw-4,Math.max(pl2+4,px-bw/2));
-      const by=py>pt2+ch2/2?py-bh-8:py+8;
-      setAttr('hcv',{x1:px,x2:px,opacity:1});
-      setAttr('hch',{y1:py,y2:py,opacity:1});
-      setAttr('hcbox',{x:bx,y:by,opacity:1});
-      setAttr('hcdot',{cx:px,cy:py,opacity:1});
-      setAttr('hct1',{x:bx+bw/2,y:by+13,opacity:1});
-      svg.querySelector('#hct1').textContent=dateStr;
-      setAttr('hct2',{x:bx+bw/2,y:by+30,opacity:1});
-      svg.querySelector('#hct2').textContent=v;
+      const v = pt3.c.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+sym;
+
+      // Tooltip: rimane sempre dentro il viewBox SVG
+      // Orizzontale: se pallino vicino al bordo destro, tooltip va a sinistra
+      const bx = px + bw + 8 > pl2+cw2
+        ? px - bw - 8          // sposta a sinistra del pallino
+        : px + 8;              // default: a destra del pallino
+      // Verticale: se pallino nella metà bassa, tooltip va sopra
+      const by = py > pt2 + ch2/2 ? py - bh - 8 : py + 8;
+
+      setAttr('hcv',  {x1:px, x2:px, opacity:1});
+      setAttr('hch',  {y1:py, y2:py, opacity:1});
+      setAttr('hcbox',{x:bx,  y:by,  opacity:1});
+      setAttr('hcdot',{cx:px, cy:py, opacity:1});
+      setAttr('hct1', {x:bx+bw/2, y:by+13, opacity:1});
+      svg.querySelector('#hct1').textContent = dateStr;
+      setAttr('hct2', {x:bx+bw/2, y:by+30, opacity:1});
+      svg.querySelector('#hct2').textContent = v;
     });
     svg.addEventListener('mouseleave',function(){
       ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id=>{
@@ -4776,6 +4795,7 @@ function renderHistory(){
     });
   })();
 }
+
 
 function renderHistoryChart(ticker,th,hlds,period){
   const h=hlds.find(h=>h.ticker===ticker);
