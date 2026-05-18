@@ -1512,9 +1512,7 @@ async function fetchStooqDailyRows(sym, market) {
   if (STOOQ_DAILY_CACHE.has(stooqSym)) return STOOQ_DAILY_CACHE.get(stooqSym);
   const promise = (async () => {
     const csv = await fetchTextWithProxies(`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`);
-    const lines = csv.trim().split(/
-?
-/).filter(Boolean);
+    const lines = csv.trim().split(/\r?\n/).filter(Boolean);
     if (lines.length < 2 || /^no data/i.test(lines[0])) return [];
     return lines.slice(1).map(l => l.split(',')).filter(r => r.length >= 5);
   })().catch(() => []);
