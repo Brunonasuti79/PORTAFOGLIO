@@ -1,47 +1,35 @@
-name: Save official market closes
+name: Capture Closing Prices
 
 on:
+  schedule:
+    - cron: '40 15 * * 1-5'   # EU close estate  (CEST UTC+2 → 17:40 Roma)
+    - cron: '40 16 * * 1-5'   # EU close inverno (CET  UTC+1 → 17:40 Roma)
+    - cron: '05 20 * * 1-5'   # US close estate  (EDT  UTC-4 → 16:05 NY)
+    - cron: '05 21 * * 1-5'   # US close inverno (EST  UTC-5 → 16:05 NY)
   workflow_dispatch:
     inputs:
       market:
-        description: "Market to update: ALL, EU, US"
-        required: true
-        default: "ALL"
-        type: choice
-        options:
-          - ALL
-          - EU
-          - US
-      force:
-        description: "Overwrite existing close for the same market date"
+        description: 'Mercato da catturare (EU / US / BOTH)'
         required: false
-        default: false
-        type: boolean
-
-  schedule:
-    - cron: "40 17 * * 1-5"
-      timezone: "Europe/Rome"
-    - cron: "10 16 * * 1-5"
-      timezone: "America/New_York"
+        default: 'BOTH'
 
 jobs:
-  save-closes:
+  capture:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v4
 
-      - name: Setup Node
-        uses: actions/setup-node@v5
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          node-version: '20'
 
-      - name: Save official closes to Gist
+      - name: Capture closing prices
         env:
-          GIST_TOKEN: ${{ secrets.PORTFOLIO_GIST_TOKEN }}
-          FINNHUB_API_KEY: ${{ secrets.FINNHUB_API_KEY }}
-          MARKET: ${{ github.event.inputs.market || 'ALL' }}
-          FORCE: ${{ github.event.inputs.force || 'false' }}
-        run: node scripts/update-official-closes.mjs
+          GIST_TOKEN:       ${{ secrets.GIST_TOKEN }}
+          GIST_ID:          ${{ secrets.GIST_ID }}
+          FINNHUB_KEY:      ${{ secrets.FINNHUB_KEY }}
+          MARKET_OVERRIDE:  ${{ github.event.inputs.market }}
+        run: node .github/scripts/capture-closes.js
