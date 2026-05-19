@@ -32,4 +32,4 @@ jobs:
           GIST_ID:          ${{ secrets.GIST_ID }}
           FINNHUB_KEY:      ${{ secrets.FINNHUB_KEY }}
           MARKET_OVERRIDE:  ${{ github.event.inputs.market }}
-        run: node .github/scripts/capture-closes.js
+        run: node scripts/update-official-closes.mjs
