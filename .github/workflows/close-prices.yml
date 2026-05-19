@@ -8,7 +8,7 @@ on:
 
     # US close: 22:00 UTC — dopo la chiusura US (16:00 New York)
     # Funziona sia in estate (EDT UTC-4) che in inverno (EST UTC-5)
-    - cron: '0 22 * * 1-5'
+    - cron: '30 22 * * 1-5'
 
   workflow_dispatch:
     inputs:
