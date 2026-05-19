@@ -979,24 +979,20 @@ input[type=number]{-moz-appearance:textfield}
       <input type="file" id="backup-file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
     </div>
     <div class="ssec">
-      <div class="slbl">☁️ Sync Cloud — GitHub Gist</div>
-      <div class="sdesc">Salva automaticamente su un <strong>Gist privato GitHub</strong>. I dati rimangono tuoi.<br><br>
-        1. Vai su <a href="https://github.com/settings/tokens/new?scopes=gist&description=PortafoglioBIT" target="_blank" style="color:var(--blue)">github.com/settings/tokens</a><br>
-        2. Crea token con scope <strong>gist</strong> (classic token)<br>
-        3. Incolla qui sotto
-      </div>
+      <div class="slbl">☁️ Sync Cloud — GitHub</div>
+      <div class="sdesc">Il backup si sincronizza automaticamente sul tuo spazio cloud già collegato. Devi inserire solo il token GitHub una volta; poi l'app carica da sola dopo ogni modifica.</div>
       <input class="sinput" type="password" id="github-token-inp"
-        placeholder="ghp_xxxxxxxxxxxxxxxxxxxx" autocomplete="off"
+        placeholder="Token GitHub: ghp_... oppure github_pat_..." autocomplete="off"
         oninput="onGithubTokenChange(this.value)">
       <div id="gist-status" style="margin-top:8px"></div>
       <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="bbtn" id="gist-upload-btn" onclick="syncToGist()" style="flex:1">☁ Carica su Gist</button>
-        <button class="bbtn" id="gist-download-btn" onclick="syncFromGist()" style="flex:1;background:rgba(34,212,126,.08);border-color:rgba(34,212,126,.25);color:#22d47e">⬇ Ripristina da Gist</button>
+        <button class="bbtn" id="gist-upload-btn" onclick="syncToGist()" style="flex:1">☁ Salva ora</button>
+        <button class="bbtn" id="gist-download-btn" onclick="syncFromGist()" style="flex:1;background:rgba(34,212,126,.08);border-color:rgba(34,212,126,.25);color:#22d47e">⬇ Recupera backup</button>
       </div>
     </div>
     <div class="ssec">
       <div class="slbl">🔐 Sicurezza</div>
-      <div class="sdesc">Il backup può contenere API key. Conservalo solo su dispositivi personali.</div>
+      <div class="sdesc">Il backup non salva token GitHub né API key. Le credenziali restano solo sul dispositivo.</div>
     </div>
   </div>
 
@@ -1583,6 +1579,8 @@ function load() {
   ALL.fxRates = ALL.fxRates || {};
   ALL.officialCloses = ALL.officialCloses || {};
   ALL.officialClosesMeta = ALL.officialClosesMeta || {};
+  if (!ALL.settings) ALL.settings = {};
+  // Non impostare Gist ID fisso nel codice: deve essere configurabile dall'utente.
   // Normalize all portfolios
   ALL.portfolios.forEach(pf => normalizePortfolio(pf));
   S = ALL.portfolios.find(p => p.id === ALL.activePortfolioId);
@@ -6178,8 +6176,20 @@ let _autoGistTimer = null;
 let _gistSyncBusy = false;
 let _suppressAutoGist = false;
 
+function normalizeGistIdInput(v) {
+  const raw = String(v || '').trim();
+  if (!raw) return '';
+  // Accetta sia ID puro sia URL tipo https://gist.github.com/utente/<id>
+  const m = raw.match(/gist\.github\.com\/(?:[^\/]+\/)?([a-f0-9]{16,})/i);
+  return (m ? m[1] : raw).trim();
+}
+
+function getActiveGistId() {
+  return normalizeGistIdInput(ALL.settings?.gistId || '');
+}
+
 function hasGistSyncConfigured() {
-  return !!(ALL.settings && ALL.settings.githubToken && ALL.settings.gistId);
+  return !!(ALL.settings && ALL.settings.githubToken);
 }
 
 function scheduleAutoGistSync(reason='auto') {
@@ -6191,12 +6201,22 @@ function scheduleAutoGistSync(reason='auto') {
 
 async function autoSyncFromGistOnStartup() {
   if (!hasGistSyncConfigured()) return;
-  // Scarica automaticamente il Gist all'avvio, ma senza cancellare dati locali se il Gist è vuoto/incompleto.
-  setTimeout(() => syncFromGist(true), 800);
+  // Scarica il Gist all'avvio, ma se il Gist è vuoto/incompleto NON cancella i dati locali.
+  // Subito dopo fa un upload silenzioso del backup locale sul Gist configurato usato da GitHub Actions.
+  setTimeout(async () => {
+    await syncFromGist(true);
+    setTimeout(() => syncToGist(true, 'startup-auto-sync'), 1200);
+  }, 800);
 }
 
 function onGithubTokenChange(val) {
-  ALL.settings.githubToken = val.trim();
+  ALL.settings.githubToken = String(val || '').trim();
+  save();
+  renderGistUI();
+}
+
+function onGithubGistIdChange(val) {
+  ALL.settings.gistId = normalizeGistIdInput(val);
   save();
   renderGistUI();
 }
@@ -6207,22 +6227,19 @@ function renderGistUI() {
     inp.value = ALL.settings.githubToken;
   const el = document.getElementById('gist-status');
   if (!el) return;
-  const gistId   = ALL.settings.gistId || '';
+  const gistId   = getActiveGistId();
   const lastSync = ALL.settings.lastGistSync || '';
-  const token    = ALL.settings.githubToken || '';
+  const token    = String(ALL.settings.githubToken || '').trim();
   if (!token) {
-    el.innerHTML = '<div style="font-size:11px;color:var(--text3)">Inserisci il token per abilitare il sync.</div>';
+    el.innerHTML = '<div style="font-size:11px;color:var(--text3)">Inserisci il token GitHub una sola volta per attivare backup e sync automatico.</div>';
     return;
   }
-  if (gistId) {
-    const syncTime = lastSync ? new Date(lastSync).toLocaleString('it-IT') : 'mai';
-    el.innerHTML = `<div style="font-size:11px;color:var(--green);font-weight:600">✓ Gist connesso</div>
-      <div style="font-size:10px;color:var(--text3);margin-top:2px">ID: ${gistId.slice(0,12)}… · Ultimo sync: ${syncTime}</div>
-      <a href="https://gist.github.com/${gistId}" target="_blank"
-        style="font-size:10px;color:var(--blue);display:inline-block;margin-top:4px">Apri su GitHub →</a>`;
-  } else {
-    el.innerHTML = '<div style="font-size:11px;color:var(--text3)">Token inserito — premi <strong>Carica su Gist</strong> per creare il backup.</div>';
-  }
+  const syncTime = lastSync ? new Date(lastSync).toLocaleString('it-IT') : 'mai';
+  const gistMsg = gistId
+    ? 'Cloud collegato'
+    : 'Token inserito — al primo salvataggio creo/trovo automaticamente il file cloud';
+  el.innerHTML = `<div style="font-size:11px;color:var(--green);font-weight:600">✓ ${gistMsg}</div>
+    <div style="font-size:10px;color:var(--text3);margin-top:2px">Ultimo sync: ${syncTime}</div>`;
 }
 
 
@@ -6260,6 +6277,36 @@ function mergeOfficialCloses(local={}, remote={}) {
 function mergeObjectsPreferRemote(local={}, remote={}) {
   return Object.assign({}, local || {}, remote || {});
 }
+
+async function findPortfolioGistId(token) {
+  if (!token) return '';
+  let page = 1;
+  while (page <= 5) {
+    const res = await fetch('https://api.github.com/gists?per_page=100&page=' + page, {
+      headers: { 'Authorization': 'token ' + token, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!res.ok) return '';
+    const list = await res.json();
+    if (!Array.isArray(list) || !list.length) return '';
+    const found = list.find(g => g.files && g.files['portafoglio-bit.json']);
+    if (found?.id) return found.id;
+    page++;
+  }
+  return '';
+}
+
+async function ensurePortfolioGistId(token) {
+  let gistId = getActiveGistId();
+  if (gistId) return gistId;
+  gistId = await findPortfolioGistId(token);
+  if (gistId) {
+    ALL.settings.gistId = gistId;
+    save();
+    return gistId;
+  }
+  return '';
+}
+
 async function readCurrentGistBackup(token, gistId) {
   if (!token || !gistId) return null;
   try {
@@ -6282,8 +6329,8 @@ async function syncToGist(silent=false, reason='manual') {
   const btn = document.getElementById('gist-upload-btn');
   if (!silent && btn) { btn.disabled = true; btn.textContent = 'Caricamento...'; }
   try {
-    const gistId = ALL.settings.gistId;
-    const remoteBackup = gistId ? await readCurrentGistBackup(token, gistId) : null;
+    const gistId = await ensurePortfolioGistId(token);
+    const remoteBackup = await readCurrentGistBackup(token, gistId);
     // Preserva le chiusure create da GitHub Actions e già presenti sul Gist.
     ALL.officialCloses = mergeOfficialCloses(ALL.officialCloses || {}, remoteBackup?.officialCloses || {});
     ALL.officialClosesMeta = mergeObjectsPreferRemote(ALL.officialClosesMeta || {}, remoteBackup?.officialClosesMeta || {});
@@ -6320,7 +6367,7 @@ async function syncToGist(silent=false, reason='manual') {
       throw new Error(err.message || 'HTTP ' + res.status);
     }
     const data = await res.json();
-    if (!gistId) ALL.settings.gistId = data.id;
+    ALL.settings.gistId = data.id || gistId || '';
     ALL.settings.lastGistSync = new Date().toISOString();
     try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
     if (!silent) showToast('✓ Backup salvato su GitHub Gist');
@@ -6340,9 +6387,10 @@ async function syncToGist(silent=false, reason='manual') {
 
 async function syncFromGist(silent=false) {
   const token  = String(ALL.settings.githubToken || '').trim();
-  const gistId = String(ALL.settings.gistId || '').trim();
+  let gistId = getActiveGistId();
   if (!token)  { if (!silent) showToast('⚠ Inserisci prima il token GitHub'); return false; }
-  if (!gistId) { if (!silent) showToast('⚠ Nessun Gist trovato — fai prima un upload'); return false; }
+  gistId = gistId || await ensurePortfolioGistId(token);
+  if (!gistId) { if (!silent) showToast('⚠ Nessun backup cloud trovato — fai prima Salva ora'); return false; }
   if (!silent && !confirm('Sovrascrivere i dati locali con il backup da Gist?')) return false;
   if (_gistSyncBusy) return false;
   _gistSyncBusy = true;
