@@ -1,231 +1,298 @@
 /**
- * Portafoglio BIT — Capture Closing Prices
- * FIX: salva a TOP LEVEL backup.officialCloses (non dentro portfolios[])
- * FIX: Finnhub key da env FINNHUB_KEY (non da backup.settings.ak che viene rimosso)
- * FIX: diagnostica dettagliata se Gist è vuoto
+ * Portafoglio BIT — Capture Closing Prices (.mjs — ES Module)
+ * Secrets GitHub richiesti: GIST_TOKEN, GIST_ID
+ * Secrets opzionali:        FINNHUB_KEY, MARKET_OVERRIDE
  */
-'use strict';
-const https = require('https');
-const GITHUB_TOKEN = process.env.GIST_TOKEN;
-const GIST_ID = process.env.GIST_ID;
-const FINNHUB_KEY = process.env.FINNHUB_KEY || '';
+import https from 'https';
+
+const GITHUB_TOKEN    = process.env.GIST_TOKEN;
+const GIST_ID         = process.env.GIST_ID;
+const FINNHUB_KEY     = process.env.FINNHUB_KEY || '';
 const MARKET_OVERRIDE = (process.env.MARKET_OVERRIDE || '').toUpperCase();
+
 if (!GITHUB_TOKEN) { console.error('MANCA GIST_TOKEN'); process.exit(1); }
-if (!GIST_ID) { console.error('MANCA GIST_ID'); process.exit(1); }
+if (!GIST_ID)      { console.error('MANCA GIST_ID');    process.exit(1); }
 
-function httpsGet(url, headers={}) {
-  return new Promise((resolve,reject)=>{
-    const u=new URL(url);
-    const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'GET',
-      headers:{'User-Agent':'PortafoglioBIT/2.0',...headers}},res=>{
-      if(res.statusCode>=300&&res.statusCode<400&&res.headers.location){resolve(httpsGet(res.headers.location,headers));return;}
-      const chunks=[];res.on('data',c=>chunks.push(c));res.on('end',()=>{
-        const raw=Buffer.concat(chunks).toString('utf8');
-        try{resolve({status:res.statusCode,body:JSON.parse(raw)});}catch{resolve({status:res.statusCode,body:raw});}
+// ── HTTP helpers ──────────────────────────────────────────────────
+function httpsGet(url, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const req = https.request({
+      hostname: u.hostname, path: u.pathname + u.search, method: 'GET',
+      headers: { 'User-Agent': 'PortafoglioBIT/2.0', ...headers }
+    }, res => {
+      if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
+        resolve(httpsGet(res.headers.location, headers)); return;
+      }
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        try   { resolve({ status: res.statusCode, body: JSON.parse(raw) }); }
+        catch { resolve({ status: res.statusCode, body: raw }); }
       });
     });
-    req.on('error',reject);req.setTimeout(14000,()=>{req.destroy();reject(new Error('Timeout:'+url.slice(0,60)));});req.end();
+    req.on('error', reject);
+    req.setTimeout(14000, () => { req.destroy(); reject(new Error('Timeout: ' + url.slice(0, 60))); });
+    req.end();
   });
 }
 
-function httpsPatch(url,payload,headers={}){
-  return new Promise((resolve,reject)=>{
-    const u=new URL(url);const body=JSON.stringify(payload);
-    const req=https.request({hostname:u.hostname,path:u.pathname+u.search,method:'PATCH',
-      headers:{'Content-Type':'application/json','Content-Length':Buffer.byteLength(body),'User-Agent':'PortafoglioBIT/2.0',...headers}},res=>{
-      const chunks=[];res.on('data',c=>chunks.push(c));res.on('end',()=>{
-        const raw=Buffer.concat(chunks).toString('utf8');
-        try{resolve({status:res.statusCode,body:JSON.parse(raw)});}catch{resolve({status:res.statusCode,body:raw});}
+function httpsPatch(url, payload, headers = {}) {
+  return new Promise((resolve, reject) => {
+    const u = new URL(url);
+    const body = JSON.stringify(payload);
+    const req = https.request({
+      hostname: u.hostname, path: u.pathname + u.search, method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        'Content-Length': Buffer.byteLength(body),
+        'User-Agent': 'PortafoglioBIT/2.0',
+        ...headers
+      }
+    }, res => {
+      const chunks = [];
+      res.on('data', c => chunks.push(c));
+      res.on('end', () => {
+        const raw = Buffer.concat(chunks).toString('utf8');
+        try   { resolve({ status: res.statusCode, body: JSON.parse(raw) }); }
+        catch { resolve({ status: res.statusCode, body: raw }); }
       });
     });
-    req.on('error',reject);req.setTimeout(18000,()=>{req.destroy();reject(new Error('Timeout PATCH'));});req.write(body);req.end();
+    req.on('error', reject);
+    req.setTimeout(18000, () => { req.destroy(); reject(new Error('Timeout PATCH')); });
+    req.write(body); req.end();
   });
 }
 
-const delay=ms=>new Promise(r=>setTimeout(r,ms));
+const delay = ms => new Promise(r => setTimeout(r, ms));
 
-function detectMarket(){
-  if(['EU','US','BOTH'].includes(MARKET_OVERRIDE))return MARKET_OVERRIDE;
-  const now=new Date(),dow=now.getUTCDay();
-  if(dow===0||dow===6)return 'SKIP';
-  const m=now.getUTCHours()*60+now.getUTCMinutes();
-  if(m>=15*60+25&&m<17*60+15)return 'EU';
-  if(m>=19*60+55&&m<21*60+30)return 'US';
+// ── Market detection ──────────────────────────────────────────────
+function detectMarket() {
+  if (['EU', 'US', 'BOTH'].includes(MARKET_OVERRIDE)) return MARKET_OVERRIDE;
+  const now = new Date(), dow = now.getUTCDay();
+  if (dow === 0 || dow === 6) return 'SKIP';
+  const m = now.getUTCHours() * 60 + now.getUTCMinutes();
+  if (m >= 15*60+25 && m < 17*60+15) return 'EU';
+  if (m >= 19*60+55 && m < 21*60+30) return 'US';
   return 'SKIP';
 }
 
-const EU_RE=/\.(MI|MOT|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i;
-const isEU=tk=>EU_RE.test(tk);
-const SFX={MI:'it',MOT:'it',DE:'de',PA:'fr',L:'uk',SW:'ch',AS:'nl',F:'de',ST:'se',CO:'dk',HE:'fi',OL:'no',BR:'be',VX:'ch'};
-function stooqSym(t){const m=t.match(/^([^.]+)\.([A-Z]+)$/i);if(!m)return t.toLowerCase();const s=SFX[m[2].toUpperCase()];return s?`${m[1].toLowerCase()}.${s}`:m[1].toLowerCase();}
+const EU_RE = /\.(MI|MOT|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i;
+const isEU  = tk => EU_RE.test(tk);
 
-async function fetchStooq(ticker){
-  try{
-    const {status,body}=await httpsGet(`https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym(ticker))}&i=d`);
-    if(status!==200||typeof body!=='string'||/no data/i.test(body))return null;
-    const lines=body.trim().split(/\r?\n/).filter(Boolean);if(lines.length<2)return null;
-    const last=lines[lines.length-1].split(','),prev=lines.length>=3?lines[lines.length-2].split(','):null;
-    const price=parseFloat(last[4]);if(!price||price<=0)return null;
-    return{price,prevClose:prev?parseFloat(prev[4]):null,date:last[0],source:'Stooq'};
-  }catch{return null;}
+const SFX = { MI:'it', MOT:'it', DE:'de', PA:'fr', L:'uk', SW:'ch',
+              AS:'nl', F:'de', ST:'se', CO:'dk', HE:'fi', OL:'no', BR:'be', VX:'ch' };
+function stooqSym(t) {
+  const m = t.match(/^([^.]+)\.([A-Z]+)$/i);
+  if (!m) return t.toLowerCase();
+  const s = SFX[m[2].toUpperCase()];
+  return s ? `${m[1].toLowerCase()}.${s}` : m[1].toLowerCase();
 }
 
-async function fetchYahooChart(ticker){
-  try{
-    const {status,body}=await httpsGet(`https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`);
-    if(status!==200)return null;
-    const r=body?.chart?.result?.[0],meta=r?.meta||{};
-    const closes=(r?.indicators?.quote?.[0]?.close||[]).filter(c=>c!=null&&c>0);
-    const price=meta.regularMarketPrice;if(!price||price<=0)return null;
-    return{price,prevClose:meta.chartPreviousClose||closes[closes.length-2]||null,source:'Yahoo-chart'};
-  }catch{return null;}
+// ── Price fetchers ────────────────────────────────────────────────
+async function fetchStooq(ticker) {
+  try {
+    const { status, body } = await httpsGet(
+      `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym(ticker))}&i=d`
+    );
+    if (status !== 200 || typeof body !== 'string' || /no data/i.test(body)) return null;
+    const lines = body.trim().split(/\r?\n/).filter(Boolean);
+    if (lines.length < 2) return null;
+    const last = lines[lines.length - 1].split(',');
+    const prev = lines.length >= 3 ? lines[lines.length - 2].split(',') : null;
+    const price = parseFloat(last[4]);
+    if (!price || price <= 0) return null;
+    return { price, prevClose: prev ? parseFloat(prev[4]) : null, date: last[0], source: 'Stooq' };
+  } catch { return null; }
 }
 
-async function fetchYahooQuote(ticker){
-  try{
-    const {status,body}=await httpsGet(`https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(ticker)}&fields=regularMarketPrice,regularMarketPreviousClose`);
-    if(status!==200)return null;
-    const q=body?.quoteResponse?.result?.[0];if(!q?.regularMarketPrice)return null;
-    return{price:q.regularMarketPrice,prevClose:q.regularMarketPreviousClose||null,source:'Yahoo-quote'};
-  }catch{return null;}
+async function fetchYahooChart(ticker) {
+  try {
+    const { status, body } = await httpsGet(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=5d`
+    );
+    if (status !== 200) return null;
+    const r = body?.chart?.result?.[0], meta = r?.meta || {};
+    const closes = (r?.indicators?.quote?.[0]?.close || []).filter(c => c != null && c > 0);
+    const price = meta.regularMarketPrice;
+    if (!price || price <= 0) return null;
+    return { price, prevClose: meta.chartPreviousClose || closes[closes.length - 2] || null, source: 'Yahoo-chart' };
+  } catch { return null; }
 }
 
-async function fetchFinnhub(ticker,key){
-  if(!key)return null;
-  try{
-    const FH={MI:'MIL',MOT:'MIL',DE:'XETRA',PA:'EPA',L:'LSE',AS:'AMS',SW:'SWX',F:'FRA'};
-    const m=ticker.match(/^([^.]+)\.([A-Z]+)$/i);
-    const sym=m?`${FH[m[2].toUpperCase()]||m[2]}:${m[1]}`:ticker;
-    const {status,body}=await httpsGet(`https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${encodeURIComponent(key)}`);
-    if(status!==200||!body?.c||body.c<=0)return null;
-    return{price:body.c,prevClose:body.pc||null,source:'Finnhub'};
-  }catch{return null;}
+async function fetchYahooQuote(ticker) {
+  try {
+    const { status, body } = await httpsGet(
+      `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(ticker)}&fields=regularMarketPrice,regularMarketPreviousClose`
+    );
+    if (status !== 200) return null;
+    const q = body?.quoteResponse?.result?.[0];
+    if (!q?.regularMarketPrice) return null;
+    return { price: q.regularMarketPrice, prevClose: q.regularMarketPreviousClose || null, source: 'Yahoo-quote' };
+  } catch { return null; }
 }
 
-async function fetchPrice(ticker){
-  const eu=isEU(ticker);
-  const fns=eu
-    ?[()=>fetchStooq(ticker),()=>fetchYahooChart(ticker),()=>fetchYahooQuote(ticker)]
-    :[()=>fetchYahooQuote(ticker),()=>fetchYahooChart(ticker),()=>fetchFinnhub(ticker,FINNHUB_KEY),()=>fetchStooq(ticker)];
-  for(const fn of fns){try{const r=await fn();if(r?.price>0)return r;}catch{}await delay(300);}
+async function fetchFinnhub(ticker, key) {
+  if (!key) return null;
+  try {
+    const FH = { MI:'MIL', MOT:'MIL', DE:'XETRA', PA:'EPA', L:'LSE', AS:'AMS', SW:'SWX', F:'FRA' };
+    const m = ticker.match(/^([^.]+)\.([A-Z]+)$/i);
+    const sym = m ? `${FH[m[2].toUpperCase()] || m[2]}:${m[1]}` : ticker;
+    const { status, body } = await httpsGet(
+      `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}&token=${encodeURIComponent(key)}`
+    );
+    if (status !== 200 || !body?.c || body.c <= 0) return null;
+    return { price: body.c, prevClose: body.pc || null, source: 'Finnhub' };
+  } catch { return null; }
+}
+
+async function fetchPrice(ticker) {
+  const eu = isEU(ticker);
+  const fns = eu
+    ? [() => fetchStooq(ticker), () => fetchYahooChart(ticker), () => fetchYahooQuote(ticker)]
+    : [() => fetchYahooQuote(ticker), () => fetchYahooChart(ticker), () => fetchFinnhub(ticker, FINNHUB_KEY), () => fetchStooq(ticker)];
+  for (const fn of fns) {
+    try { const r = await fn(); if (r?.price > 0) return r; } catch {}
+    await delay(300);
+  }
   return null;
 }
 
-const GHDR={'Authorization':`token ${GITHUB_TOKEN}`,'Accept':'application/vnd.github+json'};
+// ── Gist I/O ──────────────────────────────────────────────────────
+const GHDR = { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github+json' };
 
-async function readGist(){
-  console.log(`\n=== Lettura Gist ID: ${GIST_ID} ===`);
-  const {status,body}=await httpsGet(`https://api.github.com/gists/${GIST_ID}`,GHDR);
-  if(status===404)throw new Error('Gist non trovato (404) — verifica GIST_ID');
-  if(status===401)throw new Error('Token non autorizzato (401) — verifica GIST_TOKEN e scope "gist"');
-  if(status!==200)throw new Error(`Gist API: HTTP ${status}`);
-  const files=body.files||{};
-  console.log(`Files: ${Object.keys(files).join(', ')||'(nessuno)'}`);
-  const content=files['portafoglio-bit.json']?.content;
-  if(!content)throw new Error(
-    'File "portafoglio-bit.json" non trovato nel Gist.\n'+
-    '→ Apri l\'app, verifica che il token sia configurato, poi premi "Salva su Gist".'
+async function readGist() {
+  console.log(`\n=== Gist ID: ${GIST_ID} ===`);
+  const { status, body } = await httpsGet(`https://api.github.com/gists/${GIST_ID}`, GHDR);
+  if (status === 404) throw new Error('Gist non trovato (404) — verifica GIST_ID nel secret');
+  if (status === 401) throw new Error('Token non autorizzato (401) — verifica GIST_TOKEN e scope "gist"');
+  if (status !== 200) throw new Error(`Gist API: HTTP ${status}`);
+  const files = body.files || {};
+  console.log(`Files nel Gist: ${Object.keys(files).join(', ') || '(nessuno)'}`);
+  const content = files['portafoglio-bit.json']?.content;
+  if (!content) throw new Error(
+    'File "portafoglio-bit.json" non trovato nel Gist.\n' +
+    '→ Apri l\'app → Backup → "Salva su Gist" almeno una volta.'
   );
-  const backup=JSON.parse(content);
-  console.log(`Backup: version=${backup.version||'?'}  multiPortfolio=${backup.multiPortfolio}`);
-  console.log(`Portafogli: ${backup.portfolios?.length||0}`);
-  (backup.portfolios||[]).forEach((pf,i)=>{
-    const qty={};
-    (pf.ops||[]).forEach(op=>{const tk=op.quoteTicker||op.ticker;if(!tk||tk==='__CASH__')return;qty[tk]=(qty[tk]||0)+(op.type==='buy'?1:-1)*(op.qty||0);});
-    const active=Object.entries(qty).filter(([,q])=>q>0.001).map(([tk])=>tk);
-    console.log(`  [${i}] "${pf.name||'?'}" — ${pf.ops?.length||0} ops — ticker attivi: ${active.join(', ')||'(nessuno)'}`);
+  const backup = JSON.parse(content);
+  console.log(`Portafogli: ${backup.portfolios?.length || 0}`);
+  (backup.portfolios || []).forEach((pf, i) => {
+    const qty = {};
+    (pf.ops || []).forEach(op => {
+      const tk = op.quoteTicker || op.ticker;
+      if (!tk || tk === '__CASH__') return;
+      qty[tk] = (qty[tk] || 0) + (op.type === 'buy' ? 1 : -1) * (op.qty || 0);
+    });
+    const active = Object.entries(qty).filter(([, q]) => q > 0.001).map(([tk]) => tk);
+    console.log(`  [${i}] "${pf.name || '?'}" — ${pf.ops?.length || 0} ops — attivi: ${active.join(', ') || '(nessuno)'}`);
   });
-  console.log(`officialCloses esistenti: ${Object.keys(backup.officialCloses||{}).join(', ')||'(nessuno)'}`);
+  console.log(`officialCloses: ${Object.keys(backup.officialCloses || {}).join(', ') || '(nessuno)'}`);
   return backup;
 }
 
-async function writeGist(backup){
-  const {status,body}=await httpsPatch(`https://api.github.com/gists/${GIST_ID}`,
-    {files:{'portafoglio-bit.json':{content:JSON.stringify(backup)}}},GHDR);
-  if(status!==200)throw new Error(`Scrittura Gist: HTTP ${status} — ${JSON.stringify(body).slice(0,200)}`);
+async function writeGist(backup) {
+  const { status, body } = await httpsPatch(
+    `https://api.github.com/gists/${GIST_ID}`,
+    { files: { 'portafoglio-bit.json': { content: JSON.stringify(backup) } } },
+    GHDR
+  );
+  if (status !== 200) throw new Error(`Scrittura Gist: HTTP ${status} — ${JSON.stringify(body).slice(0, 200)}`);
 }
 
-function extractTickers(backup){
-  const qty={};
-  (backup.portfolios||[]).forEach(pf=>{
-    (pf.ops||[]).forEach(op=>{
-      const tk=op.quoteTicker||op.ticker;
-      if(!tk||tk==='__CASH__')return;
-      qty[tk]=(qty[tk]||0)+(op.type==='buy'?1:-1)*(op.qty||0);
+function extractTickers(backup) {
+  const qty = {};
+  (backup.portfolios || []).forEach(pf => {
+    (pf.ops || []).forEach(op => {
+      const tk = op.quoteTicker || op.ticker;
+      if (!tk || tk === '__CASH__') return;
+      qty[tk] = (qty[tk] || 0) + (op.type === 'buy' ? 1 : -1) * (op.qty || 0);
     });
   });
-  return Object.entries(qty).filter(([,q])=>q>0.0001).map(([tk])=>tk);
+  return Object.entries(qty).filter(([, q]) => q > 0.0001).map(([tk]) => tk);
 }
 
-function todayRome(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Rome'}).format(new Date());}
-
-async function main(){
-  console.log('=== Portafoglio BIT — Capture Closing Prices ===');
-  console.log(`UTC: ${new Date().toISOString()} | Rome: ${todayRome()}`);
-  console.log(`Finnhub key: ${FINNHUB_KEY?'presente (env FINNHUB_KEY)':'assente'}`);
-
-  const market=detectMarket();
-  console.log(`Market rilevato: ${market}`);
-  if(market==='SKIP'){console.log('Fuori finestra di cattura — exit');return;}
-
-  const backup=await readGist();
-  const allTickers=extractTickers(backup);
-  console.log(`\nTicker attivi totali: ${allTickers.join(', ')||'(nessuno)'}`);
-
-  const tickers=allTickers.filter(tk=>{
-    if(market==='EU')return isEU(tk);
-    if(market==='US')return!isEU(tk);
-    return true;
-  });
-
-  if(!tickers.length){
-    if(!allTickers.length){
-      console.log('\nNESSUN TICKER — Assicurati di aver fatto "Salva su Gist" dall\'app con dati nel portafoglio.');
-    }else{
-      console.log(`Nessun ticker per mercato ${market} tra: ${allTickers.join(', ')}`);
-    }
-    return;
-  }
-
-  console.log(`\nFetching ${tickers.length} ticker per ${market}...`);
-  const results={};
-  for(const ticker of tickers){
-    const r=await fetchPrice(ticker);
-    if(r){results[ticker]=r;console.log(`  OK  ${ticker.padEnd(16)} ${r.price}  [${r.source}]`);}
-    else{console.log(`  NO  ${ticker}`);}
-    await delay(400);
-  }
-
-  if(!Object.keys(results).length){console.log('Nessun prezzo — Gist invariato');return;}
-
-  const today=todayRome();
-
-  // ── FIX: salva a TOP LEVEL backup.officialCloses ──────────────────
-  if(!backup.officialCloses)    backup.officialCloses={};
-  if(!backup.officialClosesMeta)backup.officialClosesMeta={};
-
-  let saved=0;
-  Object.entries(results).forEach(([ticker,data])=>{
-    if(!backup.officialCloses[ticker])    backup.officialCloses[ticker]={};
-    if(!backup.officialClosesMeta[ticker])backup.officialClosesMeta[ticker]={};
-    backup.officialCloses[ticker][today]={
-      close:     data.price,
-      prevClose: data.prevClose||null,
-      capturedAt:new Date().toISOString(),
-      source:    `${data.source}-auto`,
-      market
-    };
-    backup.officialClosesMeta[ticker][today]={source:data.source,capturedAt:new Date().toISOString(),market};
-    // Max 365 giorni
-    const keys=Object.keys(backup.officialCloses[ticker]).sort();
-    if(keys.length>365)keys.slice(0,keys.length-365).forEach(k=>delete backup.officialCloses[ticker][k]);
-    saved++;
-  });
-
-  backup.lastCloseCapture={at:new Date().toISOString(),market,count:saved,date:today};
-  console.log(`\nSalvataggio ${saved} chiusure nel Gist...`);
-  await writeGist(backup);
-  console.log(`DONE — ${saved} chiusure ufficiali per ${today}`);
+function todayRome() {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date());
 }
 
-main().catch(e=>{console.error('ERRORE FATALE:',e.message||e);process.exit(1);});
+// ── Main ──────────────────────────────────────────────────────────
+const market  = detectMarket();
+const today   = todayRome();
+
+console.log('=== Portafoglio BIT — Official Closes ===');
+console.log(`UTC: ${new Date().toISOString()} | Rome: ${today}`);
+console.log(`Finnhub: ${FINNHUB_KEY ? 'presente' : 'assente'} | Market: ${market}`);
+
+if (market === 'SKIP') {
+  console.log('Fuori dalla finestra di cattura — exit');
+  process.exit(0);
+}
+
+const backup = await readGist();
+
+const allTickers = extractTickers(backup);
+console.log(`\nTicker attivi: ${allTickers.join(', ') || '(nessuno)'}`);
+
+if (!allTickers.length) {
+  console.log('\nNESSUN TICKER — Fai "Salva su Gist" dall\'app prima di lanciare questo script.');
+  process.exit(0);
+}
+
+const tickers = allTickers.filter(tk => {
+  if (market === 'EU') return  isEU(tk);
+  if (market === 'US') return !isEU(tk);
+  return true;
+});
+
+if (!tickers.length) {
+  console.log(`Nessun ticker per mercato ${market}`);
+  process.exit(0);
+}
+
+console.log(`\nFetching ${tickers.length} prezzi (${market})...`);
+const results = {};
+for (const ticker of tickers) {
+  const r = await fetchPrice(ticker);
+  if (r) { results[ticker] = r; console.log(`  OK  ${ticker.padEnd(16)} ${r.price}  [${r.source}]`); }
+  else   { console.log(`  NO  ${ticker}`); }
+  await delay(400);
+}
+
+if (!Object.keys(results).length) {
+  console.log('Nessun prezzo ottenuto — Gist invariato');
+  process.exit(0);
+}
+
+// ── Salva a TOP LEVEL backup.officialCloses ───────────────────────
+if (!backup.officialCloses)     backup.officialCloses     = {};
+if (!backup.officialClosesMeta) backup.officialClosesMeta = {};
+
+let saved = 0;
+for (const [ticker, data] of Object.entries(results)) {
+  if (!backup.officialCloses[ticker])     backup.officialCloses[ticker]     = {};
+  if (!backup.officialClosesMeta[ticker]) backup.officialClosesMeta[ticker] = {};
+
+  backup.officialCloses[ticker][today] = {
+    close:      data.price,
+    prevClose:  data.prevClose || null,
+    capturedAt: new Date().toISOString(),
+    source:     `${data.source}-auto`,
+    market
+  };
+  backup.officialClosesMeta[ticker][today] = {
+    source: data.source, capturedAt: new Date().toISOString(), market
+  };
+
+  // Max 365 giorni
+  const keys = Object.keys(backup.officialCloses[ticker]).sort();
+  if (keys.length > 365) keys.slice(0, keys.length - 365).forEach(k => delete backup.officialCloses[ticker][k]);
+
+  saved++;
+}
+
+backup.lastCloseCapture = { at: new Date().toISOString(), market, count: saved, date: today };
+
+console.log(`\nSalvataggio ${saved} chiusure nel Gist...`);
+await writeGist(backup);
+console.log(`DONE — ${saved} chiusure ufficiali salvate per ${today}`);
