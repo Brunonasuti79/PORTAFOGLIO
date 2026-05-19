@@ -115,9 +115,16 @@ async function fetchYahooChart(ticker) {
     if (status !== 200) return null;
     const r = body?.chart?.result?.[0], meta = r?.meta || {};
     const closes = (r?.indicators?.quote?.[0]?.close || []).filter(c => c != null && c > 0);
+    const timestamps = r?.timestamp || [];
     const price = meta.regularMarketPrice;
     if (!price || price <= 0) return null;
-    return { price, prevClose: meta.chartPreviousClose || closes[closes.length - 2] || null, source: 'Yahoo-chart' };
+    // Estrai la data reale dell'ultima candela chiusa
+    let date = null;
+    if (timestamps.length > 0) {
+      const lastTs = timestamps[timestamps.length - 1];
+      date = new Date(lastTs * 1000).toISOString().slice(0, 10);
+    }
+    return { price, prevClose: meta.chartPreviousClose || closes[closes.length - 2] || null, date, source: 'Yahoo-chart' };
   } catch { return null; }
 }
 
@@ -273,15 +280,21 @@ for (const [ticker, data] of Object.entries(results)) {
   if (!backup.officialCloses[ticker])     backup.officialCloses[ticker]     = {};
   if (!backup.officialClosesMeta[ticker]) backup.officialClosesMeta[ticker] = {};
 
-  backup.officialCloses[ticker][today] = {
+  // Usa la data reale della chiusura (da Stooq/Yahoo timestamp) se disponibile,
+  // altrimenti usa la data di oggi. Questo evita di salvare la chiusura di venerdì
+  // sotto la chiave di lunedì quando lo script gira la mattina presto.
+  const saveDate = data.date || today;
+
+  backup.officialCloses[ticker][saveDate] = {
     close:      data.price,
     prevClose:  data.prevClose || null,
     capturedAt: new Date().toISOString(),
+    runDate:    today,          // data di esecuzione dello script (per debug)
     source:     `${data.source}-auto`,
     market
   };
-  backup.officialClosesMeta[ticker][today] = {
-    source: data.source, capturedAt: new Date().toISOString(), market
+  backup.officialClosesMeta[ticker][saveDate] = {
+    source: data.source, capturedAt: new Date().toISOString(), market, runDate: today
   };
 
   // Max 365 giorni
