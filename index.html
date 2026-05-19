@@ -1584,6 +1584,8 @@ function load() {
   // Normalize all portfolios
   ALL.portfolios.forEach(pf => normalizePortfolio(pf));
   S = ALL.portfolios.find(p => p.id === ALL.activePortfolioId);
+  // Inietta subito le chiusure ufficiali già presenti nel tickerHistory
+  injectOfficialClosesToTickerHistory();
 }
 
 function save() {
@@ -2427,32 +2429,63 @@ function ensureSessionPrevClose(ticker, q, region) {
 // assume il giorno precedente: usa la data valida più recente nel Gist.
 function getOfficialPrevCloseForSession(h, region) {
   const sessionDate = marketSessionDate(region);
-  if (!hasMarketOpenedForSession(region)) {
-    return { sessionDate, prevClose:null, cached:false, marketReady:false, source:null, prevCloseSourceDate:null, reason:'market_not_open' };
-  }
+  const marketOpen = hasMarketOpenedForSession(region);
+  // Se il mercato NON ha ancora aperto per la sessione corrente,
+  // cerchiamo comunque una chiusura ufficiale: in quel caso usiamo
+  // la chiusura più recente (= quella di IERI o dell'ultima seduta)
+  // come prevClose e la chiusura precedente come riferimento.
+  // Questo permette di mostrare il gain dell'ultima sessione anche
+  // fuori orario e nel weekend.
   const candidates = candidatesForHolding(h);
   for (const tk of candidates) {
     const closes = ALL.officialCloses?.[tk];
     if (!closes || typeof closes !== 'object') continue;
-    const dates = Object.keys(closes)
-      .filter(d => d < sessionDate && closes[d] && num(closes[d].close) > 0)
+    const allDates = Object.keys(closes)
+      .filter(d => closes[d] && num(closes[d].close) > 0)
       .sort()
       .reverse();
-    if (!dates.length) continue;
-    const d = dates[0];
-    const rec = closes[d];
-    return {
-      sessionDate,
-      prevClose:num(rec.close),
-      cached:true,
-      marketReady:true,
-      source:rec.source ? `officialCloses/${rec.source}` : 'officialCloses',
-      prevCloseSourceDate:rec.sourceDate || rec.marketDate || d,
-      refreshed:false,
-      reason:'official_closes_gist',
-      official:true,
-      officialTicker:tk
-    };
+    if (!allDates.length) continue;
+
+    if (marketOpen) {
+      // Mercato aperto: prevClose = ultima chiusura PRIMA di oggi
+      const dates = allDates.filter(d => d < sessionDate);
+      if (!dates.length) continue;
+      const d = dates[0], rec = closes[d];
+      return {
+        sessionDate,
+        prevClose: num(rec.close),
+        cached: true,
+        marketReady: true,
+        source: rec.source ? `officialCloses/${rec.source}` : 'officialCloses',
+        prevCloseSourceDate: rec.sourceDate || rec.marketDate || d,
+        refreshed: false,
+        reason: 'official_closes_gist',
+        official: true,
+        officialTicker: tk
+      };
+    } else {
+      // Mercato chiuso: mostriamo il gain dell'ULTIMA seduta
+      // currentPrice (in S.prices) = ultima chiusura ufficiale
+      // prevClose = penultima chiusura ufficiale
+      if (allDates.length < 2) continue;
+      const prevD = allDates[1], prevRec = closes[prevD];
+      return {
+        sessionDate: allDates[0],   // data dell'ultima seduta
+        prevClose: num(prevRec.close),
+        cached: true,
+        marketReady: true,          // forza la visualizzazione
+        source: prevRec.source ? `officialCloses/${prevRec.source}` : 'officialCloses',
+        prevCloseSourceDate: prevRec.sourceDate || prevRec.marketDate || prevD,
+        refreshed: false,
+        reason: 'official_closes_gist_closed',
+        official: true,
+        officialTicker: tk
+      };
+    }
+  }
+  // Nessuna chiusura ufficiale trovata
+  if (!marketOpen) {
+    return { sessionDate, prevClose:null, cached:false, marketReady:false, source:null, prevCloseSourceDate:null, reason:'market_not_open' };
   }
   return { sessionDate, prevClose:null, cached:false, marketReady:true, source:null, prevCloseSourceDate:null, reason:'official_closes_missing' };
 }
@@ -3322,6 +3355,8 @@ function renderPF() {
         const EU_M=new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS']);
         const mkt=(h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
         const isEU=EU_M.has(mkt)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
+        // Chiusura ufficiale da Gist → mostra sempre, anche a borsa chiusa
+        if(day?.prevCloseOfficial) return (dayPct>=0?'+':'')+dayPct.toFixed(2)+'%';
         if(isEU&&!hasEUTradedToday()) return '<span class=\"pf-no-price\">—</span>';
         if(!isEU&&!hasUSTradedToday()) return '<span class=\"pf-no-price\">—</span>';
         return (dayPct>=0?'+':'')+dayPct.toFixed(2)+'%';
@@ -6274,6 +6309,76 @@ function mergeOfficialCloses(local={}, remote={}) {
   }
   return out;
 }
+
+// ── Inietta officialCloses nei tickerHistory per i grafici ────────────────────
+// Chiamata dopo ogni sync dal Gist o aggiornamento di officialCloses.
+// Per ogni ticker in ALL.officialCloses, aggiunge i pts mancanti a tutti i
+// periodi esistenti in pf.tickerHistory, e crea un periodo sintetico
+// "officialOnly" se il ticker non ha ancora nessuno storico.
+function injectOfficialClosesToTickerHistory() {
+  const oc = ALL.officialCloses || {};
+  if (!Object.keys(oc).length) return;
+
+  // 1) Costruisce pts ordinati per ogni ticker da officialCloses
+  //    Usa 17:30 UTC come timestamp convenzionale di chiusura EU,
+  //    oppure 22:00 UTC per ticker USA (senza .MI/.DE/.PA — ticker nudi).
+  const ocPts = {};
+  for (const [ticker, dates] of Object.entries(oc)) {
+    if (!dates || typeof dates !== 'object') continue;
+    const isEU = /\.(MI|DE|PA|AS|L|VX|BR)$/i.test(ticker);
+    const closingH = isEU ? 'T15:30:00Z' : 'T21:00:00Z';
+    const pts = Object.entries(dates)
+      .filter(([, rec]) => rec && Number(rec.close) > 0)
+      .map(([date, rec]) => ({
+        t: new Date(date + closingH).getTime(),
+        c: Number(rec.close)
+      }))
+      .sort((a, b) => a.t - b.t);
+    if (pts.length) ocPts[ticker] = pts;
+  }
+  if (!Object.keys(ocPts).length) return;
+
+  let changed = false;
+  for (const pf of (ALL.portfolios || [])) {
+    if (!pf.tickerHistory) pf.tickerHistory = {};
+
+    for (const [ticker, newPts] of Object.entries(ocPts)) {
+      const th = pf.tickerHistory[ticker] || {};
+
+      // 2) Per ogni periodo già presente, fai merge dei pts mancanti
+      let injectedInAny = false;
+      for (const [period, entry] of Object.entries(th)) {
+        if (!entry?.pts?.length) continue;
+        const firstT = entry.pts[0].t;
+        const existing = new Set(entry.pts.map(p => Math.round(p.t / 86400000)));
+        const toAdd = newPts.filter(p => {
+          const dayKey = Math.round(p.t / 86400000);
+          return p.t >= firstT && !existing.has(dayKey);
+        });
+        if (toAdd.length) {
+          entry.pts = [...entry.pts, ...toAdd].sort((a, b) => a.t - b.t);
+          changed = true;
+          injectedInAny = true;
+        }
+      }
+
+      // 3) Se il ticker non ha nessun periodo, crea "officialOnly"
+      if (!injectedInAny && !Object.keys(th).length && newPts.length >= 1) {
+        pf.tickerHistory[ticker] = {
+          officialOnly: {
+            pts: [...newPts],
+            ccy: /\.(MI|DE|PA|AS)$/i.test(ticker) ? 'EUR' : 'USD',
+            sym: ticker,
+            updated: Date.now(),
+            officialOnly: true
+          }
+        };
+        changed = true;
+      }
+    }
+  }
+  if (changed) save();
+}
 function mergeObjectsPreferRemote(local={}, remote={}) {
   return Object.assign({}, local || {}, remote || {});
 }
@@ -6334,6 +6439,7 @@ async function syncToGist(silent=false, reason='manual') {
     // Preserva le chiusure create da GitHub Actions e già presenti sul Gist.
     ALL.officialCloses = mergeOfficialCloses(ALL.officialCloses || {}, remoteBackup?.officialCloses || {});
     ALL.officialClosesMeta = mergeObjectsPreferRemote(ALL.officialClosesMeta || {}, remoteBackup?.officialClosesMeta || {});
+    injectOfficialClosesToTickerHistory();
 
     const backup = JSON.stringify({
       version: SK,
@@ -6432,6 +6538,7 @@ async function syncFromGist(silent=false) {
     if (!ALL.portfolios.length) ALL.portfolios = [newPortfolio('Portafoglio principale')];
     ALL.activePortfolioId = ALL.portfolios.find(p=>p.id===ALL.activePortfolioId)?.id || ALL.portfolios[0].id;
     S = ALL.portfolios.find(p=>p.id===ALL.activePortfolioId);
+    injectOfficialClosesToTickerHistory();
     save(); renderAll(); renderGistUI();
     if (!silent) showToast('✓ Dati ripristinati da Gist');
     else console.log('Auto Gist download OK');
@@ -7043,11 +7150,10 @@ function isUSMarketOpen() {
 
 // ── Variazione giornaliera totale EUR ────────────────────────────
 function calcDailyEUR() {
-  // "Oggi" = somma variazioni EU (se EU ha aperto oggi) + variazioni USA (se USA ha aperto oggi)
-  // Se nessuno ha ancora aperto → null
+  // "Oggi" = somma variazioni EU + USA con chiusure ufficiali disponibili
+  // Se nessuno ha tradato E non ci sono chiusure ufficiali → null
   const euTraded = hasEUTradedToday();
   const usTraded = hasUSTradedToday();
-  if (!euTraded && !usTraded) return null;
 
   const EU_MKTS = new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS','LSE','EPA','SWX','MIL','XETRA','FWB']);
   const hlds = calcPF();
@@ -7061,6 +7167,12 @@ function calcDailyEUR() {
     if (!dc || dc.pct == null) continue;
     const mkt = (h.market || marketFromSymbol(h.ticker) || '').toUpperCase();
     const isEU = EU_MKTS.has(mkt) || /\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
+    // Se abbiamo una chiusura ufficiale, includi sempre
+    if (dc.prevCloseOfficial) {
+      totalChange += (dc.pct / 100) * val;
+      counted++;
+      continue;
+    }
     // Includi solo se il mercato ha già tradato oggi
     if (isEU  && !euTraded) continue;
     if (!isEU && !usTraded) continue;
