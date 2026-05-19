@@ -1,39 +1,58 @@
-/**
- * update-official-closes.mjs
- *
- * Legge il Gist dell'app Portafoglio BIT, recupera le chiusure ufficiali
- * per i ticker aperti e salva:
- *
- * backup.officialCloses[ticker][YYYY-MM-DD] = {
- *   close,
- *   market,
- *   source,
- *   sourceDate,
- *   savedAt
- * }
- *
- * Variabili richieste:
- * - GIST_ID
- * - GIST_TOKEN
- *
- * Variabili opzionali:
- * - FINNHUB_API_KEY
- * - MARKET = ALL | EU | US
- * - FORCE = true | false
- */
+// Save official daily market closes into the Portafoglio BIT GitHub Gist.
+// Token-only version: it finds the Gist by filename "portafoglio-bit.json".
+// Node 24. No npm dependencies.
 
-const GIST_ID = process.env.GIST_ID || "";
-const GIST_TOKEN = process.env.GIST_TOKEN || "";
-const FINNHUB_API_KEY = process.env.FINNHUB_API_KEY || "";
-const MARKET = String(process.env.MARKET || "ALL").toUpperCase();
+let GIST_ID = String(process.env.GIST_ID || "").trim();
+const GIST_TOKEN = String(process.env.GIST_TOKEN || "").trim();
+const FINNHUB_API_KEY = String(process.env.FINNHUB_API_KEY || "").trim();
+const MARKET_FILTER = String(process.env.MARKET || "ALL").toUpperCase();
 const FORCE = String(process.env.FORCE || "false").toLowerCase() === "true";
 
-const GIST_FILENAME = "portafoglio-bit.json";
+const GIST_FILE = "portafoglio-bit.json";
+const LOGIC_VERSION = "official-close-actions-v1-2026-05-18";
 
-if (!GIST_ID || !GIST_TOKEN) {
-  console.error("Missing required env vars: GIST_ID and/or GIST_TOKEN.");
-  process.exit(1);
+if (!GIST_TOKEN) {
+  throw new Error("Missing required secret: PORTFOLIO_GIST_TOKEN");
 }
+
+const EU_MARKETS = new Set([
+  "MI", "MOT", "DE", "PA", "L", "SW", "AS", "F",
+  "ST", "CO", "HE", "OL", "BR", "VX", "AMS"
+]);
+
+const STOOQ_SUFFIX = {
+  MI: ".it",
+  MOT: ".it",
+  DE: ".de",
+  PA: ".fr",
+  L: ".uk",
+  SW: ".ch",
+  AS: ".nl",
+  F: ".de",
+  ST: ".se",
+  CO: ".dk",
+  HE: ".fi",
+  OL: ".no",
+  BR: ".be",
+  VX: ".ch",
+  AMS: ".nl"
+};
+
+const YAHOO_SUFFIX_TO_MARKET = {
+  ".MI": "MI",
+  ".DE": "DE",
+  ".PA": "PA",
+  ".L": "L",
+  ".SW": "SW",
+  ".AS": "AS",
+  ".F": "F",
+  ".ST": "ST",
+  ".CO": "CO",
+  ".HE": "HE",
+  ".OL": "OL",
+  ".BR": "BR",
+  ".VX": "VX"
+};
 
 function fc(v) {
   return String(v || "").trim().toUpperCase().replace(/\s+/g, "");
@@ -44,229 +63,266 @@ function baseTicker(v) {
 }
 
 function marketFromSymbol(sym) {
-  const m = fc(sym).match(/\.([A-Z0-9]+)$/);
-  return m ? m[1] : "";
+  const s = fc(sym);
+  for (const [suffix, market] of Object.entries(YAHOO_SUFFIX_TO_MARKET)) {
+    if (s.endsWith(suffix)) return market;
+  }
+  return "";
 }
 
-function stooqSuffix(code) {
-  const map = {
-    MI: ".it",
-    MOT: ".it",
-    DE: ".de",
-    PA: ".fr",
-    L: ".uk",
-    SW: ".ch",
-    AS: ".nl",
-    F: ".de"
-  };
-  return map[code] || "";
+function isEUQuote(sym, market = "") {
+  const m = fc(market || marketFromSymbol(sym));
+  return EU_MARKETS.has(m);
 }
 
-function getDateKey(timeZone, date = new Date()) {
+function isUSQuote(sym, market = "") {
+  const m = fc(market);
+  const s = fc(sym);
+
+  if (m === "NYSE" || m === "NASDAQ" || m === "US") return true;
+
+  // Se non ha suffisso europeo, lo trattiamo come USA.
+  return !!s && !s.includes(".") && !isEUQuote(s, m);
+}
+
+function localDate(tz, d = new Date()) {
   return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
+    timeZone: tz,
     year: "numeric",
     month: "2-digit",
     day: "2-digit"
-  }).format(date);
+  }).format(d);
 }
 
-function isEUHolding(h) {
-  const mkt = fc(h.market || marketFromSymbol(h.ticker));
-  const tk = fc(h.ticker);
-  return (
-    ["MI", "MOT", "DE", "PA", "L", "SW", "AS", "F", "ST", "CO", "HE", "OL", "BR", "VX", "AMS"].includes(mkt) ||
-    /\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(tk)
-  );
-}
+function nowParts(tz) {
+  const parts = new Intl.DateTimeFormat("en-GB", {
+    timeZone: tz,
+    hour12: false,
+    weekday: "short",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  }).formatToParts(new Date()).reduce((acc, part) => {
+    acc[part.type] = part.value;
+    return acc;
+  }, {});
 
-function isUSHolding(h) {
-  return !isEUHolding(h);
-}
-
-function normalizeOp(op) {
-  const displayTicker = fc(op.displayTicker || op.ticker || "");
-  const quoteTicker = fc(op.quoteTicker || op.priceSymbol || op.ticker || displayTicker);
-  const market = op.market || marketFromSymbol(quoteTicker);
   return {
-    ...op,
-    displayTicker,
-    ticker: quoteTicker,
-    quoteTicker,
-    market
+    weekday: parts.weekday,
+    hour: Number(parts.hour),
+    minute: Number(parts.minute),
+    date: `${parts.year}-${parts.month}-${parts.day}`
   };
 }
 
-function calcOpenHoldings(portfolio) {
-  const map = new Map();
-  const ops = [...(portfolio.ops || [])]
-    .map(normalizeOp)
-    .filter(op => op.quoteTicker || op.ticker)
-    .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
-
-  for (const op of ops) {
-    const key = fc(op.quoteTicker || op.ticker);
-    if (!key) continue;
-
-    if (!map.has(key)) {
-      map.set(key, {
-        ticker: key,
-        displayTicker: fc(op.displayTicker || baseTicker(key)),
-        market: op.market || marketFromSymbol(key),
-        name: op.name || fc(op.displayTicker || baseTicker(key)),
-        qty: 0
-      });
-    }
-
-    const h = map.get(key);
-    const qty = Number(String(op.qty ?? "0").replace(",", ".")) || 0;
-
-    if (op.type === "sell") h.qty -= qty;
-    else h.qty += qty;
-
-    if (op.market) h.market = op.market;
-    if (op.name) h.name = op.name;
-    if (op.displayTicker) h.displayTicker = op.displayTicker;
-  }
-
-  return [...map.values()].filter(h => h.qty > 0.00001);
+function isWeekday(tz) {
+  const w = nowParts(tz).weekday;
+  return !["Sat", "Sun"].includes(w);
 }
 
-function collectHoldings(backup) {
-  const all = [];
-  for (const pf of backup.portfolios || []) {
-    all.push(...calcOpenHoldings(pf));
-  }
-
-  const byTicker = new Map();
-  for (const h of all) {
-    if (!byTicker.has(h.ticker)) byTicker.set(h.ticker, h);
-  }
-
-  return [...byTicker.values()];
+function isAfterEuCloseWindow() {
+  const p = nowParts("Europe/Rome");
+  return isWeekday("Europe/Rome") && (p.hour > 17 || (p.hour === 17 && p.minute >= 40));
 }
 
-async function fetchJson(url, options = {}) {
+function isAfterUsCloseWindow() {
+  const p = nowParts("America/New_York");
+  return isWeekday("America/New_York") && (p.hour > 16 || (p.hour === 16 && p.minute >= 10));
+}
+
+function shouldRunMarket(region) {
+  if (MARKET_FILTER !== "ALL" && MARKET_FILTER !== region) return false;
+  if (FORCE) return true;
+  if (region === "EU") return isAfterEuCloseWindow();
+  if (region === "US") return isAfterUsCloseWindow();
+  return false;
+}
+
+async function fetchJson(url, opts = {}) {
   const res = await fetch(url, {
-    ...options,
+    ...opts,
     headers: {
-      "User-Agent": "PortafoglioBIT/1.0",
-      "Accept": "application/json",
-      ...(options.headers || {})
+      "User-Agent": "PortafoglioBIT-CloseBot/1.0",
+      ...(opts.headers || {})
     }
   });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status} ${res.statusText}: ${text.slice(0, 200)}`);
+    throw new Error(`HTTP ${res.status} for ${url} — ${text.slice(0, 300)}`);
   }
 
   return await res.json();
 }
 
-async function fetchText(url, options = {}) {
+async function fetchText(url, opts = {}) {
   const res = await fetch(url, {
-    ...options,
+    ...opts,
     headers: {
-      "User-Agent": "PortafoglioBIT/1.0",
-      "Accept": "text/plain,*/*",
-      ...(options.headers || {})
+      "User-Agent": "PortafoglioBIT-CloseBot/1.0",
+      ...(opts.headers || {})
     }
   });
 
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`HTTP ${res.status} ${res.statusText}: ${text.slice(0, 200)}`);
+    throw new Error(`HTTP ${res.status} for ${url} — ${text.slice(0, 300)}`);
   }
 
   return await res.text();
 }
 
-async function readGist() {
-  const data = await fetchJson(`https://api.github.com/gists/${GIST_ID}`, {
+async function findPortfolioGistId() {
+  if (GIST_ID) return GIST_ID;
+
+  for (let page = 1; page <= 5; page++) {
+    const list = await fetchJson(`https://api.github.com/gists?per_page=100&page=${page}`, {
+      headers: {
+        Authorization: `Bearer ${GIST_TOKEN}`,
+        Accept: "application/vnd.github+json"
+      }
+    });
+
+    if (!Array.isArray(list) || !list.length) break;
+
+    const found = list.find(gist => gist.files && gist.files[GIST_FILE]);
+    if (found?.id) {
+      GIST_ID = found.id;
+      console.log(`Using Gist ${GIST_ID} found by filename ${GIST_FILE}`);
+      return GIST_ID;
+    }
+  }
+
+  throw new Error(
+    `No Gist containing ${GIST_FILE} found. ` +
+    `Open the app once, insert the token, and press Save now so the app can create it.`
+  );
+}
+
+async function getGistBackup() {
+  const gistId = await findPortfolioGistId();
+
+  const data = await fetchJson(`https://api.github.com/gists/${gistId}`, {
     headers: {
       Authorization: `Bearer ${GIST_TOKEN}`,
       Accept: "application/vnd.github+json"
     }
   });
 
-  const raw = data.files?.[GIST_FILENAME]?.content;
-  if (!raw) throw new Error(`File ${GIST_FILENAME} not found inside Gist ${GIST_ID}`);
+  const content = data.files?.[GIST_FILE]?.content;
+  if (!content) throw new Error(`Gist file ${GIST_FILE} not found`);
 
-  return JSON.parse(raw);
+  return JSON.parse(content);
 }
 
-async function writeGist(backup) {
-  const content = JSON.stringify(backup, null, 2);
+async function patchGistBackup(backup) {
+  const gistId = await findPortfolioGistId();
 
-  await fetchJson(`https://api.github.com/gists/${GIST_ID}`, {
+  const body = JSON.stringify({
+    files: {
+      [GIST_FILE]: {
+        content: JSON.stringify(backup, null, 2)
+      }
+    }
+  });
+
+  const res = await fetch(`https://api.github.com/gists/${gistId}`, {
     method: "PATCH",
     headers: {
       Authorization: `Bearer ${GIST_TOKEN}`,
       Accept: "application/vnd.github+json",
       "Content-Type": "application/json"
     },
-    body: JSON.stringify({
-      files: {
-        [GIST_FILENAME]: { content }
-      }
-    })
+    body
   });
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`Gist PATCH failed: HTTP ${res.status} ${text}`);
+  }
+
+  return await res.json();
 }
 
-async function fetchStooqCloseForMarketDate(holding, marketDate) {
-  const mkt = holding.market || marketFromSymbol(holding.ticker);
-  const base = baseTicker(holding.ticker).toLowerCase();
-  const sfx = stooqSuffix(mkt);
-  const stooqSym = sfx ? base + sfx : holding.ticker.toLowerCase();
+function extractHoldings(backup) {
+  const out = new Map();
+  const portfolios = Array.isArray(backup.portfolios) ? backup.portfolios : [];
 
+  for (const pf of portfolios) {
+    for (const op of (pf.ops || [])) {
+      const quoteTicker = fc(op.quoteTicker || op.priceSymbol || op.ticker || op.displayTicker || "");
+      if (!quoteTicker || quoteTicker === "__CASH__") continue;
+
+      const market = fc(op.market || marketFromSymbol(quoteTicker));
+      const key = quoteTicker;
+
+      if (!out.has(key)) {
+        const region = isEUQuote(quoteTicker, market)
+          ? "EU"
+          : (isUSQuote(quoteTicker, market) ? "US" : "OTHER");
+
+        out.set(key, {
+          quoteTicker,
+          market,
+          region,
+          name: op.name || op.displayTicker || quoteTicker
+        });
+      }
+    }
+  }
+
+  return [...out.values()].filter(x => x.region === "EU" || x.region === "US");
+}
+
+function stooqSymbol(sym, market) {
+  const m = fc(market || marketFromSymbol(sym));
+  const suffix = STOOQ_SUFFIX[m] || "";
+  return baseTicker(sym).toLowerCase() + suffix;
+}
+
+async function fetchStooqDailyClose(sym, market, marketDate) {
+  const stooqSym = stooqSymbol(sym, market);
   const url = `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym)}&i=d`;
   const csv = await fetchText(url);
 
   const rows = csv
     .trim()
     .split(/\r?\n/)
-    .filter(Boolean)
     .slice(1)
     .map(line => line.split(","))
-    .filter(r => r.length >= 5 && r[0] && r[4]);
+    .filter(row => row.length >= 5);
 
-  if (!rows.length) return null;
+  const matches = rows
+    .filter(row => row[0] <= marketDate && Number(row[4]) > 0);
 
-  const validRows = rows
-    .map(r => ({
-      date: r[0],
-      close: Number(String(r[4]).replace(",", "."))
-    }))
-    .filter(r => r.date <= marketDate && Number.isFinite(r.close) && r.close > 0)
-    .sort((a, b) => a.date.localeCompare(b.date));
+  if (!matches.length) return null;
 
-  const last = validRows[validRows.length - 1];
-  if (!last) return null;
+  const last = matches[matches.length - 1];
 
-  // Se oggi è festivo e Stooq dà l'ultima riga precedente, NON salviamo un close finto per oggi.
-  if (last.date !== marketDate) {
+  // Se oggi è festivo e Stooq ha solo l'ultima riga precedente,
+  // non salviamo una chiusura falsa per la data odierna.
+  if (last[0] !== marketDate) {
     return {
       skipped: true,
-      reason: `No Stooq row for market date ${marketDate}; latest row is ${last.date}`,
-      latestDate: last.date,
-      latestClose: last.close
+      reason: `no close for ${marketDate}; latest Stooq row is ${last[0]}`,
+      sourceDate: last[0]
     };
   }
 
   return {
-    close: last.close,
+    close: Number(last[4]),
+    sourceDate: last[0],
     source: "stooq",
-    sourceDate: last.date
+    symbol: stooqSym
   };
 }
 
-async function fetchYahooDailyCloseForMarketDate(symbol, marketDate) {
-  const url =
-    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}` +
-    `?interval=1d&range=10d`;
-
+async function fetchYahooDailyClose(sym, marketDate, tz) {
+  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=10d`;
   const data = await fetchJson(url);
+
   const result = data?.chart?.result?.[0];
   if (!result) return null;
 
@@ -275,177 +331,233 @@ async function fetchYahooDailyCloseForMarketDate(symbol, marketDate) {
   const closes = quote.close || [];
 
   const rows = timestamps
-    .map((t, i) => {
-      const d = getDateKey("America/New_York", new Date(t * 1000));
-      const close = Number(closes[i]);
-      return { date: d, close };
-    })
-    .filter(r => r.date <= marketDate && Number.isFinite(r.close) && r.close > 0)
-    .sort((a, b) => a.date.localeCompare(b.date));
+    .map((t, index) => ({
+      date: localDate(tz, new Date(t * 1000)),
+      close: Number(closes[index])
+    }))
+    .filter(row => row.date <= marketDate && Number.isFinite(row.close) && row.close > 0);
+
+  if (!rows.length) return null;
 
   const last = rows[rows.length - 1];
-  if (!last) return null;
 
-  // Se oggi è festivo o Yahoo non ha ancora la candela del giorno, non salviamo un close finto.
   if (last.date !== marketDate) {
     return {
       skipped: true,
-      reason: `No Yahoo daily candle for market date ${marketDate}; latest candle is ${last.date}`,
-      latestDate: last.date,
-      latestClose: last.close
+      reason: `no Yahoo close for ${marketDate}; latest row is ${last.date}`,
+      sourceDate: last.date
     };
   }
 
   return {
     close: last.close,
+    sourceDate: last.date,
     source: "yahoo-chart",
-    sourceDate: last.date
+    symbol: sym
   };
 }
 
-async function fetchFinnhubCloseForUS(holding, marketDate) {
+async function fetchYahooQuoteClose(sym, marketDate) {
+  const url =
+    `https://query1.finance.yahoo.com/v7/finance/quote?symbols=${encodeURIComponent(sym)}` +
+    `&fields=regularMarketPrice,regularMarketTime,regularMarketPreviousClose,regularMarketChangePercent,marketState`;
+
+  const data = await fetchJson(url);
+  const quote = data?.quoteResponse?.result?.[0];
+  const price = Number(quote?.regularMarketPrice);
+
+  if (!Number.isFinite(price) || price <= 0) return null;
+
+  // Dopo chiusura, regularMarketPrice è di solito il close o molto vicino.
+  // Yahoo daily chart resta comunque la fonte preferita.
+  return {
+    close: price,
+    sourceDate: marketDate,
+    source: "yahoo-quote",
+    symbol: sym,
+    marketState: quote?.marketState || ""
+  };
+}
+
+async function fetchFinnhubClose(sym, marketDate) {
   if (!FINNHUB_API_KEY) return null;
 
-  const symbol = baseTicker(holding.ticker) || holding.ticker;
   const url =
-    `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}` +
+    `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(sym)}` +
     `&token=${encodeURIComponent(FINNHUB_API_KEY)}`;
 
   const data = await fetchJson(url);
-  const close = Number(data?.c);
+  const price = Number(data?.c);
 
-  if (!Number.isFinite(close) || close <= 0) return null;
+  if (!Number.isFinite(price) || price <= 0) return null;
 
-  // Finnhub quote non porta una data di candela qui.
-  // Lo usiamo solo come fallback dopo la chiusura schedulata.
   return {
-    close,
-    source: "finnhub-quote",
-    sourceDate: marketDate
+    close: price,
+    sourceDate: marketDate,
+    source: "finnhub",
+    symbol: sym
   };
 }
 
-async function fetchOfficialClose(holding, region, marketDate) {
-  if (region === "EU") {
-    return await fetchStooqCloseForMarketDate(holding, marketDate);
+async function fetchOfficialClose(holding, marketDate) {
+  if (holding.region === "EU") {
+    // Europa/ETF: Stooq daily close è la fonte principale.
+    try {
+      const stooq = await fetchStooqDailyClose(holding.quoteTicker, holding.market, marketDate);
+      if (stooq) return stooq;
+    } catch (err) {
+      console.log(`[EU] ${holding.quoteTicker} Stooq failed: ${err.message}`);
+    }
+
+    // Fallback solo se Stooq fallisce completamente.
+    try {
+      const yahoo = await fetchYahooDailyClose(holding.quoteTicker, marketDate, "Europe/Rome");
+      if (yahoo) return yahoo;
+    } catch (err) {
+      console.log(`[EU] ${holding.quoteTicker} Yahoo chart failed: ${err.message}`);
+    }
+
+    return null;
   }
 
-  // USA: Yahoo daily candle prima, Finnhub solo fallback.
-  const yahoo = await fetchYahooDailyCloseForMarketDate(holding.ticker, marketDate).catch(err => ({
-    error: err.message
-  }));
+  if (holding.region === "US") {
+    // USA: Yahoo daily chart preferito dopo chiusura ufficiale.
+    try {
+      const yahoo = await fetchYahooDailyClose(holding.quoteTicker, marketDate, "America/New_York");
+      if (yahoo) return yahoo;
+    } catch (err) {
+      console.log(`[US] ${holding.quoteTicker} Yahoo chart failed: ${err.message}`);
+    }
 
-  if (yahoo && !yahoo.error) return yahoo;
+    try {
+      const quote = await fetchYahooQuoteClose(holding.quoteTicker, marketDate);
+      if (quote) return quote;
+    } catch (err) {
+      console.log(`[US] ${holding.quoteTicker} Yahoo quote failed: ${err.message}`);
+    }
 
-  const fh = await fetchFinnhubCloseForUS(holding, marketDate).catch(err => ({
-    error: err.message
-  }));
+    try {
+      const finnhub = await fetchFinnhubClose(holding.quoteTicker, marketDate);
+      if (finnhub) return finnhub;
+    } catch (err) {
+      console.log(`[US] ${holding.quoteTicker} Finnhub failed: ${err.message}`);
+    }
 
-  if (fh && !fh.error) return fh;
-
-  if (yahoo?.error) throw new Error(`Yahoo failed: ${yahoo.error}`);
-  if (fh?.error) throw new Error(`Finnhub failed: ${fh.error}`);
+    return null;
+  }
 
   return null;
 }
 
-function shouldProcessRegion(region) {
-  if (MARKET === "ALL") return true;
-  return MARKET === region;
-}
+function ensureOfficialCloses(backup) {
+  if (!backup.officialCloses || typeof backup.officialCloses !== "object") {
+    backup.officialCloses = {};
+  }
 
-function ensureContainers(backup) {
-  if (!backup.officialCloses) backup.officialCloses = {};
-  if (!backup.officialClosesMeta) backup.officialClosesMeta = {};
-  backup.officialClosesMeta.lastWorkflowRunAt = new Date().toISOString();
-  backup.officialClosesMeta.lastWorkflowMarket = MARKET;
-  backup.officialClosesMeta.version = "github-actions-official-closes-v1";
+  if (!backup.officialClosesMeta || typeof backup.officialClosesMeta !== "object") {
+    backup.officialClosesMeta = {};
+  }
 }
 
 async function main() {
-  console.log(`Starting official close update. MARKET=${MARKET} FORCE=${FORCE}`);
+  console.log(`Starting close saver. MARKET=${MARKET_FILTER} FORCE=${FORCE}`);
+  console.log(`Rome now: ${JSON.stringify(nowParts("Europe/Rome"))}`);
+  console.log(`NY now:   ${JSON.stringify(nowParts("America/New_York"))}`);
 
-  const backup = await readGist();
-  ensureContainers(backup);
+  const backup = await getGistBackup();
+  ensureOfficialCloses(backup);
 
-  const holdings = collectHoldings(backup);
-  if (!holdings.length) {
-    console.log("No open holdings found in Gist backup. Nothing to update.");
-    await writeGist(backup);
-    return;
-  }
+  const holdings = extractHoldings(backup);
+  console.log(
+    `Found ${holdings.length} eligible tickers: ` +
+    holdings.map(h => `${h.quoteTicker}/${h.region}`).join(", ")
+  );
 
-  const euDate = getDateKey("Europe/Rome");
-  const usDate = getDateKey("America/New_York");
+  const datesByRegion = {
+    EU: localDate("Europe/Rome"),
+    US: localDate("America/New_York")
+  };
 
-  let saved = 0;
+  let changed = 0;
   let skipped = 0;
   let failed = 0;
 
-  for (const h of holdings) {
-    const region = isEUHolding(h) ? "EU" : "US";
-    if (!shouldProcessRegion(region)) continue;
-
-    const marketDate = region === "EU" ? euDate : usDate;
-    const ticker = fc(h.ticker);
-
-    if (!ticker) continue;
-
-    if (!backup.officialCloses[ticker]) backup.officialCloses[ticker] = {};
-
-    if (backup.officialCloses[ticker][marketDate] && !FORCE) {
-      console.log(`SKIP ${ticker} ${region} ${marketDate}: already exists`);
+  for (const holding of holdings) {
+    if (!shouldRunMarket(holding.region)) {
       skipped++;
       continue;
     }
 
-    try {
-      const closeData = await fetchOfficialClose(h, region, marketDate);
+    const marketDate = datesByRegion[holding.region];
 
-      if (!closeData) {
-        console.log(`SKIP ${ticker} ${region}: no close data`);
-        skipped++;
-        continue;
-      }
+    backup.officialCloses[holding.quoteTicker] ||= {};
 
-      if (closeData.skipped) {
-        console.log(`SKIP ${ticker} ${region}: ${closeData.reason}`);
-        skipped++;
-        continue;
-      }
+    const existing = backup.officialCloses[holding.quoteTicker][marketDate];
 
-      backup.officialCloses[ticker][marketDate] = {
-        close: Number(closeData.close),
-        market: region,
-        source: closeData.source,
-        sourceDate: closeData.sourceDate,
-        savedAt: new Date().toISOString()
-      };
-
+    if (existing && !FORCE) {
       console.log(
-        `SAVE ${ticker} ${region} ${marketDate}: close=${closeData.close} source=${closeData.source}`
+        `[SKIP] ${holding.quoteTicker} ${marketDate}: ` +
+        `already has close ${existing.close} (${existing.source})`
       );
-      saved++;
-    } catch (err) {
-      console.log(`FAIL ${ticker} ${region}: ${err.message || err}`);
-      failed++;
+      skipped++;
+      continue;
     }
+
+    const closeData = await fetchOfficialClose(holding, marketDate);
+
+    if (!closeData || closeData.skipped || !Number.isFinite(Number(closeData.close))) {
+      console.log(
+        `[MISS] ${holding.quoteTicker} ${marketDate}: ` +
+        `${closeData?.reason || "no valid close"}`
+      );
+      failed++;
+      continue;
+    }
+
+    backup.officialCloses[holding.quoteTicker][marketDate] = {
+      close: Number(closeData.close),
+      market: holding.region,
+      marketDate,
+      sourceDate: closeData.sourceDate,
+      source: closeData.source,
+      symbol: closeData.symbol,
+      savedAt: new Date().toISOString(),
+      overwrite: !!existing,
+      logicVersion: LOGIC_VERSION
+    };
+
+    console.log(
+      `[SAVE] ${holding.quoteTicker} ${marketDate}: ` +
+      `${closeData.close} via ${closeData.source}`
+    );
+
+    changed++;
   }
 
+  backup.officialClosesMeta.lastRunAt = new Date().toISOString();
+  backup.officialClosesMeta.lastRunMarket = MARKET_FILTER;
+  backup.officialClosesMeta.logicVersion = LOGIC_VERSION;
   backup.officialClosesMeta.lastResult = {
-    saved,
+    saved: changed,
     skipped,
     failed,
     runAt: new Date().toISOString(),
-    market: MARKET
+    market: MARKET_FILTER
   };
 
-  await writeGist(backup);
+  backup.updatedBy = "github-actions-close-prices";
 
-  console.log(`Done. saved=${saved}, skipped=${skipped}, failed=${failed}`);
+  if (changed > 0) {
+    await patchGistBackup(backup);
+    console.log(`Done. Saved ${changed}, skipped ${skipped}, failed ${failed}.`);
+  } else {
+    // Aggiorna comunque la meta, così sai che il workflow è girato.
+    await patchGistBackup(backup);
+    console.log(`Done. No close saved. Saved ${changed}, skipped ${skipped}, failed ${failed}.`);
+  }
 }
 
 main().catch(err => {
-  console.error("Fatal error:", err);
+  console.error(err);
   process.exit(1);
 });
