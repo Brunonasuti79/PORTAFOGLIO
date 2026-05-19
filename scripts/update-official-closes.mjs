@@ -1,17 +1,19 @@
 /**
- * Portafoglio BIT — Capture Closing Prices (.mjs — ES Module)
- * Secrets GitHub richiesti: GIST_TOKEN, GIST_ID
- * Secrets opzionali:        FINNHUB_KEY, MARKET_OVERRIDE
+ * Portafoglio BIT — Capture Closing Prices
+ * Secrets GitHub richiesti:  GIST_TOKEN
+ * Secrets opzionali:         GIST_ID (se omesso lo trova da solo)
+ *                            FINNHUB_KEY
+ *                            MARKET_OVERRIDE (EU | US | BOTH — solo per test manuali)
  */
 import https from 'https';
 
 const GITHUB_TOKEN    = process.env.GIST_TOKEN;
-const GIST_ID         = process.env.GIST_ID;
 const FINNHUB_KEY     = process.env.FINNHUB_KEY || '';
 const MARKET_OVERRIDE = (process.env.MARKET_OVERRIDE || '').toUpperCase();
 
 if (!GITHUB_TOKEN) { console.error('MANCA GIST_TOKEN'); process.exit(1); }
-if (!GIST_ID)      { console.error('MANCA GIST_ID');    process.exit(1); }
+
+const GHDR = { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github+json' };
 
 // ── HTTP helpers ──────────────────────────────────────────────────
 function httpsGet(url, headers = {}) {
@@ -19,7 +21,7 @@ function httpsGet(url, headers = {}) {
     const u = new URL(url);
     const req = https.request({
       hostname: u.hostname, path: u.pathname + u.search, method: 'GET',
-      headers: { 'User-Agent': 'PortafoglioBIT/2.0', ...headers }
+      headers: { 'User-Agent': 'PortafoglioBIT/3.0', ...headers }
     }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         resolve(httpsGet(res.headers.location, headers)); return;
@@ -47,7 +49,7 @@ function httpsPatch(url, payload, headers = {}) {
       headers: {
         'Content-Type': 'application/json',
         'Content-Length': Buffer.byteLength(body),
-        'User-Agent': 'PortafoglioBIT/2.0',
+        'User-Agent': 'PortafoglioBIT/3.0',
         ...headers
       }
     }, res => {
@@ -67,14 +69,32 @@ function httpsPatch(url, payload, headers = {}) {
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
-// ── Market detection ──────────────────────────────────────────────
+// ── Market detection — timezone-aware ────────────────────────────
+// Usa l'ora locale reale di Roma e New York.
+// Gestisce automaticamente ora legale (CET/CEST, EST/EDT).
+function localMinutes(timezone) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false
+  }).formatToParts(new Date());
+  const h = parseInt(parts.find(p => p.type === 'hour')?.value   || '0');
+  const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
+  return h * 60 + m;
+}
+
 function detectMarket() {
   if (['EU', 'US', 'BOTH'].includes(MARKET_OVERRIDE)) return MARKET_OVERRIDE;
-  const now = new Date(), dow = now.getUTCDay();
-  if (dow === 0 || dow === 6) return 'SKIP';
-  const m = now.getUTCHours() * 60 + now.getUTCMinutes();
-  if (m >= 15*60+25 && m < 17*60+15) return 'EU';
-  if (m >= 19*60+55 && m < 21*60+30) return 'US';
+
+  const now = new Date();
+  if (now.getUTCDay() === 0 || now.getUTCDay() === 6) return 'SKIP';
+
+  const romeMin = localMinutes('Europe/Rome');      // EU chiude 17:30 = 1050 min
+  const nyMin   = localMinutes('America/New_York'); // US chiude 16:00 = 960 min
+
+  const euClosed = romeMin >= 17 * 60 + 40;  // dopo le 17:40 Roma
+  const usClosed = nyMin   >= 16 * 60 + 10;  // dopo le 16:10 New York
+
+  if (usClosed)  return 'US';  // US chiusa → cattura titoli US
+  if (euClosed)  return 'EU';  // EU chiusa, US ancora aperta → cattura EU
   return 'SKIP';
 }
 
@@ -118,11 +138,10 @@ async function fetchYahooChart(ticker) {
     const timestamps = r?.timestamp || [];
     const price = meta.regularMarketPrice;
     if (!price || price <= 0) return null;
-    // Estrai la data reale dell'ultima candela chiusa
+    // Data reale dell'ultima candela chiusa
     let date = null;
     if (timestamps.length > 0) {
-      const lastTs = timestamps[timestamps.length - 1];
-      date = new Date(lastTs * 1000).toISOString().slice(0, 10);
+      date = new Date(timestamps[timestamps.length - 1] * 1000).toISOString().slice(0, 10);
     }
     return { price, prevClose: meta.chartPreviousClose || closes[closes.length - 2] || null, date, source: 'Yahoo-chart' };
   } catch { return null; }
@@ -166,21 +185,37 @@ async function fetchPrice(ticker) {
   return null;
 }
 
-// ── Gist I/O ──────────────────────────────────────────────────────
-const GHDR = { 'Authorization': `token ${GITHUB_TOKEN}`, 'Accept': 'application/vnd.github+json' };
+// ── Gist I/O — token-only (GIST_ID opzionale) ────────────────────
+async function findGistId() {
+  if (process.env.GIST_ID) {
+    console.log(`Gist ID da secret: ${process.env.GIST_ID}`);
+    return process.env.GIST_ID;
+  }
+  console.log('GIST_ID non impostato — ricerca automatica...');
+  let page = 1;
+  while (page <= 5) {
+    const { status, body } = await httpsGet(
+      `https://api.github.com/gists?per_page=100&page=${page}`, GHDR
+    );
+    if (status !== 200 || !Array.isArray(body) || !body.length) break;
+    const found = body.find(g => 'portafoglio-bit.json' in (g.files || {}));
+    if (found) { console.log(`Gist trovato automaticamente: ${found.id}`); return found.id; }
+    if (body.length < 100) break;
+    page++;
+  }
+  return null;
+}
 
-async function readGist() {
-  console.log(`\n=== Gist ID: ${GIST_ID} ===`);
-  const { status, body } = await httpsGet(`https://api.github.com/gists/${GIST_ID}`, GHDR);
-  if (status === 404) throw new Error('Gist non trovato (404) — verifica GIST_ID nel secret');
+async function readGist(gistId) {
+  const { status, body } = await httpsGet(`https://api.github.com/gists/${gistId}`, GHDR);
+  if (status === 404) throw new Error('Gist non trovato (404)');
   if (status === 401) throw new Error('Token non autorizzato (401) — verifica GIST_TOKEN e scope "gist"');
   if (status !== 200) throw new Error(`Gist API: HTTP ${status}`);
   const files = body.files || {};
   console.log(`Files nel Gist: ${Object.keys(files).join(', ') || '(nessuno)'}`);
   const content = files['portafoglio-bit.json']?.content;
   if (!content) throw new Error(
-    'File "portafoglio-bit.json" non trovato nel Gist.\n' +
-    '→ Apri l\'app → Backup → "Salva su Gist" almeno una volta.'
+    'File "portafoglio-bit.json" non trovato.\n→ Apri l\'app → Backup → "Salva su Gist" almeno una volta.'
   );
   const backup = JSON.parse(content);
   console.log(`Portafogli: ${backup.portfolios?.length || 0}`);
@@ -194,13 +229,13 @@ async function readGist() {
     const active = Object.entries(qty).filter(([, q]) => q > 0.001).map(([tk]) => tk);
     console.log(`  [${i}] "${pf.name || '?'}" — ${pf.ops?.length || 0} ops — attivi: ${active.join(', ') || '(nessuno)'}`);
   });
-  console.log(`officialCloses: ${Object.keys(backup.officialCloses || {}).join(', ') || '(nessuno)'}`);
+  console.log(`officialCloses: ${Object.keys(backup.officialCloses || {}).length} ticker`);
   return backup;
 }
 
-async function writeGist(backup) {
+async function writeGist(gistId, backup) {
   const { status, body } = await httpsPatch(
-    `https://api.github.com/gists/${GIST_ID}`,
+    `https://api.github.com/gists/${gistId}`,
     { files: { 'portafoglio-bit.json': { content: JSON.stringify(backup) } } },
     GHDR
   );
@@ -224,8 +259,8 @@ function todayRome() {
 }
 
 // ── Main ──────────────────────────────────────────────────────────
-const market  = detectMarket();
-const today   = todayRome();
+const market = detectMarket();
+const today  = todayRome();
 
 console.log('=== Portafoglio BIT — Official Closes ===');
 console.log(`UTC: ${new Date().toISOString()} | Rome: ${today}`);
@@ -236,8 +271,13 @@ if (market === 'SKIP') {
   process.exit(0);
 }
 
-const backup = await readGist();
+const gistId = await findGistId();
+if (!gistId) {
+  console.error('Nessun Gist con portafoglio-bit.json trovato.\n→ Apri l\'app → Backup → "Salva su Gist" almeno una volta.');
+  process.exit(1);
+}
 
+const backup = await readGist(gistId);
 const allTickers = extractTickers(backup);
 console.log(`\nTicker attivi: ${allTickers.join(', ') || '(nessuno)'}`);
 
@@ -261,8 +301,12 @@ console.log(`\nFetching ${tickers.length} prezzi (${market})...`);
 const results = {};
 for (const ticker of tickers) {
   const r = await fetchPrice(ticker);
-  if (r) { results[ticker] = r; console.log(`  OK  ${ticker.padEnd(16)} ${r.price}  [${r.source}]`); }
-  else   { console.log(`  NO  ${ticker}`); }
+  if (r) {
+    results[ticker] = r;
+    console.log(`  OK  ${ticker.padEnd(18)} ${String(r.price).padEnd(10)}  [${r.source}]${r.date ? '  date:' + r.date : ''}`);
+  } else {
+    console.log(`  NO  ${ticker}`);
+  }
   await delay(400);
 }
 
@@ -271,7 +315,7 @@ if (!Object.keys(results).length) {
   process.exit(0);
 }
 
-// ── Salva a TOP LEVEL backup.officialCloses ───────────────────────
+// ── Salva officialCloses nel Gist ─────────────────────────────────
 if (!backup.officialCloses)     backup.officialCloses     = {};
 if (!backup.officialClosesMeta) backup.officialClosesMeta = {};
 
@@ -280,16 +324,16 @@ for (const [ticker, data] of Object.entries(results)) {
   if (!backup.officialCloses[ticker])     backup.officialCloses[ticker]     = {};
   if (!backup.officialClosesMeta[ticker]) backup.officialClosesMeta[ticker] = {};
 
-  // Usa la data reale della chiusura (da Stooq/Yahoo timestamp) se disponibile,
-  // altrimenti usa la data di oggi. Questo evita di salvare la chiusura di venerdì
-  // sotto la chiave di lunedì quando lo script gira la mattina presto.
+  // Usa la data reale dell'ultima candela (da Stooq o Yahoo timestamp).
+  // Evita di salvare la chiusura di ieri sotto la data di oggi
+  // quando lo script gira prima dell'apertura del mercato.
   const saveDate = data.date || today;
 
   backup.officialCloses[ticker][saveDate] = {
     close:      data.price,
     prevClose:  data.prevClose || null,
     capturedAt: new Date().toISOString(),
-    runDate:    today,          // data di esecuzione dello script (per debug)
+    runDate:    today,
     source:     `${data.source}-auto`,
     market
   };
@@ -297,15 +341,20 @@ for (const [ticker, data] of Object.entries(results)) {
     source: data.source, capturedAt: new Date().toISOString(), market, runDate: today
   };
 
-  // Max 365 giorni
+  // Max 365 giorni di storico
   const keys = Object.keys(backup.officialCloses[ticker]).sort();
-  if (keys.length > 365) keys.slice(0, keys.length - 365).forEach(k => delete backup.officialCloses[ticker][k]);
+  if (keys.length > 365) keys.slice(0, keys.length - 365).forEach(k => {
+    delete backup.officialCloses[ticker][k];
+    delete backup.officialClosesMeta[ticker]?.[k];
+  });
 
   saved++;
 }
 
-backup.lastCloseCapture = { at: new Date().toISOString(), market, count: saved, date: today };
+backup.officialClosesMeta['__lastRun'] = {
+  at: new Date().toISOString(), market, saved, runDate: today
+};
 
 console.log(`\nSalvataggio ${saved} chiusure nel Gist...`);
-await writeGist(backup);
-console.log(`DONE — ${saved} chiusure ufficiali salvate per ${today}`);
+await writeGist(gistId, backup);
+console.log(`DONE — saved:${saved}  date:${today}  market:${market}`);
