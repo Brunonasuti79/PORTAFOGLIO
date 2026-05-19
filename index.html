@@ -2429,65 +2429,93 @@ function ensureSessionPrevClose(ticker, q, region) {
 // assume il giorno precedente: usa la data valida più recente nel Gist.
 function getOfficialPrevCloseForSession(h, region) {
   const sessionDate = marketSessionDate(region);
-  const marketOpen = hasMarketOpenedForSession(region);
-  // Se il mercato NON ha ancora aperto per la sessione corrente,
-  // cerchiamo comunque una chiusura ufficiale: in quel caso usiamo
-  // la chiusura più recente (= quella di IERI o dell'ultima seduta)
-  // come prevClose e la chiusura precedente come riferimento.
-  // Questo permette di mostrare il gain dell'ultima sessione anche
-  // fuori orario e nel weekend.
+  const marketOpen  = hasMarketOpenedForSession(region);
+
+  // Soglia "prima dell'apertura": 07:00 UTC per EU, 13:30 UTC per US.
+  // Se capturedAt < soglia nello stesso giorno → è la chiusura del giorno precedente.
+  const premarketCutoff = region === 'US' ? 'T13:30:00Z' : 'T07:00:00Z';
+
   const candidates = candidatesForHolding(h);
   for (const tk of candidates) {
     const closes = ALL.officialCloses?.[tk];
     if (!closes || typeof closes !== 'object') continue;
+
     const allDates = Object.keys(closes)
       .filter(d => closes[d] && num(closes[d].close) > 0)
       .sort()
       .reverse();
     if (!allDates.length) continue;
 
+    // Trova il prevClose corretto:
+    // - Date strettamente precedenti a oggi → sempre valide come prevClose
+    // - Data == oggi ma catturata prima dell'apertura → è la chiusura di ieri
+    const validPrev = allDates.filter(d => {
+      if (d < sessionDate) return true;
+      if (d === sessionDate) {
+        // Accetta solo se catturata prima dell'apertura del mercato
+        const capturedAt = closes[d]?.capturedAt;
+        if (!capturedAt) return false;
+        const cutoff = new Date(sessionDate + premarketCutoff);
+        return new Date(capturedAt) < cutoff;
+      }
+      return false;
+    });
+
     if (marketOpen) {
-      // Mercato aperto: prevClose = ultima chiusura PRIMA di oggi
-      const dates = allDates.filter(d => d < sessionDate);
-      if (!dates.length) continue;
-      const d = dates[0], rec = closes[d];
+      // Mercato aperto: prevClose = ultima chiusura precedente alla sessione
+      if (!validPrev.length) continue;
+      const d = validPrev[0], rec = closes[d];
       return {
         sessionDate,
         prevClose: num(rec.close),
-        cached: true,
-        marketReady: true,
+        cached: true, marketReady: true,
         source: rec.source ? `officialCloses/${rec.source}` : 'officialCloses',
         prevCloseSourceDate: rec.sourceDate || rec.marketDate || d,
-        refreshed: false,
-        reason: 'official_closes_gist',
-        official: true,
-        officialTicker: tk
+        refreshed: false, reason: 'official_closes_gist',
+        official: true, officialTicker: tk
       };
     } else {
-      // Mercato chiuso: mostriamo il gain dell'ULTIMA seduta
-      // currentPrice (in S.prices) = ultima chiusura ufficiale
-      // prevClose = penultima chiusura ufficiale
-      if (allDates.length < 2) continue;
-      const prevD = allDates[1], prevRec = closes[prevD];
+      // Mercato chiuso: mostra il gain dell'ultima seduta completata.
+      // Cerchiamo: la chiusura più recente (A) e quella precedente (B).
+      // A = officialCloses più recente INCLUSO oggi (run post-chiusura)
+      // B = quella prima di A → prevClose
+      const recentDates = allDates.filter(d => d <= sessionDate);
+      if (recentDates.length < 2) {
+        // Solo un giorno di dati: mostra comunque usando il validPrev se esiste
+        if (validPrev.length) {
+          const d = validPrev[0], rec = closes[d];
+          return {
+            sessionDate: d, prevClose: num(rec.close),
+            cached: true, marketReady: true,
+            source: rec.source ? `officialCloses/${rec.source}` : 'officialCloses',
+            prevCloseSourceDate: rec.sourceDate || rec.marketDate || d,
+            refreshed: false, reason: 'official_closes_gist_single',
+            official: true, officialTicker: tk
+          };
+        }
+        continue;
+      }
+      const latestD = recentDates[0], prevD = recentDates[1];
+      const prevRec  = closes[prevD];
       return {
-        sessionDate: allDates[0],   // data dell'ultima seduta
+        sessionDate: latestD,
         prevClose: num(prevRec.close),
-        cached: true,
-        marketReady: true,          // forza la visualizzazione
+        cached: true, marketReady: true,
         source: prevRec.source ? `officialCloses/${prevRec.source}` : 'officialCloses',
         prevCloseSourceDate: prevRec.sourceDate || prevRec.marketDate || prevD,
-        refreshed: false,
-        reason: 'official_closes_gist_closed',
-        official: true,
-        officialTicker: tk
+        refreshed: false, reason: 'official_closes_gist_closed',
+        official: true, officialTicker: tk
       };
     }
   }
+
   // Nessuna chiusura ufficiale trovata
   if (!marketOpen) {
-    return { sessionDate, prevClose:null, cached:false, marketReady:false, source:null, prevCloseSourceDate:null, reason:'market_not_open' };
+    return { sessionDate, prevClose:null, cached:false, marketReady:false,
+             source:null, prevCloseSourceDate:null, reason:'market_not_open' };
   }
-  return { sessionDate, prevClose:null, cached:false, marketReady:true, source:null, prevCloseSourceDate:null, reason:'official_closes_missing' };
+  return { sessionDate, prevClose:null, cached:false, marketReady:true,
+           source:null, prevCloseSourceDate:null, reason:'official_closes_missing' };
 }
 
 // Compatibilità con vecchio codice/backup: non usare più per salvare prezzi intraday.
