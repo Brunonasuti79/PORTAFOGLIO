@@ -2,21 +2,24 @@ name: Capture Closing Prices
 
 on:
   schedule:
-    - cron: '40 15 * * 1-5'   # EU close estate  (CEST UTC+2 → 17:40 Roma)
-    - cron: '40 16 * * 1-5'   # EU close inverno (CET  UTC+1 → 17:40 Roma)
-    - cron: '05 20 * * 1-5'   # US close estate  (EDT  UTC-4 → 16:05 NY)
-    - cron: '05 21 * * 1-5'   # US close inverno (EST  UTC-5 → 16:05 NY)
+    # EU close: 17:00 UTC — sempre dopo la chiusura EU (17:30 Roma)
+    # sia in estate (CEST UTC+2) che in inverno (CET UTC+1)
+    - cron: '0 17 * * 1-5'
+
+    # US close: 22:00 UTC — sempre dopo la chiusura US (16:00 New York)
+    # sia in estate (EDT UTC-4) che in inverno (EST UTC-5)
+    - cron: '0 22 * * 1-5'
+
   workflow_dispatch:
     inputs:
-      market:
-        description: 'Mercato da catturare (EU / US / BOTH)'
+      market_override:
+        description: 'Forza mercato (EU | US | BOTH) — lascia vuoto per rilevamento automatico'
         required: false
-        default: 'BOTH'
+        default: ''
 
 jobs:
   capture:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,5 +34,5 @@ jobs:
           GIST_TOKEN:       ${{ secrets.GIST_TOKEN }}
           GIST_ID:          ${{ secrets.GIST_ID }}
           FINNHUB_KEY:      ${{ secrets.FINNHUB_KEY }}
-          MARKET_OVERRIDE:  ${{ github.event.inputs.market }}
+          MARKET_OVERRIDE:  ${{ github.event.inputs.market_override }}
         run: node scripts/update-official-closes.mjs
