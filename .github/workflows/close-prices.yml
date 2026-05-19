@@ -2,12 +2,12 @@ name: Capture Closing Prices
 
 on:
   schedule:
-    # EU close: 17:00 UTC — sempre dopo la chiusura EU (17:30 Roma)
-    # sia in estate (CEST UTC+2) che in inverno (CET UTC+1)
+    # EU close: 17:00 UTC — dopo la chiusura EU (17:30 Roma)
+    # Funziona sia in estate (CEST UTC+2) che in inverno (CET UTC+1)
     - cron: '0 17 * * 1-5'
 
-    # US close: 22:00 UTC — sempre dopo la chiusura US (16:00 New York)
-    # sia in estate (EDT UTC-4) che in inverno (EST UTC-5)
+    # US close: 22:00 UTC — dopo la chiusura US (16:00 New York)
+    # Funziona sia in estate (EDT UTC-4) che in inverno (EST UTC-5)
     - cron: '0 22 * * 1-5'
 
   workflow_dispatch:
@@ -24,10 +24,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: '24'
 
       - name: Capture closing prices
         env:
