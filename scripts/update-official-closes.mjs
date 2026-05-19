@@ -1,9 +1,7 @@
 /**
  * Portafoglio BIT — Capture Closing Prices
- * Secrets GitHub richiesti:  GIST_TOKEN
- * Secrets opzionali:         GIST_ID (se omesso lo trova da solo)
- *                            FINNHUB_KEY
- *                            MARKET_OVERRIDE (EU | US | BOTH — solo per test manuali)
+ * Secrets richiesti:  GIST_TOKEN
+ * Secrets opzionali:  GIST_ID, FINNHUB_KEY, MARKET_OVERRIDE
  */
 import https from 'https';
 
@@ -47,10 +45,8 @@ function httpsPatch(url, payload, headers = {}) {
     const req = https.request({
       hostname: u.hostname, path: u.pathname + u.search, method: 'PATCH',
       headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
-        'User-Agent': 'PortafoglioBIT/3.0',
-        ...headers
+        'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body),
+        'User-Agent': 'PortafoglioBIT/3.0', ...headers
       }
     }, res => {
       const chunks = [];
@@ -69,12 +65,15 @@ function httpsPatch(url, payload, headers = {}) {
 
 const delay = ms => new Promise(r => setTimeout(r, ms));
 
+// ── Date helpers ──────────────────────────────────────────────────
+function localDate(tz) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: tz }).format(new Date());
+}
+
 // ── Market detection — timezone-aware ────────────────────────────
-// Usa l'ora locale reale di Roma e New York.
-// Gestisce automaticamente ora legale (CET/CEST, EST/EDT).
-function localMinutes(timezone) {
+function localMinutes(tz) {
   const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone, hour: '2-digit', minute: '2-digit', hour12: false
+    timeZone: tz, hour: '2-digit', minute: '2-digit', hour12: false
   }).formatToParts(new Date());
   const h = parseInt(parts.find(p => p.type === 'hour')?.value   || '0');
   const m = parseInt(parts.find(p => p.type === 'minute')?.value || '0');
@@ -83,18 +82,14 @@ function localMinutes(timezone) {
 
 function detectMarket() {
   if (['EU', 'US', 'BOTH'].includes(MARKET_OVERRIDE)) return MARKET_OVERRIDE;
-
   const now = new Date();
   if (now.getUTCDay() === 0 || now.getUTCDay() === 6) return 'SKIP';
-
-  const romeMin = localMinutes('Europe/Rome');      // EU chiude 17:30 = 1050 min
-  const nyMin   = localMinutes('America/New_York'); // US chiude 16:00 = 960 min
-
-  const euClosed = romeMin >= 17 * 60 + 40;  // dopo le 17:40 Roma
-  const usClosed = nyMin   >= 16 * 60 + 10;  // dopo le 16:10 New York
-
-  if (usClosed)  return 'US';  // US chiusa → cattura titoli US
-  if (euClosed)  return 'EU';  // EU chiusa, US ancora aperta → cattura EU
+  const romeMin = localMinutes('Europe/Rome');
+  const nyMin   = localMinutes('America/New_York');
+  const euClosed = romeMin >= 17 * 60 + 40;
+  const usClosed = nyMin   >= 16 * 60 + 10;
+  if (usClosed)  return 'US';
+  if (euClosed)  return 'EU';
   return 'SKIP';
 }
 
@@ -138,11 +133,9 @@ async function fetchYahooChart(ticker) {
     const timestamps = r?.timestamp || [];
     const price = meta.regularMarketPrice;
     if (!price || price <= 0) return null;
-    // Data reale dell'ultima candela chiusa
     let date = null;
-    if (timestamps.length > 0) {
+    if (timestamps.length > 0)
       date = new Date(timestamps[timestamps.length - 1] * 1000).toISOString().slice(0, 10);
-    }
     return { price, prevClose: meta.chartPreviousClose || closes[closes.length - 2] || null, date, source: 'Yahoo-chart' };
   } catch { return null; }
 }
@@ -199,7 +192,7 @@ async function findGistId() {
     );
     if (status !== 200 || !Array.isArray(body) || !body.length) break;
     const found = body.find(g => 'portafoglio-bit.json' in (g.files || {}));
-    if (found) { console.log(`Gist trovato automaticamente: ${found.id}`); return found.id; }
+    if (found) { console.log(`Gist trovato: ${found.id}`); return found.id; }
     if (body.length < 100) break;
     page++;
   }
@@ -254,16 +247,14 @@ function extractTickers(backup) {
   return Object.entries(qty).filter(([, q]) => q > 0.0001).map(([tk]) => tk);
 }
 
-function todayRome() {
-  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome' }).format(new Date());
-}
-
 // ── Main ──────────────────────────────────────────────────────────
-const market = detectMarket();
-const today  = todayRome();
+const market     = detectMarket();
+const today      = localDate('Europe/Rome');
+// Per US usa la data di New York: evita sfasamenti dopo mezzanotte italiana
+const marketDate = market === 'US' ? localDate('America/New_York') : today;
 
 console.log('=== Portafoglio BIT — Official Closes ===');
-console.log(`UTC: ${new Date().toISOString()} | Rome: ${today}`);
+console.log(`UTC: ${new Date().toISOString()} | Rome: ${today} | MarketDate: ${marketDate}`);
 console.log(`Finnhub: ${FINNHUB_KEY ? 'presente' : 'assente'} | Market: ${market}`);
 
 if (market === 'SKIP') {
@@ -324,10 +315,8 @@ for (const [ticker, data] of Object.entries(results)) {
   if (!backup.officialCloses[ticker])     backup.officialCloses[ticker]     = {};
   if (!backup.officialClosesMeta[ticker]) backup.officialClosesMeta[ticker] = {};
 
-  // Usa la data reale dell'ultima candela (da Stooq o Yahoo timestamp).
-  // Evita di salvare la chiusura di ieri sotto la data di oggi
-  // quando lo script gira prima dell'apertura del mercato.
-  const saveDate = data.date || today;
+  // Priorità: data reale dall'API → data del mercato (NY per US, Roma per EU)
+  const saveDate = data.date || marketDate;
 
   backup.officialCloses[ticker][saveDate] = {
     close:      data.price,
@@ -341,7 +330,6 @@ for (const [ticker, data] of Object.entries(results)) {
     source: data.source, capturedAt: new Date().toISOString(), market, runDate: today
   };
 
-  // Max 365 giorni di storico
   const keys = Object.keys(backup.officialCloses[ticker]).sort();
   if (keys.length > 365) keys.slice(0, keys.length - 365).forEach(k => {
     delete backup.officialCloses[ticker][k];
@@ -352,9 +340,9 @@ for (const [ticker, data] of Object.entries(results)) {
 }
 
 backup.officialClosesMeta['__lastRun'] = {
-  at: new Date().toISOString(), market, saved, runDate: today
+  at: new Date().toISOString(), market, saved, runDate: today, marketDate
 };
 
 console.log(`\nSalvataggio ${saved} chiusure nel Gist...`);
 await writeGist(gistId, backup);
-console.log(`DONE — saved:${saved}  date:${today}  market:${market}`);
+console.log(`DONE — saved:${saved}  marketDate:${marketDate}  market:${market}`);
