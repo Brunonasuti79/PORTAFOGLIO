@@ -7526,13 +7526,57 @@ function _badgeHtml(emoji, label, sub, bg, border) {
 function getMedalBadge(ticker, currentPrice) {
   if (!currentPrice || currentPrice <= 0) return '';
   if (isBondTicker(ticker)) return '';
-  const th = S.tickerHistory && S.tickerHistory[ticker];
-  if (!th) return '';
   const T = 0.01;
-  const maxOf = p => { const pts=th[p]?.pts; if(!pts||pts.length<2)return null; return Math.max(...pts.map(x=>x.c||0).filter(v=>v>0)); };
-  const near  = (max,p) => max && Math.abs(p-max)/max <= T && p >= max*(1-T);
-  const m1=maxOf('1M'), m6=maxOf('6M')||maxOf('3M'), m12=maxOf('1A')||maxOf('6M');
-  const all=maxOf('MAX')||maxOf('5A')||maxOf('2A')||maxOf('1A');
+  const near = (max, p) => max && Math.abs(p - max) / max <= T && p >= max * (1 - T);
+
+  // Raccoglie TUTTI i pts da tutti i periodi di tickerHistory + officialCloses
+  // e filtra per intervallo di tempo
+  const maxInDays = (days) => {
+    const cutoff = Date.now() - days * 86400000;
+    let mx = null;
+    // Da tickerHistory: tutti i periodi disponibili
+    const th = S.tickerHistory?.[ticker] || {};
+    for (const period of Object.keys(th)) {
+      const pts = th[period]?.pts;
+      if (!pts) continue;
+      for (const pt of pts) {
+        if (pt.t >= cutoff && pt.c > 0 && (!mx || pt.c > mx)) mx = pt.c;
+      }
+    }
+    // Da officialCloses
+    const cutStr = new Date(cutoff).toISOString().slice(0, 10);
+    const candidates = candidatesForHolding({ticker});
+    for (const tk of candidates) {
+      const closes = ALL.officialCloses?.[tk];
+      if (!closes) continue;
+      for (const [d, rec] of Object.entries(closes)) {
+        if (d >= cutStr && rec?.close > 0 && (!mx || rec.close > mx)) mx = rec.close;
+      }
+    }
+    return mx;
+  };
+
+  // Max assoluto: tutti i pts senza filtro tempo
+  const maxAll = () => {
+    let mx = null;
+    const th = S.tickerHistory?.[ticker] || {};
+    for (const period of Object.keys(th)) {
+      const pts = th[period]?.pts;
+      if (!pts) continue;
+      for (const pt of pts) { if (pt.c > 0 && (!mx || pt.c > mx)) mx = pt.c; }
+    }
+    const candidates = candidatesForHolding({ticker});
+    for (const tk of candidates) {
+      const closes = ALL.officialCloses?.[tk];
+      if (!closes) continue;
+      for (const rec of Object.values(closes)) {
+        if (rec?.close > 0 && (!mx || rec.close > mx)) mx = rec.close;
+      }
+    }
+    return mx;
+  };
+
+  const m1 = maxInDays(30), m6 = maxInDays(180), m12 = maxInDays(365), all = maxAll();
   if (near(all, currentPrice))  return _badgeHtml('🏆','Massimo storico','Prezzo ai livelli più alti mai registrati','rgba(251,191,36,.22)','rgba(251,191,36,.6)');
   if (near(m12, currentPrice))  return _badgeHtml('🚀','Massimo 12 mesi','Vicino al picco dell\'ultimo anno','rgba(139,92,246,.18)','rgba(139,92,246,.5)');
   if (near(m6, currentPrice))   return _badgeHtml('⚡','Massimo 6 mesi','Ai livelli più alti degli ultimi 6 mesi','rgba(250,204,21,.18)','rgba(250,204,21,.5)');
@@ -7543,13 +7587,52 @@ function getMedalBadge(ticker, currentPrice) {
 function getLowBadge(ticker, currentPrice) {
   if (!currentPrice || currentPrice <= 0) return '';
   if (isBondTicker(ticker)) return '';
-  const th = S.tickerHistory && S.tickerHistory[ticker];
-  if (!th) return '';
   const T = 0.01;
-  const minOf = p => { const pts=th[p]?.pts; if(!pts||pts.length<2)return null; return Math.min(...pts.map(x=>x.c||Infinity).filter(v=>v>0&&v<Infinity)); };
-  const near  = (mn,p) => mn && mn<Infinity && Math.abs(p-mn)/mn <= T && p <= mn*(1+T);
-  const m1=minOf('1M'), m6=minOf('6M')||minOf('3M'), m12=minOf('1A')||minOf('6M');
-  const all=minOf('MAX')||minOf('5A')||minOf('2A')||minOf('1A');
+  const near = (mn, p) => mn && mn < Infinity && Math.abs(p - mn) / mn <= T && p <= mn * (1 + T);
+
+  const minInDays = (days) => {
+    const cutoff = Date.now() - days * 86400000;
+    let mn = null;
+    const th = S.tickerHistory?.[ticker] || {};
+    for (const period of Object.keys(th)) {
+      const pts = th[period]?.pts;
+      if (!pts) continue;
+      for (const pt of pts) {
+        if (pt.t >= cutoff && pt.c > 0 && (!mn || pt.c < mn)) mn = pt.c;
+      }
+    }
+    const cutStr = new Date(cutoff).toISOString().slice(0, 10);
+    const candidates = candidatesForHolding({ticker});
+    for (const tk of candidates) {
+      const closes = ALL.officialCloses?.[tk];
+      if (!closes) continue;
+      for (const [d, rec] of Object.entries(closes)) {
+        if (d >= cutStr && rec?.close > 0 && (!mn || rec.close < mn)) mn = rec.close;
+      }
+    }
+    return mn;
+  };
+
+  const minAll = () => {
+    let mn = null;
+    const th = S.tickerHistory?.[ticker] || {};
+    for (const period of Object.keys(th)) {
+      const pts = th[period]?.pts;
+      if (!pts) continue;
+      for (const pt of pts) { if (pt.c > 0 && (!mn || pt.c < mn)) mn = pt.c; }
+    }
+    const candidates = candidatesForHolding({ticker});
+    for (const tk of candidates) {
+      const closes = ALL.officialCloses?.[tk];
+      if (!closes) continue;
+      for (const rec of Object.values(closes)) {
+        if (rec?.close > 0 && (!mn || rec.close < mn)) mn = rec.close;
+      }
+    }
+    return mn;
+  };
+
+  const m1 = minInDays(30), m6 = minInDays(180), m12 = minInDays(365), all = minAll();
   if (near(all, currentPrice))  return _badgeHtml('💀','Minimo storico','Prezzo ai livelli più bassi mai registrati','rgba(127,29,29,.25)','rgba(239,68,68,.6)');
   if (near(m12, currentPrice))  return _badgeHtml('📉','Minimo 12 mesi','Vicino al minimo dell\'ultimo anno','rgba(185,28,28,.18)','rgba(239,68,68,.5)');
   if (near(m6, currentPrice))   return _badgeHtml('⚠️','Minimo 6 mesi','Ai livelli più bassi degli ultimi 6 mesi','rgba(245,158,11,.15)','rgba(245,158,11,.5)');
