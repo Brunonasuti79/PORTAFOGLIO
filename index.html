@@ -3383,8 +3383,7 @@ function renderPF() {
         const EU_M=new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS']);
         const mkt=(h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
         const isEU=EU_M.has(mkt)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
-        // Chiusura ufficiale da Gist → mostra sempre, anche a borsa chiusa
-        if(day?.prevCloseOfficial) return (dayPct>=0?'+':'')+dayPct.toFixed(2)+'%';
+        // Mostra % solo se il mercato ha aperto oggi (prevCloseOfficial usato solo come prevClose, non per forzare la visibilità)
         if(isEU&&!hasEUTradedToday()) return '<span class=\"pf-no-price\">—</span>';
         if(!isEU&&!hasUSTradedToday()) return '<span class=\"pf-no-price\">—</span>';
         return (dayPct>=0?'+':'')+dayPct.toFixed(2)+'%';
@@ -7195,13 +7194,8 @@ function calcDailyEUR() {
     if (!dc || dc.pct == null) continue;
     const mkt = (h.market || marketFromSymbol(h.ticker) || '').toUpperCase();
     const isEU = EU_MKTS.has(mkt) || /\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
-    // Se abbiamo una chiusura ufficiale, includi sempre
-    if (dc.prevCloseOfficial) {
-      totalChange += (dc.pct / 100) * val;
-      counted++;
-      continue;
-    }
     // Includi solo se il mercato ha già tradato oggi
+    // (anche con chiusura ufficiale: non vogliamo il gain di ieri nel totale di oggi)
     if (isEU  && !euTraded) continue;
     if (!isEU && !usTraded) continue;
     totalChange += (dc.pct / 100) * val;
