@@ -3441,7 +3441,7 @@ function renderPF() {
     return `<tr class="pf-row${isOpen?' pf-row-open':''}" onclick="toggleHolding('${jsq(h.ticker)}')" style="animation-delay:${i*.03}s">
       <td>
         <div class="pf-name" style="display:flex;align-items:center;gap:6px">
-          <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;overflow:hidden"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(h.name||h.displayTicker)}${arrow}</span>${getAnyBadge(h.ticker, S.prices&&S.prices[h.ticker])}${renderSparklineBadge(h.ticker)}</div>
+          <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;overflow:hidden"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(h.name||h.displayTicker)}${arrow}</span>${getAnyBadge(h.ticker, S.prices&&S.prices[h.ticker])}<button class="pf-chart-btn" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:18px;flex-shrink:0"><svg width="18" height="12" viewBox="0 0 18 12" fill="none" style="vertical-align:middle"><path d="M1,11 L4,6 L8,8.5 L12,2 L17,4 L17,11 L1,11 Z" fill="rgba(123,167,255,.18)"/><polyline points="1,11 4,6 8,8.5 12,2 17,4" fill="none" stroke="#7ba7ff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg></button></div>
         </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
       </td>
@@ -7101,48 +7101,66 @@ function renderChartModal(){
   if(th) setTimeout(()=>setupHistoryCrosshair(ticker,th),0);
 }
 
-function setupHistoryCrosshair(ticker,th){
-  const svgEl=document.querySelector('#chart-modal-body svg[id^="hist-svg-"]');
-  if(!svgEl||!th?.pts?.length)return;
-  const pts=th.pts.filter(p=>p.c>0);
-  if(pts.length<3)return;
-  const W=720,H=240,pl=62,pr=16,pt_=14,pb=34,cw=W-pl-pr,ch=H-pt_-pb;
-  const minP=Math.min(...pts.map(p=>p.c)),maxP=Math.max(...pts.map(p=>p.c)),rng=maxP-minP||1;
-  const sx=i=>pl+(i/(pts.length-1))*cw;
-  const sy=v=>pt_+ch*(1-(v-minP)/rng);
-  const sym=th.ccy==='USD'?'$':'€';
-  const bw=170,bh=56;
-  const setAttr=(id,attrs)=>{const el=svgEl.querySelector('#'+id);if(el)Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));};
-  const setText=(id,t)=>{const el=svgEl.querySelector('#'+id);if(el)el.textContent=t;};
-  // Aggiorna dimensioni e stile hcbox e testi per renderli più leggibili
-  const box=svgEl.querySelector('#hcbox');
-  if(box){box.setAttribute('width',bw);box.setAttribute('height',bh);box.setAttribute('fill','#0a0f1e');box.setAttribute('stroke','#7ba7ff');box.setAttribute('stroke-width','1.5');}
-  const t1=svgEl.querySelector('#hct1');
-  if(t1){t1.setAttribute('font-size','11');t1.setAttribute('fill','rgba(200,220,255,.75)');t1.setAttribute('font-family','system-ui,sans-serif');}
-  const t2=svgEl.querySelector('#hct2');
-  if(t2){t2.setAttribute('font-size','16');t2.setAttribute('fill','#7ba7ff');t2.setAttribute('font-weight','700');t2.setAttribute('font-family','monospace');}
+function setupHistoryCrosshair(ticker, th) {
+  const svgEl = document.querySelector('#chart-modal-body svg[id^="hist-svg-"]');
+  if (!svgEl || !th?.pts?.length) return;
+  const pts = th.pts.filter(p => p.c > 0);
+  if (pts.length < 3) return;
 
-  svgEl.addEventListener('mousemove',function(e){
-    const r=svgEl.getBoundingClientRect();
-    const svgX=(e.clientX-r.left)*(W/r.width);
-    const idx=Math.max(0,Math.min(pts.length-1,Math.round((svgX-pl)/cw*(pts.length-1))));
-    const p=pts[idx];
-    const px=sx(idx),py=sy(p.c);
-    const d=new Date(p.t);
-    const dateStr=d.toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
-    const valStr=p.c.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+sym;
-    const bx=px+bw+14>pl+cw?px-bw-14:px+14;
-    const by=py>pt_+ch/2?py-bh-10:py+10;
-    setAttr('hcv',{x1:px,x2:px,y1:pt_,y2:pt_+ch,opacity:1});
-    setAttr('hch',{x1:pl,x2:pl+cw,y1:py,y2:py,opacity:1});
-    setAttr('hcbox',{x:bx,y:by,opacity:1});
-    setAttr('hcdot',{cx:px,cy:py,opacity:1,r:5});
-    setAttr('hct1',{x:bx+bw/2,y:by+18,opacity:1});setText('hct1',dateStr);
-    setAttr('hct2',{x:bx+bw/2,y:by+40,opacity:1});setText('hct2',valStr);
+  // Scala IDENTICA a renderHistoryChart
+  const W=720, H=240, pl=62, pr=16, pt_=14, pb=34, cw=W-pl-pr, ch=H-pt_-pb;
+  const hld = calcPF().find(h => h.ticker === ticker);
+  const avgLine = hld ? (hld.avgPrice || hld.avgPriceBuyCcy || 0) : 0;
+  const prices = pts.map(p => p.c);
+  const minP = Math.min(...prices, avgLine > 0 ? avgLine : Infinity) * 0.97;
+  const maxP = Math.max(...prices, avgLine > 0 ? avgLine : 0) * 1.03;
+  const rng  = maxP - minP || 1;
+  const sx = i => pl + (i / (pts.length - 1)) * cw;
+  const sy = v => pt_ + ch * (1 - (v - minP) / rng);
+  const sym = th.ccy === 'USD' ? '$' : '€';
+
+  // Tooltip box più grande e leggibile
+  const bw = 180, bh = 58;
+  const box = svgEl.querySelector('#hcbox');
+  if (box) { box.setAttribute('width', bw); box.setAttribute('height', bh);
+    box.setAttribute('fill', '#060e1c'); box.setAttribute('stroke', '#7ba7ff'); box.setAttribute('stroke-width', '1.5'); }
+  const t1 = svgEl.querySelector('#hct1');
+  if (t1) { t1.setAttribute('font-size', '11'); t1.setAttribute('fill', 'rgba(180,210,255,.8)');
+    t1.setAttribute('font-family', 'system-ui,sans-serif'); }
+  const t2 = svgEl.querySelector('#hct2');
+  if (t2) { t2.setAttribute('font-size', '15'); t2.setAttribute('fill', '#7ba7ff');
+    t2.setAttribute('font-weight', '700'); t2.setAttribute('font-family', 'monospace'); }
+  const dot = svgEl.querySelector('#hcdot');
+  if (dot) { dot.setAttribute('r', '5'); dot.setAttribute('fill', '#7ba7ff'); }
+
+  const setAttr = (id, attrs) => {
+    const el = svgEl.querySelector('#' + id);
+    if (el) Object.entries(attrs).forEach(([k, v]) => el.setAttribute(k, v));
+  };
+  const setText = (id, t) => { const el = svgEl.querySelector('#' + id); if (el) el.textContent = t; };
+
+  svgEl.addEventListener('mousemove', function(e) {
+    const r   = svgEl.getBoundingClientRect();
+    const svgX = (e.clientX - r.left) * (W / r.width);
+    if (svgX < pl || svgX > pl + cw) return;
+    const idx  = Math.max(0, Math.min(pts.length - 1, Math.round((svgX - pl) / cw * (pts.length - 1))));
+    const p    = pts[idx];
+    const px   = sx(idx), py = sy(p.c);
+    const d    = new Date(p.t);
+    const dateStr = d.toLocaleDateString('it-IT', { weekday:'short', day:'2-digit', month:'short', year:'numeric' });
+    const valStr  = p.c.toLocaleString('it-IT', { minimumFractionDigits:2, maximumFractionDigits:2 }) + ' ' + sym;
+    const bx = px + bw + 16 > pl + cw ? px - bw - 16 : px + 16;
+    const by = py > pt_ + ch / 2 ? py - bh - 10 : py + 10;
+    setAttr('hcv',   { x1:px, x2:px, y1:pt_, y2:pt_+ch, opacity:1 });
+    setAttr('hch',   { x1:pl, x2:pl+cw, y1:py, y2:py, opacity:1 });
+    setAttr('hcbox', { x:bx, y:by, opacity:1 });
+    setAttr('hcdot', { cx:px, cy:py, opacity:1 });
+    setAttr('hct1',  { x:bx+bw/2, y:by+18, opacity:1 }); setText('hct1', dateStr);
+    setAttr('hct2',  { x:bx+bw/2, y:by+40, opacity:1 }); setText('hct2', valStr);
   });
-  svgEl.addEventListener('mouseleave',function(){
-    ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id=>{
-      const el=svgEl.querySelector('#'+id);if(el)el.setAttribute('opacity','0');
+  svgEl.addEventListener('mouseleave', function() {
+    ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id => {
+      const el = svgEl.querySelector('#' + id); if (el) el.setAttribute('opacity', '0');
     });
   });
 }
