@@ -753,6 +753,81 @@ input[type=number]{-moz-appearance:textfield}
 .ops-period-pill{background:none;border:1px solid var(--border2);border-radius:20px;padding:3px 10px;font-size:10px;font-weight:700;color:var(--text2);cursor:pointer;transition:all .15s}
 .ops-period-pill.active{background:var(--blue);border-color:var(--blue);color:#fff}
 .ops-chart-svg{width:100%;overflow:visible}
+
+/* ── Badge sticker ─────────────────────────────────────────────── */
+.pf-badge {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  border: 1.5px solid var(--bb);
+  border-radius: 12px;
+  padding: 2px 7px;
+  font-size: 20px;
+  cursor: help;
+  flex-shrink: 0;
+  line-height: 1;
+  transition: transform .15s ease, box-shadow .15s ease;
+  outline: none;
+}
+.pf-badge:hover,
+.pf-badge:focus {
+  transform: scale(1.18);
+  box-shadow: 0 4px 16px var(--bb);
+  z-index: 10;
+}
+.badge-tooltip {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  min-width: 180px;
+  max-width: 240px;
+  background: var(--color-bg2, #1e1e2e);
+  border: 1.5px solid var(--bb);
+  border-radius: 12px;
+  padding: 10px 13px;
+  z-index: 999;
+  pointer-events: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,.28);
+  text-align: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+.pf-badge:hover .badge-tooltip,
+.pf-badge:focus .badge-tooltip {
+  display: flex;
+}
+.badge-tooltip::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: var(--bb);
+}
+.badge-tip-emoji {
+  font-size: 26px;
+  line-height: 1;
+  margin-bottom: 4px;
+}
+.badge-tooltip strong {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+}
+.badge-tip-sub {
+  font-size: 11px;
+  color: var(--text3);
+  margin-top: 2px;
+  white-space: normal;
+  line-height: 1.4;
+}
 </style>
 </head>
 <body>
@@ -7286,12 +7361,23 @@ function renderPortfolioHeader() {
 
 
 // ── Helpers badge ──────────────────────────────────────────────
-function _badgeHtml(emoji, title, bg, border) {
-  return '<span title="'+title+'" style="display:inline-flex;align-items:center;justify-content:center;background:'+bg+';border:1px solid '+border+';border-radius:10px;padding:1px 5px;font-size:17px;cursor:help;flex-shrink:0;line-height:1">'+emoji+'</span>';
+// Categorie obbligazionarie: non mostrare badge ±1% (troppo stabile)
+const BOND_CATS = new Set(['BTP / Titoli di Stato','Obbligazioni','ETF Obbligazionario']);
+function isBondTicker(ticker) {
+  const h = (S.ops||[]).find(o => (o.quoteTicker||o.ticker) === ticker);
+  if (!h) return false;
+  const cat = h.assetClass || guessCategory(h.ticker||h.displayTicker, h.name||'');
+  return BOND_CATS.has(cat);
+}
+
+function _badgeHtml(emoji, label, sub, bg, border) {
+  const tooltip = `<span class="badge-tooltip"><span class="badge-tip-emoji">${emoji}</span><strong>${label}</strong>${sub ? '<span class="badge-tip-sub">'+sub+'</span>' : ''}</span>`;
+  return `<span class="pf-badge" style="--bb:${border};--bg:${bg}" tabindex="0" role="img" aria-label="${label}">${emoji}${tooltip}</span>`;
 }
 
 function getMedalBadge(ticker, currentPrice) {
   if (!currentPrice || currentPrice <= 0) return '';
+  if (isBondTicker(ticker)) return '';
   const th = S.tickerHistory && S.tickerHistory[ticker];
   if (!th) return '';
   const T = 0.01;
@@ -7299,15 +7385,16 @@ function getMedalBadge(ticker, currentPrice) {
   const near  = (max,p) => max && Math.abs(p-max)/max <= T && p >= max*(1-T);
   const m1=maxOf('1M'), m6=maxOf('6M')||maxOf('3M'), m12=maxOf('1A')||maxOf('6M');
   const all=maxOf('MAX')||maxOf('5A')||maxOf('2A')||maxOf('1A');
-  if (near(all, currentPrice))  return _badgeHtml('🏆','Massimo storico assoluto','rgba(251,191,36,.22)','rgba(251,191,36,.5)');
-  if (near(m12, currentPrice))  return _badgeHtml('🚀','Massimo degli ultimi 12 mesi','rgba(139,92,246,.18)','rgba(139,92,246,.4)');
-  if (near(m6, currentPrice))   return _badgeHtml('⚡','Massimo degli ultimi 6 mesi','rgba(250,204,21,.18)','rgba(250,204,21,.4)');
-  if (near(m1, currentPrice))   return _badgeHtml('🔥','Massimo degli ultimi 30 giorni','rgba(251,146,60,.18)','rgba(251,146,60,.4)');
+  if (near(all, currentPrice))  return _badgeHtml('🏆','Massimo storico','Prezzo ai livelli più alti mai registrati','rgba(251,191,36,.22)','rgba(251,191,36,.6)');
+  if (near(m12, currentPrice))  return _badgeHtml('🚀','Massimo 12 mesi','Vicino al picco dell\'ultimo anno','rgba(139,92,246,.18)','rgba(139,92,246,.5)');
+  if (near(m6, currentPrice))   return _badgeHtml('⚡','Massimo 6 mesi','Ai livelli più alti degli ultimi 6 mesi','rgba(250,204,21,.18)','rgba(250,204,21,.5)');
+  if (near(m1, currentPrice))   return _badgeHtml('🔥','Massimo 30 giorni','Prezzo al top dell\'ultimo mese','rgba(251,146,60,.18)','rgba(251,146,60,.5)');
   return '';
 }
 
 function getLowBadge(ticker, currentPrice) {
   if (!currentPrice || currentPrice <= 0) return '';
+  if (isBondTicker(ticker)) return '';
   const th = S.tickerHistory && S.tickerHistory[ticker];
   if (!th) return '';
   const T = 0.01;
@@ -7315,10 +7402,10 @@ function getLowBadge(ticker, currentPrice) {
   const near  = (mn,p) => mn && mn<Infinity && Math.abs(p-mn)/mn <= T && p <= mn*(1+T);
   const m1=minOf('1M'), m6=minOf('6M')||minOf('3M'), m12=minOf('1A')||minOf('6M');
   const all=minOf('MAX')||minOf('5A')||minOf('2A')||minOf('1A');
-  if (near(all, currentPrice))  return _badgeHtml('💀','Minimo storico assoluto','rgba(127,29,29,.25)','rgba(239,68,68,.4)');
-  if (near(m12, currentPrice))  return _badgeHtml('📉','Minimo degli ultimi 12 mesi','rgba(185,28,28,.18)','rgba(239,68,68,.35)');
-  if (near(m6, currentPrice))   return _badgeHtml('⚠️','Minimo degli ultimi 6 mesi','rgba(245,158,11,.15)','rgba(245,158,11,.4)');
-  if (near(m1, currentPrice))   return _badgeHtml('🔴','Minimo degli ultimi 30 giorni','rgba(239,68,68,.15)','rgba(239,68,68,.35)');
+  if (near(all, currentPrice))  return _badgeHtml('💀','Minimo storico','Prezzo ai livelli più bassi mai registrati','rgba(127,29,29,.25)','rgba(239,68,68,.6)');
+  if (near(m12, currentPrice))  return _badgeHtml('📉','Minimo 12 mesi','Vicino al minimo dell\'ultimo anno','rgba(185,28,28,.18)','rgba(239,68,68,.5)');
+  if (near(m6, currentPrice))   return _badgeHtml('⚠️','Minimo 6 mesi','Ai livelli più bassi degli ultimi 6 mesi','rgba(245,158,11,.15)','rgba(245,158,11,.5)');
+  if (near(m1, currentPrice))   return _badgeHtml('🔴','Minimo 30 giorni','Prezzo al minimo dell\'ultimo mese','rgba(239,68,68,.15)','rgba(239,68,68,.5)');
   return '';
 }
 
