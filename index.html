@@ -2788,10 +2788,22 @@ async function fetchPrices() {
     if (!S.dailyChanges) S.dailyChanges = {};
     hlds.forEach(h => delete S.dailyChanges[h.ticker]);
 
-    const rows = await Promise.all(hlds.map(async h => {
-      try { return { h, q: await fetchPriceForHolding(h) }; }
-      catch(e) { return { h, q: null }; }
-    }));
+    // Lancia fetch EUR/USD in parallelo se serve
+    let _fxPromise = null, _fxResult = null;
+    if (hlds.some(h => h.titleCcy === 'USD')) {
+      _fxPromise = fetchEURUSD().then(r => { _fxResult = r; }).catch(() => {});
+    }
+
+    // Limita a 5 fetch paralleli per evitare rate limiting Yahoo/Stooq
+    const rows = [];
+    for (let i = 0; i < hlds.length; i += 5) {
+      const batch = hlds.slice(i, i + 5);
+      const batchResults = await Promise.all(batch.map(async h => {
+        try { return { h, q: await fetchPriceForHolding(h) }; }
+        catch(e) { return { h, q: null }; }
+      }));
+      rows.push(...batchResults);
+    }
 
     const updated=[], errors=[], rejected=[], sources={};
     for (const { h, q } of rows) {
@@ -2849,11 +2861,9 @@ async function fetchPrices() {
       }
     }
 
-    // Fetch EUR/USD live se ci sono titoli in $
-    if (hlds.some(h => h.titleCcy === 'USD')) {
-      const rate = await fetchEURUSD();
-      if (rate) ALL.fxRates = { EURUSD: rate };
-    }
+    // Aspetta che EUR/USD sia pronto (lanciato in parallelo all'inizio)
+    if (_fxPromise) await _fxPromise;
+    if (_fxResult) ALL.fxRates = { EURUSD: _fxResult };
 
     // Snapshot for history
     const snapValue = hlds.reduce((a,h) => { const v=currentValueAllEUR(h); return a+(v??0); }, 0) + (S.cashEUR||0);
