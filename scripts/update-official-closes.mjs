@@ -818,6 +818,12 @@ input[type=number]{-moz-appearance:textfield}
 #badge-tip.visible { opacity: 1; }
 #badge-tip strong { display: block; font-size: 14px; font-weight: 700; margin-bottom: 3px; }
 #badge-tip span { display: block; font-size: 12px; opacity: .75; }
+.spark-badge {
+  padding: 1px 4px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.spark-badge:hover, .spark-badge:focus { transform: scale(1.22); box-shadow: 0 4px 18px var(--bb); }
 </style>
 </head>
 <body>
@@ -3435,9 +3441,7 @@ function renderPF() {
     return `<tr class="pf-row${isOpen?' pf-row-open':''}" onclick="toggleHolding('${jsq(h.ticker)}')" style="animation-delay:${i*.03}s">
       <td>
         <div class="pf-name" style="display:flex;align-items:center;gap:6px">
-          ${renderSparkline(getSparkPts(h.ticker))}
-          <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;overflow:hidden"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(h.name||h.displayTicker)}${arrow}</span>${getAnyBadge(h.ticker, S.prices&&S.prices[h.ticker])}</div>
-          <button class="pf-chart-btn" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico" style="display:inline-flex;align-items:center;justify-content:center;width:26px;height:18px"><svg width=\"18\" height=\"12\" viewBox=\"0 0 18 12\" fill=\"none\" style=\"vertical-align:middle\"><path d=\"M1,11 L4,6 L8,8.5 L12,2 L17,4 L17,11 L1,11 Z\" fill=\"rgba(123,167,255,.18)\"/><polyline points=\"1,11 4,6 8,8.5 12,2 17,4\" fill=\"none\" stroke=\"#7ba7ff\" stroke-width=\"1.5\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></button>
+          <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;overflow:hidden"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(h.name||h.displayTicker)}${arrow}</span>${getAnyBadge(h.ticker, S.prices&&S.prices[h.ticker])}${renderSparklineBadge(h.ticker)}</div>
         </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
       </td>
@@ -7077,11 +7081,70 @@ function openChartModal(ticker){
 function closeChartModal(){document.getElementById('chart-modal').classList.add('hidden');_chartModalTicker=null;}
 function renderChartModal(){
   const ticker=_chartModalTicker;if(!ticker)return;
-  const period=_chartModalPeriod,hlds=calcPF(),th=(S.tickerHistory||{})[ticker]?.[period];
+  const period=_chartModalPeriod,hlds=calcPF();
+  let th=(S.tickerHistory||{})[ticker]?.[period];
+  // Sovrascrive il punto di oggi con il prezzo live
+  if(th?.pts?.length){
+    const hld=hlds.find(h=>h.ticker===ticker);
+    const curP=hld&&S.prices?.[hld.ticker]?S.prices[hld.ticker]:null;
+    if(curP){
+      const tDay=todayRome(),tTs=new Date(tDay+'T12:00:00').getTime();
+      const lastPt=th.pts[th.pts.length-1],lastDay=localDateKeyFromMs(lastPt.t);
+      if(lastDay===tDay) th={...th,pts:[...th.pts.slice(0,-1),{t:tTs,c:curP}]};
+      else if(lastDay<tDay) th={...th,pts:[...th.pts,{t:tTs,c:curP}]};
+    }
+  }
   const perDiv=document.getElementById('chart-modal-periods');
   if(perDiv)perDiv.innerHTML=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="_chartModalPeriod='${p}';((S.tickerHistory||{})[_chartModalTicker]?.['${p}']?renderChartModal():loadChartModalData())">${p}</button>`).join('');
   const body=document.getElementById('chart-modal-body');if(!body)return;
   body.innerHTML=th?renderHistoryChart(ticker,th,hlds,period):`<div class="empty" style="padding:40px 20px">Premi <strong>↻ Aggiorna</strong> (${PERIOD_CFG[period]?.label}).</div>`;
+  if(th) setTimeout(()=>setupHistoryCrosshair(ticker,th),0);
+}
+
+function setupHistoryCrosshair(ticker,th){
+  const svgEl=document.querySelector('#chart-modal-body svg[id^="hist-svg-"]');
+  if(!svgEl||!th?.pts?.length)return;
+  const pts=th.pts.filter(p=>p.c>0);
+  if(pts.length<3)return;
+  const W=720,H=240,pl=62,pr=16,pt_=14,pb=34,cw=W-pl-pr,ch=H-pt_-pb;
+  const minP=Math.min(...pts.map(p=>p.c)),maxP=Math.max(...pts.map(p=>p.c)),rng=maxP-minP||1;
+  const sx=i=>pl+(i/(pts.length-1))*cw;
+  const sy=v=>pt_+ch*(1-(v-minP)/rng);
+  const sym=th.ccy==='USD'?'$':'€';
+  const bw=170,bh=56;
+  const setAttr=(id,attrs)=>{const el=svgEl.querySelector('#'+id);if(el)Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));};
+  const setText=(id,t)=>{const el=svgEl.querySelector('#'+id);if(el)el.textContent=t;};
+  // Aggiorna dimensioni e stile hcbox e testi per renderli più leggibili
+  const box=svgEl.querySelector('#hcbox');
+  if(box){box.setAttribute('width',bw);box.setAttribute('height',bh);box.setAttribute('fill','#0a0f1e');box.setAttribute('stroke','#7ba7ff');box.setAttribute('stroke-width','1.5');}
+  const t1=svgEl.querySelector('#hct1');
+  if(t1){t1.setAttribute('font-size','11');t1.setAttribute('fill','rgba(200,220,255,.75)');t1.setAttribute('font-family','system-ui,sans-serif');}
+  const t2=svgEl.querySelector('#hct2');
+  if(t2){t2.setAttribute('font-size','16');t2.setAttribute('fill','#7ba7ff');t2.setAttribute('font-weight','700');t2.setAttribute('font-family','monospace');}
+
+  svgEl.addEventListener('mousemove',function(e){
+    const r=svgEl.getBoundingClientRect();
+    const svgX=(e.clientX-r.left)*(W/r.width);
+    const idx=Math.max(0,Math.min(pts.length-1,Math.round((svgX-pl)/cw*(pts.length-1))));
+    const p=pts[idx];
+    const px=sx(idx),py=sy(p.c);
+    const d=new Date(p.t);
+    const dateStr=d.toLocaleDateString('it-IT',{weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+    const valStr=p.c.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+sym;
+    const bx=px+bw+14>pl+cw?px-bw-14:px+14;
+    const by=py>pt_+ch/2?py-bh-10:py+10;
+    setAttr('hcv',{x1:px,x2:px,y1:pt_,y2:pt_+ch,opacity:1});
+    setAttr('hch',{x1:pl,x2:pl+cw,y1:py,y2:py,opacity:1});
+    setAttr('hcbox',{x:bx,y:by,opacity:1});
+    setAttr('hcdot',{cx:px,cy:py,opacity:1,r:5});
+    setAttr('hct1',{x:bx+bw/2,y:by+18,opacity:1});setText('hct1',dateStr);
+    setAttr('hct2',{x:bx+bw/2,y:by+40,opacity:1});setText('hct2',valStr);
+  });
+  svgEl.addEventListener('mouseleave',function(){
+    ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id=>{
+      const el=svgEl.querySelector('#'+id);if(el)el.setAttribute('opacity','0');
+    });
+  });
 }
 async function loadChartModalData(){
   const ticker=_chartModalTicker;if(!ticker)return;
@@ -7171,6 +7234,34 @@ function renderSparkline(pts) {
     +'<polyline points="'+pts_str+'" fill="none" stroke="'+col+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity="0.85"/>'
     +'<circle cx="'+lx+'" cy="'+ly+'" r="2" fill="'+col+'"/>'
     +'</svg>';
+}
+
+
+// Badge sparkline — stesso stile di pf-badge, cliccabile apre il grafico modale
+function renderSparklineBadge(ticker) {
+  const rawPts = getSparkPts(ticker);
+  if (!rawPts || rawPts.length < 2) return '';
+  const vals = rawPts.map(p => p.c).filter(v => v > 0);
+  if (vals.length < 2) return '';
+  const mn = Math.min(...vals), mx = Math.max(...vals), rng = mx - mn || 1;
+  const W = 64, H = 24, pad = 3;
+  const sx = i => pad + (i / (vals.length-1)) * (W - pad*2);
+  const sy = v => H - pad - ((v - mn) / rng) * (H - pad*2);
+  const pts_str = vals.map((v,i) => sx(i).toFixed(1)+','+sy(v).toFixed(1)).join(' ');
+  const isUp = vals[vals.length-1] >= vals[0];
+  const col    = isUp ? '#22d47e' : '#ff5252';
+  const border = isUp ? 'rgba(34,212,126,.5)' : 'rgba(255,82,82,.5)';
+  const bg     = isUp ? 'rgba(34,212,126,.07)' : 'rgba(255,82,82,.07)';
+  const lx = sx(vals.length-1).toFixed(1), ly = sy(vals[vals.length-1]).toFixed(1);
+  const chg = vals[0] > 0 ? ((vals[vals.length-1] - vals[0]) / vals[0] * 100) : 0;
+  const tip  = '7 giorni|' + (chg >= 0 ? '+' : '') + chg.toFixed(2) + '%';
+  const tk   = ticker.replace(/'/g, "\'");
+  return '<span class="pf-badge spark-badge" style="--bb:'+border+';--bg:'+bg+'" data-tip="'+tip+'" tabindex="0"'
+    + ' onclick="event.stopPropagation();openChartModal(\'' + tk + '\')">'
+    + '<svg width="'+W+'" height="'+H+'" viewBox="0 0 '+W+' '+H+'">'
+    + '<polyline points="'+pts_str+'" fill="none" stroke="'+col+'" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>'
+    + '<circle cx="'+lx+'" cy="'+ly+'" r="2.5" fill="'+col+'"/>'
+    + '</svg></span>';
 }
 
 async function loadSparklines() {
