@@ -3441,6 +3441,7 @@ function renderPF() {
     return `<tr class="pf-row${isOpen?' pf-row-open':''}" onclick="toggleHolding('${jsq(h.ticker)}')" style="animation-delay:${i*.03}s">
       <td>
         <div class="pf-name" style="display:flex;align-items:center;gap:6px">
+          ${renderSparkline(getSparkPts(h.ticker))}
           <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;overflow:hidden"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(h.name||h.displayTicker)}${arrow}</span>${getAnyBadge(h.ticker, S.prices&&S.prices[h.ticker])}<span class="pf-badge" style="--bb:rgba(123,167,255,.4);--bg:rgba(123,167,255,.07);cursor:pointer;padding:2px 6px" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico" tabindex="0" role="button"><svg width="22" height="14" viewBox="0 0 22 14" fill="none" style="vertical-align:middle;display:block"><path d="M1,13 L5,7 L10,10 L15,2 L21,5 L21,13 Z" fill="rgba(123,167,255,.2)"/><polyline points="1,13 5,7 10,10 15,2 21,5" fill="none" stroke="#7ba7ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
         </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
