@@ -3234,8 +3234,8 @@ function sortHoldings(list) {
           if (!dc || dc.pct == null) return null;
           const mkt = (h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
           const isEU = _EU.has(mkt)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
-          if (isEU && !hasEUTradedToday()) return null;
-          if (!isEU && !hasUSTradedToday()) return null;
+          if (isEU && !isEUMarketOpen()) return null;
+          if (!isEU && !isUSMarketOpen()) return null;
           return Number(dc.pct);
         };
         return cmp(_todayPct(a), _todayPct(b));
@@ -3464,8 +3464,8 @@ function renderPF() {
         const mkt=(h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
         const isEU=EU_M.has(mkt)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
         // Mostra % solo se il mercato ha aperto oggi (prevCloseOfficial usato solo come prevClose, non per forzare la visibilità)
-        if(isEU&&!hasEUTradedToday()) return '<span class=\"pf-no-price\">—</span>';
-        if(!isEU&&!hasUSTradedToday()) return '<span class=\"pf-no-price\">—</span>';
+        if(isEU&&!isEUMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
+        if(!isEU&&!isUSMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
         return (dayPct>=0?'+':'')+dayPct.toFixed(2)+'%';
       })()}</td>
       <td style="color:var(--text)">${priceNative!=null?n3(priceNative)+' '+symNative:'<span class="pf-no-price">—</span>'}</td>
@@ -7643,7 +7643,7 @@ function getLowBadge(ticker, currentPrice) {
 // Prezzo per badge: live se mercato aperto, chiusura ufficiale se chiuso
 function badgePrice(h) {
   const region = getMarketRegion(h);
-  const isOpen = region === 'EU' ? hasEUTradedToday() : hasUSTradedToday();
+  const isOpen = region === 'EU' ? isEUMarketOpen() : isUSMarketOpen();
   if (isOpen && S.prices?.[h.ticker]) return S.prices[h.ticker];
   const candidates = candidatesForHolding(h);
   for (const tk of candidates) {
