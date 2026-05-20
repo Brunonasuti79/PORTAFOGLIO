@@ -177,6 +177,105 @@ async function fetchPrice(ticker) {
   }
   return null;
 }
+// ── Storico ultimi 5 giorni (per backfill) ────────────────────────
+// Restituisce { 'YYYY-MM-DD': { close, source } } per gli ultimi giorni disponibili.
+async function fetchHistoricalCloses(ticker) {
+  const eu = isEU(ticker);
+  const result = {};
+
+  // Stooq: restituisce CSV con tutte le righe giornaliere
+  if (eu) {
+    try {
+      const { status, body } = await httpsGet(
+        `https://stooq.com/q/d/l/?s=${encodeURIComponent(stooqSym(ticker))}&i=d`
+      );
+      if (status === 200 && typeof body === 'string' && !/no data/i.test(body)) {
+        const lines = body.trim().split(/\r?\n/).filter(Boolean).slice(1); // salta header
+        for (const line of lines.slice(-10)) { // ultimi 10 giorni
+          const p = line.split(',');
+          const date = p[0], close = parseFloat(p[4]);
+          if (date && close > 0) result[date] = { close, source: 'Stooq' };
+        }
+        if (Object.keys(result).length) return result;
+      }
+    } catch {}
+  }
+
+  // Yahoo chart: range=10d, interval=1d → ultimi 10 giorni con timestamp reali
+  try {
+    const { status, body } = await httpsGet(
+      `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(ticker)}?interval=1d&range=10d`
+    );
+    if (status === 200) {
+      const r = body?.chart?.result?.[0];
+      const closes    = r?.indicators?.quote?.[0]?.close || [];
+      const timestamps = r?.timestamp || [];
+      for (let i = 0; i < timestamps.length; i++) {
+        const close = closes[i];
+        if (!close || close <= 0) continue;
+        const date = new Date(timestamps[i] * 1000).toISOString().slice(0, 10);
+        result[date] = { close, source: 'Yahoo-chart' };
+      }
+    }
+  } catch {}
+
+  return result;
+}
+
+// Calcola gli ultimi N giorni lavorativi (no weekend) in UTC
+function lastBusinessDays(n) {
+  const days = [];
+  const d = new Date();
+  while (days.length < n) {
+    d.setUTCDate(d.getUTCDate() - 1);
+    if (d.getUTCDay() !== 0 && d.getUTCDay() !== 6)
+      days.push(d.toISOString().slice(0, 10));
+  }
+  return days;
+}
+
+// Controlla le date mancanti negli ultimi 5 giorni e le recupera
+async function backfillMissingDates(tickers, backup) {
+  const recentDays = lastBusinessDays(5);
+  let backfilled = 0, checked = 0;
+
+  console.log(`
+── Backfill (ultimi 5 giorni lavorativi: ${recentDays.join(', ')}) ──`);
+
+  for (const ticker of tickers) {
+    const existing = Object.keys(backup.officialCloses?.[ticker] || {});
+    const missing  = recentDays.filter(d => !existing.includes(d));
+    checked++;
+    if (!missing.length) { process.stdout.write('.'); continue; }
+
+    console.log(`
+  ${ticker}: mancano [${missing.join(', ')}]`);
+    const hist = await fetchHistoricalCloses(ticker);
+
+    for (const date of missing) {
+      if (!hist[date]) { console.log(`    NO  ${date} — non disponibile`); continue; }
+      if (!backup.officialCloses[ticker])     backup.officialCloses[ticker]     = {};
+      if (!backup.officialClosesMeta[ticker]) backup.officialClosesMeta[ticker] = {};
+      backup.officialCloses[ticker][date] = {
+        close:      hist[date].close,
+        capturedAt: new Date().toISOString(),
+        runDate:    today,
+        source:     `${hist[date].source}-backfill`,
+        market:     isEU(ticker) ? 'EU' : 'US'
+      };
+      backup.officialClosesMeta[ticker][date] = {
+        source: `${hist[date].source}-backfill`, market: isEU(ticker) ? 'EU' : 'US'
+      };
+      console.log(`    OK  ${date} = ${hist[date].close}  [${hist[date].source}]`);
+      backfilled++;
+    }
+    await delay(400);
+  }
+
+  if (checked > 0) console.log('');
+  console.log(`Backfill: ${backfilled} date recuperate su ${tickers.length} ticker`);
+  return backfilled;
+}
 
 // ── Gist I/O — token-only (GIST_ID opzionale) ────────────────────
 async function findGistId() {
@@ -288,7 +387,12 @@ if (!tickers.length) {
   process.exit(0);
 }
 
-console.log(`\nFetching ${tickers.length} prezzi (${market})...`);
+// ── Backfill date mancanti (ultimi 5 giorni lavorativi) ───────────
+if (!backup.officialCloses)     backup.officialCloses     = {};
+if (!backup.officialClosesMeta) backup.officialClosesMeta = {};
+const backfilled = await backfillMissingDates(tickers, backup);
+
+console.log(`\nFetching ${tickers.length} prezzi correnti (${market})...`);
 const results = {};
 for (const ticker of tickers) {
   const r = await fetchPrice(ticker);
@@ -306,10 +410,7 @@ if (!Object.keys(results).length) {
   process.exit(0);
 }
 
-// ── Salva officialCloses nel Gist ─────────────────────────────────
-if (!backup.officialCloses)     backup.officialCloses     = {};
-if (!backup.officialClosesMeta) backup.officialClosesMeta = {};
-
+// ── Salva chiusure correnti nel Gist ─────────────────────────────
 let saved = 0;
 for (const [ticker, data] of Object.entries(results)) {
   if (!backup.officialCloses[ticker])     backup.officialCloses[ticker]     = {};
@@ -345,4 +446,4 @@ backup.officialClosesMeta['__lastRun'] = {
 
 console.log(`\nSalvataggio ${saved} chiusure nel Gist...`);
 await writeGist(gistId, backup);
-console.log(`DONE — saved:${saved}  marketDate:${marketDate}  market:${market}`);
+console.log(`DONE — saved:${saved}  backfilled:${backfilled}  marketDate:${marketDate}  market:${market}`);
