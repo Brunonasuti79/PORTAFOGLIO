@@ -2,13 +2,19 @@ name: Capture Closing Prices
 
 on:
   schedule:
-    # EU close: 17:00 UTC — dopo la chiusura EU (17:30 Roma)
-    # Funziona sia in estate (CEST UTC+2) che in inverno (CET UTC+1)
+    # EU close — primario e backup
+    # EU chiude 17:30 Roma = 15:30 UTC estate / 16:30 UTC inverno
+    # 17:00 UTC = 19:00 Roma estate / 18:00 inverno  → dopo chiusura ✓
+    # 18:00 UTC = 20:00 Roma estate / 19:00 inverno  → backup ✓
     - cron: '0 17 * * 1-5'
+    - cron: '0 18 * * 1-5'
 
-    # US close: 22:00 UTC — dopo la chiusura US (16:00 New York)
-    # Funziona sia in estate (EDT UTC-4) che in inverno (EST UTC-5)
+    # US close — primario e backup
+    # US chiude 16:00 NY = 20:00 UTC estate / 21:00 UTC inverno
+    # 22:30 UTC = 18:30 NY estate / 17:30 inverno  → dopo chiusura ✓
+    # 23:00 UTC = 19:00 NY estate / 18:00 inverno  → backup ✓
     - cron: '30 22 * * 1-5'
+    - cron: '0 23 * * 1-5'
 
   workflow_dispatch:
     inputs:
