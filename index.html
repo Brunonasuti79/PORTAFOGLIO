@@ -3311,15 +3311,15 @@ function renderPF() {
             : `<div class="sum-cv${hv}">${sum.eur?e2(sum.eur.tc):'—'}</div>
                ${sum.usd?`<div class="sum-cs${hv}">${sum.usd.tc.toLocaleString('it-IT',{minimumFractionDigits:0,maximumFractionDigits:0})} $</div>`:''}`}
         </div>
-        <div class="sum-col ${gc}">
+        <div class="sum-col">
           <div class="sum-cl">Gain / Loss</div>
           ${S.hideValues
             ? '<div class="sum-cv" style="filter:blur(7px);user-select:none">●●●●</div>'
             : S.sumCcy==='USD'&&sum.usd
-              ? `<div class="sum-cv ${gc}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>
-                 ${sum.eur?`<div class="sum-cs ${gc}${hv}">${sum.eur.g>=0?'+':''} ${e2(sum.eur.g)}</div>`:''}`
-              : `<div class="sum-cv ${gc}">${sum.eur?(totalG>=0?'+':'')+e2(sum.eur.g):'—'}</div>
-                 ${sum.usd?`<div class="sum-cs ${gc}${hv}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}`}
+              ? `<div class="sum-cv ${sum.usd.g>=0?'gc':'lc'}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>
+                 ${sum.eur?`<div class="sum-cs ${sum.eur.g>=0?'gc':'lc'}${hv}">${sum.eur.g>=0?'+':''} ${e2(sum.eur.g)}</div>`:''}`
+              : `<div class="sum-cv ${sum.eur?.g>=0?'gc':'lc'}">${sum.eur?(sum.eur.g>=0?'+':'')+e2(sum.eur.g):'—'}</div>
+                 ${sum.usd?`<div class="sum-cs ${sum.usd.g>=0?'gc':'lc'}${hv}">${sum.usd.g>=0?'+':''}${sum.usd.g.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})} $</div>`:''}`}
         </div>
         <div class="sum-col ${gc}">
           <div class="sum-cl">Rendimento</div>
