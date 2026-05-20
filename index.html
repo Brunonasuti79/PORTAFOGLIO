@@ -7527,7 +7527,7 @@ function getMedalBadge(ticker, currentPrice) {
   if (!currentPrice || currentPrice <= 0) return '';
   if (isBondTicker(ticker)) return '';
   const T = 0.01;
-  const near = (max, p) => max && Math.abs(p - max) / max <= T && p >= max * (1 - T);
+  const near = (max, p) => max && (p >= max || (max - p) / max <= T);
 
   // Raccoglie TUTTI i pts da tutti i periodi di tickerHistory + officialCloses
   // e filtra per intervallo di tempo
@@ -7588,7 +7588,7 @@ function getLowBadge(ticker, currentPrice) {
   if (!currentPrice || currentPrice <= 0) return '';
   if (isBondTicker(ticker)) return '';
   const T = 0.01;
-  const near = (mn, p) => mn && mn < Infinity && Math.abs(p - mn) / mn <= T && p <= mn * (1 + T);
+  const near = (mn, p) => mn && mn < Infinity && (p <= mn || (p - mn) / mn <= T);
 
   const minInDays = (days) => {
     const cutoff = Date.now() - days * 86400000;
