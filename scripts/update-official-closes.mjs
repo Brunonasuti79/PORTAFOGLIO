@@ -5525,6 +5525,23 @@ function renderHistory(){
   const th=(S.tickerHistory||{})[sel]?.[period];
   const opts=hlds.map(h=>`<option value="${esc(h.ticker)}"${h.ticker===sel?' selected':''}>${esc(h.displayTicker)} — ${esc(h.name||h.displayTicker)}</option>`).join('');
   const pills=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="S._histPeriod='${p}';((S.tickerHistory||{})[(S._histSel||'')]?.['${p}']?renderHistory():loadSingleTickerHistory())">${p}</button>`).join('');
+  // Sovrascrive il punto di oggi con il prezzo live se disponibile
+  let thForChart = th;
+  if (thForChart?.pts?.length) {
+    const hld = hlds.find(h => h.ticker === sel);
+    const curP = hld && S.prices?.[hld.ticker] ? S.prices[hld.ticker] : null;
+    if (curP) {
+      const todayDay = todayRome();
+      const todayTs  = new Date(todayDay+'T12:00:00').getTime();
+      const lastPt   = thForChart.pts[thForChart.pts.length-1];
+      const lastDay  = localDateKeyFromMs(lastPt.t);
+      if (lastDay === todayDay) {
+        thForChart = { ...thForChart, pts: [...thForChart.pts.slice(0,-1), { t: todayTs, c: curP }] };
+      } else if (lastDay < todayDay) {
+        thForChart = { ...thForChart, pts: [...thForChart.pts, { t: todayTs, c: curP }] };
+      }
+    }
+  }
   area.innerHTML=`
     <div style="padding:10px 14px 4px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
       <select id="hist-sel" onchange="S._histSel=this.value;renderHistory()" style="flex:1;min-width:180px;background:var(--bg2);border:1px solid var(--border2);color:var(--text);font-family:'Outfit',sans-serif;font-size:12px;padding:6px 10px;border-radius:8px;outline:none">${opts}</select>
@@ -5532,7 +5549,7 @@ function renderHistory(){
     </div>
     <div class="hist-periods">${pills}</div>
     <div id="hist-chart-area" style="padding-bottom:80px">
-      ${th?renderHistoryChart(sel,th,hlds,period):'<div class="empty" style="padding:40px 20px">Seleziona un titolo e premi <strong>↻ Aggiorna</strong>.</div>'}
+      ${thForChart?renderHistoryChart(sel,thForChart,hlds,period):'<div class="empty" style="padding:40px 20px">Seleziona un titolo e premi <strong>↻ Aggiorna</strong>.</div>'}
     </div>`;
   // ── Attiva crosshair storico ──
   (function(){
@@ -7717,9 +7734,16 @@ async function renderOpsChart() {
     const lastPt = th.pts[th.pts.length-1];
     const lastDay = localDateKeyFromMs(lastPt.t);
     const todayDay = todayRome();
-    if (curP && lastDay < todayDay) {
+    if (curP) {
       const todayTs = new Date(todayDay+'T12:00:00').getTime();
-      th = { ...th, pts: [...th.pts, { t: todayTs, c: curP }] };
+      if (lastDay === todayDay) {
+        // Sostituisce il dato di oggi (potrebbe essere intraday da officialCloses)
+        // con il prezzo live aggiornato dalla pagina portafoglio
+        const newPts = [...th.pts.slice(0, -1), { t: todayTs, c: curP }];
+        th = { ...th, pts: newPts };
+      } else if (lastDay < todayDay) {
+        th = { ...th, pts: [...th.pts, { t: todayTs, c: curP }] };
+      }
     }
   }
 
