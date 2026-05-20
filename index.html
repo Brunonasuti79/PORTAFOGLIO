@@ -756,7 +756,6 @@ input[type=number]{-moz-appearance:textfield}
 
 /* ── Badge sticker ─────────────────────────────────────────────── */
 .pf-badge {
-  position: relative;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -769,60 +768,28 @@ input[type=number]{-moz-appearance:textfield}
   flex-shrink: 0;
   line-height: 1;
   transition: transform .15s ease, box-shadow .15s ease;
-  outline: none;
-  z-index: 1;
 }
-.pf-badge:hover,
-.pf-badge:focus {
-  transform: scale(1.22);
-  box-shadow: 0 4px 18px var(--bb);
-  z-index: 100;
-}
-.pf-badge::before {
-  content: attr(data-tip);
-  position: absolute;
-  bottom: calc(100% + 10px);
-  left: 50%;
-  transform: translateX(-50%) scale(.92);
-  min-width: 160px;
-  max-width: 220px;
-  background: var(--bg2, #18181b);
-  border: 1.5px solid var(--bb);
-  border-radius: 10px;
-  padding: 8px 12px;
-  font-size: 12px;
-  font-family: var(--font, system-ui, sans-serif);
-  font-weight: 500;
-  color: var(--text, #f4f4f5);
-  white-space: pre-wrap;
-  text-align: center;
+.pf-badge:hover { transform: scale(1.22); box-shadow: 0 4px 18px var(--bb); }
+#badge-tip {
+  position: fixed;
+  z-index: 9999;
   pointer-events: none;
-  opacity: 0;
-  transition: opacity .15s ease, transform .15s ease;
-  box-shadow: 0 6px 24px rgba(0,0,0,.32);
-  line-height: 1.5;
-  z-index: 101;
-}
-.pf-badge::after {
-  content: '';
-  position: absolute;
-  bottom: calc(100% + 4px);
-  left: 50%;
-  transform: translateX(-50%);
-  border: 6px solid transparent;
-  border-top-color: var(--bb);
+  background: var(--bg, #18181b);
+  border: 1.5px solid #888;
+  border-radius: 12px;
+  padding: 10px 15px;
+  font-size: 13px;
+  line-height: 1.55;
+  text-align: center;
+  box-shadow: 0 8px 32px rgba(0,0,0,.35);
+  max-width: 220px;
   opacity: 0;
   transition: opacity .15s ease;
-  pointer-events: none;
-  z-index: 101;
+  color: var(--text);
 }
-.pf-badge:hover::before,
-.pf-badge:focus::before,
-.pf-badge:hover::after,
-.pf-badge:focus::after {
-  opacity: 1;
-  transform: translateX(-50%) scale(1);
-}
+#badge-tip.visible { opacity: 1; }
+#badge-tip strong { display: block; font-size: 14px; font-weight: 700; margin-bottom: 3px; }
+#badge-tip span { display: block; font-size: 12px; opacity: .75; }
 </style>
 </head>
 <body>
@@ -7887,6 +7854,46 @@ function setOpsChartPeriod(btn) {
   renderOpsChart();
 }
 
+</script>
+
+<div id="badge-tip"></div>
+<script>
+(function(){
+  const tip = document.getElementById('badge-tip');
+  let hideTimer;
+  document.addEventListener('mouseover', function(e){
+    const badge = e.target.closest('.pf-badge');
+    if (!badge) return;
+    clearTimeout(hideTimer);
+    const raw = badge.getAttribute('data-tip') || '';
+    const parts = raw.split('\n');
+    tip.innerHTML = '<strong>' + parts[0] + '</strong>' + (parts[1] ? '<span>' + parts[1] + '</span>' : '');
+    // colore bordo dal badge
+    const bb = badge.style.getPropertyValue('--bb') || '#888';
+    tip.style.borderColor = bb;
+    tip.style.display = 'block';
+    positionTip(badge);
+    requestAnimationFrame(() => tip.classList.add('visible'));
+  });
+  document.addEventListener('mouseout', function(e){
+    const badge = e.target.closest('.pf-badge');
+    if (!badge) return;
+    tip.classList.remove('visible');
+    hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 160);
+  });
+  function positionTip(badge) {
+    const r = badge.getBoundingClientRect();
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth || 200;
+    let left = r.left + r.width/2 - tw/2;
+    let top  = r.top - tip.offsetHeight - 12 + window.scrollY;
+    // evita uscita a destra/sinistra
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+    if (top < window.scrollY + 8) top = r.bottom + 12 + window.scrollY;
+    tip.style.left = left + 'px';
+    tip.style.top  = top + 'px';
+  }
+})();
 </script>
 </body>
 </html>
