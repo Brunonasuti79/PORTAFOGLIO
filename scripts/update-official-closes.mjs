@@ -431,11 +431,7 @@ for (const [ticker, data] of Object.entries(results)) {
     source: data.source, capturedAt: new Date().toISOString(), market, runDate: today
   };
 
-  const keys = Object.keys(backup.officialCloses[ticker]).sort();
-  if (keys.length > 365) keys.slice(0, keys.length - 365).forEach(k => {
-    delete backup.officialCloses[ticker][k];
-    delete backup.officialClosesMeta[ticker]?.[k];
-  });
+  // Nessun limite storico — i dati si accumulano per sempre
 
   saved++;
 }
