@@ -6424,8 +6424,9 @@ function injectOfficialClosesToTickerHistory() {
     if (!dates || typeof dates !== 'object') continue;
     const isEU = /\.(MI|DE|PA|AS|L|VX|BR)$/i.test(ticker);
     const closingH = isEU ? 'T15:30:00Z' : 'T21:00:00Z';
+    const todayStr = todayRome();
     const pts = Object.entries(dates)
-      .filter(([, rec]) => rec && Number(rec.close) > 0)
+      .filter(([date, rec]) => rec && Number(rec.close) > 0 && date < todayStr)
       .map(([date, rec]) => ({
         t: new Date(date + closingH).getTime(),
         c: Number(rec.close)
