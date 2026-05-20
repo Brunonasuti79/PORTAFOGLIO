@@ -770,63 +770,58 @@ input[type=number]{-moz-appearance:textfield}
   line-height: 1;
   transition: transform .15s ease, box-shadow .15s ease;
   outline: none;
+  z-index: 1;
 }
 .pf-badge:hover,
 .pf-badge:focus {
-  transform: scale(1.18);
-  box-shadow: 0 4px 16px var(--bb);
-  z-index: 10;
+  transform: scale(1.22);
+  box-shadow: 0 4px 18px var(--bb);
+  z-index: 100;
 }
-.badge-tooltip {
-  display: none;
+.pf-badge::before {
+  content: attr(data-tip);
   position: absolute;
   bottom: calc(100% + 10px);
   left: 50%;
-  transform: translateX(-50%);
-  min-width: 180px;
-  max-width: 240px;
-  background: var(--color-bg2, #1e1e2e);
+  transform: translateX(-50%) scale(.92);
+  min-width: 160px;
+  max-width: 220px;
+  background: var(--bg2, #18181b);
   border: 1.5px solid var(--bb);
-  border-radius: 12px;
-  padding: 10px 13px;
-  z-index: 999;
-  pointer-events: none;
-  box-shadow: 0 8px 32px rgba(0,0,0,.28);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-family: var(--font, system-ui, sans-serif);
+  font-weight: 500;
+  color: var(--text, #f4f4f5);
+  white-space: pre-wrap;
   text-align: center;
-  flex-direction: column;
-  align-items: center;
-  gap: 3px;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s ease, transform .15s ease;
+  box-shadow: 0 6px 24px rgba(0,0,0,.32);
+  line-height: 1.5;
+  z-index: 101;
 }
-.pf-badge:hover .badge-tooltip,
-.pf-badge:focus .badge-tooltip {
-  display: flex;
-}
-.badge-tooltip::after {
+.pf-badge::after {
   content: '';
   position: absolute;
-  top: 100%;
+  bottom: calc(100% + 4px);
   left: 50%;
   transform: translateX(-50%);
   border: 6px solid transparent;
   border-top-color: var(--bb);
+  opacity: 0;
+  transition: opacity .15s ease;
+  pointer-events: none;
+  z-index: 101;
 }
-.badge-tip-emoji {
-  font-size: 26px;
-  line-height: 1;
-  margin-bottom: 4px;
-}
-.badge-tooltip strong {
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
-  white-space: nowrap;
-}
-.badge-tip-sub {
-  font-size: 11px;
-  color: var(--text3);
-  margin-top: 2px;
-  white-space: normal;
-  line-height: 1.4;
+.pf-badge:hover::before,
+.pf-badge:focus::before,
+.pf-badge:hover::after,
+.pf-badge:focus::after {
+  opacity: 1;
+  transform: translateX(-50%) scale(1);
 }
 </style>
 </head>
@@ -7371,8 +7366,8 @@ function isBondTicker(ticker) {
 }
 
 function _badgeHtml(emoji, label, sub, bg, border) {
-  const tooltip = `<span class="badge-tooltip"><span class="badge-tip-emoji">${emoji}</span><strong>${label}</strong>${sub ? '<span class="badge-tip-sub">'+sub+'</span>' : ''}</span>`;
-  return `<span class="pf-badge" style="--bb:${border};--bg:${bg}" tabindex="0" role="img" aria-label="${label}">${emoji}${tooltip}</span>`;
+  const tip = sub ? label + '\n' + sub : label;
+  return '<span class="pf-badge" style="--bb:'+border+';--bg:'+bg+'" data-tip="'+tip+'" tabindex="0">'+emoji+'</span>';
 }
 
 function getMedalBadge(ticker, currentPrice) {
