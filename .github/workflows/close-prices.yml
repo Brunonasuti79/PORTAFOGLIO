@@ -40,5 +40,5 @@ jobs:
           GIST_TOKEN:       ${{ secrets.GIST_TOKEN }}
           GIST_ID:          ${{ secrets.GIST_ID }}
           FINNHUB_KEY:      ${{ secrets.FINNHUB_KEY }}
-          MARKET_OVERRIDE:  ${{ github.event.inputs.market_override }}
+          MARKET_OVERRIDE: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.market_override || '' }}
         run: node scripts/update-official-closes.mjs
