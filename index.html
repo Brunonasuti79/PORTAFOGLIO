@@ -883,6 +883,22 @@ input[type=number]{-moz-appearance:textfield}
           style="width:100%;padding:14px;background:#7ba7ff;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:#070b14;cursor:pointer;margin-top:4px;transition:opacity .2s">
           Accedi
         </button>
+
+        <!-- Recupera password -->
+        <div id="sb-forgot-wrap" style="text-align:center;margin-top:4px">
+          <button onclick="sbShowForgot()" style="background:none;border:none;color:#7a9cc0;font-family:'Outfit',sans-serif;font-size:12px;cursor:pointer;text-decoration:underline;padding:4px">
+            Password dimenticata?
+          </button>
+        </div>
+
+        <!-- Form recupero password (nascosto di default) -->
+        <div id="sb-forgot-form" style="display:none;margin-top:8px;padding-top:12px;border-top:1px solid #1a2640">
+          <div style="font-size:12px;color:#7a9cc0;margin-bottom:8px;text-align:center">Inserisci la tua email — ti mandiamo il link per reimpostare la password</div>
+          <button onclick="sbResetPassword()"
+            style="width:100%;padding:12px;background:transparent;border:1px solid #7ba7ff;border-radius:10px;font-family:'Outfit',sans-serif;font-size:14px;font-weight:700;color:#7ba7ff;cursor:pointer;transition:opacity .2s">
+            📧 Invia link di recupero
+          </button>
+        </div>
       </div>
     </div>
 
@@ -8282,9 +8298,16 @@ async function sbLogin() {
   const password = document.getElementById('sb-password').value;
   if (!email || !password) { sbSetError('Inserisci email e password'); return; }
   sbSetLoading(true); sbClearMessages();
-  const { error } = await sb.auth.signInWithPassword({ email, password });
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
   sbSetLoading(false);
-  if (error) { sbSetError(error.message === 'Invalid login credentials' ? 'Email o password errati' : error.message); return; }
+  if (error) {
+    console.error('Login error:', error);
+    const msg = error.message === 'Invalid login credentials' ? 'Email o password errati'
+      : error.message === 'Email not confirmed' ? 'Email non confermata — vai su Supabase → Authentication → Providers → Email e disabilita "Confirm email"'
+      : error.message;
+    sbSetError('❌ ' + msg);
+    return;
+  }
   // onAuthStateChange gestisce il resto
 }
 
@@ -8345,8 +8368,91 @@ function sbScheduleSave() {
   _sbSaveTimer = setTimeout(sbSaveNow, 2000);
 }
 
+function sbShowForgot() {
+  const form = document.getElementById('sb-forgot-form');
+  const wrap = document.getElementById('sb-forgot-wrap');
+  if (form) form.style.display = form.style.display === 'none' ? 'block' : 'none';
+  if (wrap) wrap.style.display = 'none';
+  sbClearMessages();
+}
+
+async function sbResetPassword() {
+  const email = document.getElementById('sb-email').value.trim();
+  if (!email) { sbSetError('Inserisci prima la tua email nel campo qui sopra'); return; }
+  sbSetLoading(true); sbClearMessages();
+  const { error } = await sb.auth.resetPasswordForEmail(email, {
+    redirectTo: 'https://brunonasuti79.github.io/PORTAFOGLIO/'
+  });
+  sbSetLoading(false);
+  if (error) { sbSetError(error.message); return; }
+  sbSetInfo('✅ Email inviata! Controlla la tua casella e clicca il link per reimpostare la password.');
+}
+
+// Gestisce il token di recupero password nell'URL (dopo click sul link email)
+async function sbHandlePasswordRecovery() {
+  const hash = window.location.hash;
+  if (!hash.includes('type=recovery')) return;
+  // Estrai il token dall'URL
+  const params = new URLSearchParams(hash.substring(1));
+  const accessToken  = params.get('access_token');
+  const refreshToken = params.get('refresh_token');
+  if (!accessToken) return;
+  // Imposta la sessione con il token di recovery
+  await sb.auth.setSession({ access_token: accessToken, refresh_token: refreshToken || '' });
+  // Mostra form cambio password
+  sbShowChangePassword();
+}
+
+function sbShowChangePassword() {
+  const overlay = document.getElementById('login-overlay');
+  if (!overlay) return;
+  overlay.style.display = 'flex';
+  overlay.innerHTML = `
+  <div style="width:100%;max-width:360px;padding:0 24px;">
+    <div style="text-align:center;margin-bottom:32px">
+      <div style="font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:3px;color:#fff">PORTAFOGLIO</div>
+      <div style="font-size:11px;color:#7a9cc0;letter-spacing:2px;text-transform:uppercase;margin-top:4px">Nuova Password</div>
+    </div>
+    <div style="background:#0d1322;border:1px solid #1a2640;border-radius:20px;padding:28px 24px;">
+      <div style="font-size:13px;color:#7a9cc0;margin-bottom:16px;text-align:center">Scegli la tua nuova password</div>
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <input id="sb-newpwd" type="password" placeholder="Nuova password (min 6 caratteri)"
+          style="width:100%;background:#090f1e;border:1px solid #1a2640;border-radius:10px;padding:12px 14px;color:#e8eaf0;font-family:'Outfit',sans-serif;font-size:15px;outline:none;box-sizing:border-box">
+        <div id="sb-newpwd-error" style="display:none;background:#2e0a15;border:1px solid #ff3b3b;border-radius:8px;padding:10px 12px;font-size:13px;color:#ff3b3b"></div>
+        <div id="sb-newpwd-info" style="display:none;background:#0a2e1e;border:1px solid #1fe07e;border-radius:8px;padding:10px 12px;font-size:13px;color:#1fe07e"></div>
+        <button onclick="sbUpdatePassword()"
+          style="width:100%;padding:14px;background:#7ba7ff;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:#070b14;cursor:pointer">
+          Salva nuova password
+        </button>
+      </div>
+    </div>
+  </div>`;
+  // Pulisci l'hash dall'URL
+  history.replaceState(null, '', window.location.pathname);
+}
+
+async function sbUpdatePassword() {
+  const pwd = document.getElementById('sb-newpwd')?.value;
+  if (!pwd || pwd.length < 6) {
+    const el = document.getElementById('sb-newpwd-error');
+    if (el) { el.textContent = 'Password minimo 6 caratteri'; el.style.display = 'block'; }
+    return;
+  }
+  const { error } = await sb.auth.updateUser({ password: pwd });
+  if (error) {
+    const el = document.getElementById('sb-newpwd-error');
+    if (el) { el.textContent = error.message; el.style.display = 'block'; }
+    return;
+  }
+  const el = document.getElementById('sb-newpwd-info');
+  if (el) { el.textContent = '✅ Password aggiornata! Accesso in corso...'; el.style.display = 'block'; }
+  setTimeout(() => { window.location.href = window.location.pathname; }, 1500);
+}
+
 // ── Init ────────────────────────────────────────────────────────
 async function sbInit() {
+  // Controlla se stiamo tornando da un link di recupero password
+  await sbHandlePasswordRecovery();
   // Ascolta cambi di stato auth
   sb.auth.onAuthStateChange(async (event, session) => {
     const overlay = document.getElementById('login-overlay');
