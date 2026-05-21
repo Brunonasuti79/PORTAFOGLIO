@@ -3240,6 +3240,20 @@ function sortHoldings(list) {
         };
         return cmp(_todayPct(a), _todayPct(b));
       }
+      case 'oggieur': {
+        const _EU2 = new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS']);
+        const _todayEur = h => {
+          const dc = S.dailyChanges?.[h.ticker];
+          if (!dc || dc.pct == null) return null;
+          const mkt = (h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
+          const isEU = _EU2.has(mkt)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
+          if (isEU && !isEUMarketOpen()) return null;
+          if (!isEU && !isUSMarketOpen()) return null;
+          const val = currentValueAllEUR(h);
+          return val ? (Number(dc.pct) / 100) * val : null;
+        };
+        return cmp(_todayEur(a), _todayEur(b));
+      }
       case 'prezzo':  return cmp(currentPriceBuyCcy(a), currentPriceBuyCcy(b));
       default: return d*(a.name||a.displayTicker).localeCompare(b.name||b.displayTicker,'it');
     }
@@ -3427,6 +3441,8 @@ function renderPF() {
     const symNative  = (h.titleCcy||'EUR')==='USD'?'$':'€';
     const day    = S.dailyChanges?.[h.ticker];
     const dayPct = day && Number.isFinite(Number(day.pct)) ? Number(day.pct) : null;
+    const valEur = currentValueAllEUR(h);
+    const dayEur = (dayPct !== null && valEur) ? (dayPct / 100) * valEur : null;
     const dCls   = dayPct===null ? 'neutral' : (dayPct>=0?'gain':'loss');
     const isOpen = !!expandedHoldings[h.ticker];
     const totalComm = (S.ops||[]).filter(o=>fc(o.quoteTicker||o.ticker)===h.ticker&&o.type==='buy')
@@ -3436,7 +3452,7 @@ function renderPF() {
       : `<span style="color:var(--border2);font-size:10px;margin-left:4px">▼</span>`;
 
     const detail = isOpen ? `<tr class="pf-detail-row">
-      <td colspan="5"><div class="pf-detail-inner">
+      <td colspan="6"><div class="pf-detail-inner">
         <div><div class="pf-dl">Quantità</div><div class="pf-dv">${h.qty%1===0?h.qty:n2(h.qty)}</div></div>
         <div><div class="pf-dl">P.M. Carico</div><div class="pf-dv">${n3(h.avgPriceBuyCcy||h.avgPrice)} ${sym}</div></div>
         <div><div class="pf-dl">Val. Attuale</div><div class="pf-dv">${hp?n2(p*h.qty)+' '+sym:'—'}</div></div>
@@ -3459,11 +3475,19 @@ function renderPF() {
       <td class="pf-col-g ${gc}">${gain!==null?(gain>=0?'+':'')+n2(gain)+' '+sym:'<span class="pf-no-price">—</span>'}</td>
       <td class="${gc}">${gainP!==null?pct(gainP):'<span class="pf-no-price">—</span>'}</td>
       <td class="${dCls}">${(()=>{
+        if(dayEur===null) return '<span class="pf-no-price">—</span>';
+        const EU_M2=new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS']);
+        const mkt2=(h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
+        const isEU2=EU_M2.has(mkt2)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
+        if(isEU2&&!isEUMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
+        if(!isEU2&&!isUSMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
+        return (dayEur>=0?'+':'')+e2(dayEur);
+      })()}</td>
+      <td class="${dCls}">${(()=>{
         if(dayPct===null) return '<span class="pf-no-price">—</span>';
         const EU_M=new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS']);
         const mkt=(h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
         const isEU=EU_M.has(mkt)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
-        // Mostra % solo se il mercato ha aperto oggi (prevCloseOfficial usato solo come prevClose, non per forzare la visibilità)
         if(isEU&&!isEUMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
         if(!isEU&&!isUSMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
         return (dayPct>=0?'+':'')+dayPct.toFixed(2)+'%';
@@ -3480,7 +3504,8 @@ function renderPF() {
           <th class="${thCls('name')}" onclick="pfSort('name')" style="text-align:left;padding-left:14px">Titolo</th>
           ${th('gain','Gain','pf-col-g')}
           ${th('gainpct','Gain %')}
-          ${th('oggi','Oggi')}
+          ${th('oggieur','Oggi €','pf-col-g')}
+          ${th('oggi','Oggi %')}
           ${th('prezzo','Prezzo')}
           
         </tr></thead>
