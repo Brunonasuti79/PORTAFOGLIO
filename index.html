@@ -8619,23 +8619,25 @@ function renderWatchlist() {
     return dir * (va - vb);
   });
 
-  // Header filtri sort
-  const sortBtn = (key, label) => {
+  // Header colonne stile Excel
+  const colHdr = (key, label, align) => {
     const active = (window._wlSort || 'name') === key;
     const d = window._wlSortDir || 1;
-    const arrow = active ? (d === 1 ? ' ↑' : ' ↓') : '';
-    return `<button onclick="wlSetSort('${key}')"
-      style="flex:1;background:${active?'rgba(123,167,255,.15)':'none'};border:1px solid ${active?'var(--blue)':'var(--border2)'};
-      border-radius:8px;padding:5px 8px;font-size:11px;font-weight:${active?'700':'500'};
-      color:${active?'var(--blue)':'var(--text3)'};cursor:pointer;white-space:nowrap;font-family:'Outfit',sans-serif">
-      ${label}${arrow}</button>`;
+    const arrow = active ? (d === 1 ? ' ↑' : ' ↓') : ' ⇅';
+    return `<span onclick="wlSetSort('${key}')"
+      style="cursor:pointer;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.7px;
+      color:${active?'var(--blue)':'var(--text3)'};text-align:${align||'left'};
+      user-select:none;white-space:nowrap">${label}<span style="opacity:${active?1:.4}">${arrow}</span></span>`;
   };
-  const sortBar = `<div style="display:flex;gap:6px;margin:0 14px 8px;align-items:center">
-    <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap">Ordina</span>
-    ${sortBtn('name','Nome')}
-    ${sortBtn('1M','1 Mese')}
-    ${sortBtn('1A','1 Anno')}
-    ${sortBtn('price','Prezzo')}
+  const sortBar = `<div style="display:flex;align-items:center;gap:10px;margin:0 14px 4px;padding:4px 14px 6px;border-bottom:1px solid var(--border)">
+    <div style="width:64px;flex-shrink:0"></div>
+    <div style="flex:1">${colHdr('name','Titolo')}</div>
+    <div style="display:flex;gap:6px;flex-shrink:0">
+      <span style="min-width:48px;text-align:center">${colHdr('1M','1M','center')}</span>
+      <span style="min-width:48px;text-align:center">${colHdr('1A','1A','center')}</span>
+    </div>
+    <div style="min-width:80px;text-align:right">${colHdr('price','Prezzo','right')}</div>
+    <div style="width:40px"></div>
   </div>`;
 
   if (!wl.length) {
