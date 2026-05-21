@@ -8478,21 +8478,22 @@ async function sbUpdatePassword() {
 
 // ── Init ────────────────────────────────────────────────────────
 async function sbInit() {
-  // ── Logout guard: se arriviamo da un logout, blocca tutto il restore ──
+  // Se arriviamo da logout: pulisci URL e sessione, poi continua normalmente
+  // NON fare return — il listener deve sempre essere registrato
   const isLogout = window.location.search.includes('logout=');
   if (isLogout) {
-    window.__SB_LOGGING_OUT = true;
     history.replaceState(null, '', window.location.pathname);
+    try { localStorage.removeItem(SB_STORAGE_KEY); } catch(e) {}
     try { await sb.auth.signOut(); } catch(e) {}
-    renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
-    return; // STOP — nessun restore sessione
   }
 
-  try { await sbHandlePasswordRecovery(); } catch(e) { console.warn('recovery check failed:', e); }
+  try { await sbHandlePasswordRecovery(); } catch(e) {}
 
-  // Funzione condivisa per avviare l'app dopo login
+  let _appStarted = false; // evita doppio avvio app
+
   async function sbOnLogin(session) {
-    if (window.__SB_LOGGING_OUT) return; // guard: ignora eventi durante logout
+    if (_appStarted) return;
+    _appStarted = true;
     sbSetLoading(false);
     try {
       const overlay = document.getElementById('login-overlay');
@@ -8506,20 +8507,21 @@ async function sbInit() {
       startAutoRefresh();
       loadSparklines();
     } catch(e) {
+      _appStarted = false;
       console.error('sbOnLogin error:', e);
       try { renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines(); } catch(e2) {}
     }
   }
 
-  // Ascolta cambi di stato auth
+  // Registra sempre il listener
   sb.auth.onAuthStateChange(async (event, session) => {
-    if (window.__SB_LOGGING_OUT) return; // guard
     try {
       const overlay = document.getElementById('login-overlay');
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
         await sbOnLogin(session);
       }
       if (event === 'SIGNED_OUT') {
+        _appStarted = false;
         if (overlay) overlay.style.display = 'flex';
         sbSetLoading(false);
         try { sbClearMessages(); } catch(e) {}
@@ -8527,9 +8529,8 @@ async function sbInit() {
     } catch(e) { console.warn('onAuthStateChange error:', e); }
   });
 
-  // Controlla sessione esistente (fallback)
+  // Controlla sessione corrente
   try {
-    if (window.__SB_LOGGING_OUT) return; // guard
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
       await sbOnLogin(session);
@@ -8537,7 +8538,6 @@ async function sbInit() {
       renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
     }
   } catch(e) {
-    console.warn('getSession error:', e);
     renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
   }
 }
