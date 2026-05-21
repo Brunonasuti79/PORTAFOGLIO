@@ -860,18 +860,16 @@ input[type=number]{-moz-appearance:textfield}
       </div>
 
       <!-- Campi -->
-      <div style="display:flex;flex-direction:column;gap:12px">
+      <form autocomplete="on" onsubmit="sbLogin();return false;" style="display:flex;flex-direction:column;gap:12px">
         <div>
           <label style="font-size:11px;color:#7a9cc0;text-transform:uppercase;letter-spacing:1px;font-weight:700;display:block;margin-bottom:6px">Email</label>
-          <input id="sb-email" type="email" placeholder="mario@email.com" autocomplete="email"
-            style="width:100%;background:#090f1e;border:1px solid #1a2640;border-radius:10px;padding:12px 14px;color:#e8eaf0;font-family:'Outfit',sans-serif;font-size:15px;outline:none;box-sizing:border-box"
-            onkeydown="if(event.key==='Enter')sbLogin()">
+          <input id="sb-email" name="email" type="email" placeholder="mario@email.com" autocomplete="email"
+            style="width:100%;background:#090f1e;border:1px solid #1a2640;border-radius:10px;padding:12px 14px;color:#e8eaf0;font-family:'Outfit',sans-serif;font-size:15px;outline:none;box-sizing:border-box">
         </div>
         <div>
           <label style="font-size:11px;color:#7a9cc0;text-transform:uppercase;letter-spacing:1px;font-weight:700;display:block;margin-bottom:6px">Password</label>
-          <input id="sb-password" type="password" placeholder="••••••••" autocomplete="current-password"
-            style="width:100%;background:#090f1e;border:1px solid #1a2640;border-radius:10px;padding:12px 14px;color:#e8eaf0;font-family:'Outfit',sans-serif;font-size:15px;outline:none;box-sizing:border-box"
-            onkeydown="if(event.key==='Enter')sbLogin()">
+          <input id="sb-password" name="password" type="password" placeholder="••••••••" autocomplete="current-password"
+            style="width:100%;background:#090f1e;border:1px solid #1a2640;border-radius:10px;padding:12px 14px;color:#e8eaf0;font-family:'Outfit',sans-serif;font-size:15px;outline:none;box-sizing:border-box">
         </div>
 
         <!-- Messaggio errore -->
@@ -883,6 +881,9 @@ input[type=number]{-moz-appearance:textfield}
           style="width:100%;padding:14px;background:#7ba7ff;border:none;border-radius:10px;font-family:'Outfit',sans-serif;font-size:15px;font-weight:700;color:#070b14;cursor:pointer;margin-top:4px;transition:opacity .2s">
           Accedi
         </button>
+
+        <!-- Submit nascosto per password manager -->
+        <button type="submit" style="display:none">Accedi</button>
 
         <!-- Recupera password -->
         <div id="sb-forgot-wrap" style="text-align:center;margin-top:4px">
@@ -899,7 +900,7 @@ input[type=number]{-moz-appearance:textfield}
             📧 Invia link di recupero
           </button>
         </div>
-      </div>
+      </form>
     </div>
 
     <div style="text-align:center;margin-top:16px;font-size:11px;color:#2a3d5a">
