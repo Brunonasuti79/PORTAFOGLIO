@@ -5904,6 +5904,7 @@ Object.entries(PAGE_GROUPS).forEach(([g,v]) => v.pages.forEach(p => PAGE_TO_GROU
 const lastGroupPage = {};
 
 function showPage(pg) {
+  console.log('[NAV] showPage:', pg, new Error().stack.split('\n')[2]?.trim());
   // Se è un gruppo, risolvi all'ultima pagina visitata in quel gruppo
   if (PAGE_GROUPS[pg]) {
     pg = lastGroupPage[pg] || PAGE_GROUPS[pg].pages[0];
@@ -6898,7 +6899,7 @@ async function syncFromGist(silent=false) {
     injectOfficialClosesToTickerHistory();
     save(); renderAll(); renderGistUI();
     if (!silent) showToast('✓ Dati ripristinati da Gist');
-    else console.log('Auto Gist download OK');
+    else console.log('[GIST] sync OK — nome portafoglio:', S?.name, 'localHasOps:', (ALL.portfolios||[]).some(pf=>(pf.ops||[]).length>0));
     return true;
   } catch(e) {
     if (!silent) showToast('⚠ Errore: ' + (e.message || 'Download fallito'));
@@ -8844,7 +8845,7 @@ async function sbLoadData() {
 
     // Risalva sempre su Supabase con i dati correnti (aggiorna il remoto)
     sbSaveNow();
-    console.log('[SB] load OK — remote:', remoteSavedAt, 'local:', localSavedAt);
+    console.log('[SB] load OK — nome:', S?.name, 'remote:', remoteSavedAt, 'local:', localSavedAt, 'localHasData:', localHasData);
   } catch(e) {
     console.warn('[SB] load fallback to localStorage:', e.message);
     // Nessun problema — localStorage è già caricato
