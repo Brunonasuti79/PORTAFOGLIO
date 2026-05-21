@@ -7313,10 +7313,13 @@ function startAutoRefresh(){
   },180000);
 }
 
-let _chartModalTicker=null,_chartModalPeriod='1A';
+let _chartModalTicker=null,_chartModalPeriod='1A',_chartModalReturnPage='portfolio';
 function openChartModal(ticker){
   _chartModalTicker=ticker;
   _chartModalPeriod=_chartModalPeriod||'1A';
+  // Salva la pagina attiva per tornare indietro alla chiusura
+  _chartModalReturnPage = Object.values(PAGE_GROUPS).flatMap(g=>g.pages)
+    .find(p => document.getElementById('pg-'+p)?.classList.contains('active')) || 'portfolio';
   const hlds=calcPF();
   let h=hlds.find(h=>h.ticker===ticker);
   // Fallback watchlist
@@ -7333,7 +7336,11 @@ function openChartModal(ticker){
   renderChartModal();
   loadChartModalData();
 }
-function closeChartModal(){document.getElementById('chart-modal').classList.add('hidden');_chartModalTicker=null;}
+function closeChartModal(){
+  document.getElementById('chart-modal').classList.add('hidden');
+  _chartModalTicker=null;
+  if (_chartModalReturnPage && _chartModalReturnPage !== 'portfolio') showPage(_chartModalReturnPage);
+}
 function renderChartModal(){
   const ticker=_chartModalTicker;if(!ticker)return;
   const period=_chartModalPeriod,hlds=calcPF();
@@ -8571,15 +8578,22 @@ function renderWatchlist() {
     const hitAbove = hasAbove && p && p >= item.alertAbove;
     const hitBelow = hasBelow && p && p <= item.alertBelow;
     let alertBadge = '';
-    if (hasAbove)
-      alertBadge += `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
-        style="cursor:pointer;background:${hitAbove?'rgba(31,224,126,.2)':'rgba(31,224,126,.08)'};border:1px solid ${hitAbove?'var(--green)':'rgba(31,224,126,.3)'};border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;color:var(--green);white-space:nowrap">▲ ${n2(item.alertAbove)}</span>`;
-    if (hasBelow)
-      alertBadge += `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
-        style="cursor:pointer;background:${hitBelow?'rgba(255,59,59,.2)':'rgba(255,59,59,.08)'};border:1px solid ${hitBelow?'var(--red)':'rgba(255,59,59,.3)'};border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;color:var(--red);white-space:nowrap">▼ ${n2(item.alertBelow)}</span>`;
+    if (hasAbove) {
+      const aboveTip = (hitAbove ? 'RAGGIUNTO! ' : '') + '▲ Target sopra ' + n2(item.alertAbove);
+      alertBadge += `<span class="pf-badge" onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
+        style="--bb:${hitAbove?'rgba(31,224,126,.9)':'rgba(31,224,126,.4)'};--bg:${hitAbove?'rgba(31,224,126,.2)':'rgba(31,224,126,.08)'};cursor:pointer"
+        data-tip="${aboveTip}" tabindex="0">🔔▲ ${n2(item.alertAbove)}</span>`;
+    }
+    if (hasBelow) {
+      const belowTip = (hitBelow ? 'RAGGIUNTO! ' : '') + '▼ Target sotto ' + n2(item.alertBelow);
+      alertBadge += `<span class="pf-badge" onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
+        style="--bb:${hitBelow?'rgba(255,59,59,.9)':'rgba(255,59,59,.4)'};--bg:${hitBelow?'rgba(255,59,59,.2)':'rgba(255,59,59,.08)'};cursor:pointer"
+        data-tip="${belowTip}" tabindex="0">🔔▼ ${n2(item.alertBelow)}</span>`;
+    }
     if (!hasAbove && !hasBelow)
-      alertBadge = `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
-        style="cursor:pointer;color:var(--text3);font-size:11px;padding:2px 4px">🔔 alert</span>`;
+      alertBadge = `<span class="pf-badge" onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
+        style="--bb:rgba(120,120,140,.35);--bg:rgba(120,120,140,.07);cursor:pointer;opacity:.7"
+        data-tip="Imposta alert prezzo" tabindex="0">🔔</span>`;
 
     // Sparkline linea piccola
     const sparkHtml = renderSparkline(getSparkPts(item.ticker));
