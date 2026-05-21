@@ -8793,19 +8793,31 @@ function getSlimData() {
 
 async function sbSaveNow() {
   try {
-    const { data: { session } } = await sb.auth.getSession();
-    if (!session) return;
+    console.log('[SB] sbSaveNow: step 1 - getSession...');
+    const { data: { session } } = await Promise.race([
+      sb.auth.getSession(),
+      new Promise((_,rej) => setTimeout(() => rej(new Error('getSession timeout')), 5000))
+    ]);
+    if (!session) { console.warn('[SB] no session'); return; }
+    console.log('[SB] step 2 - session ok, uid:', session.user.id);
     const slim = getSlimData();
-    const { error } = await sb.from('user_data').upsert(
-      { user_id: session.user.id, data: slim, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' }
-    );
+    console.log('[SB] step 3 - slim data size:', JSON.stringify(slim).length, 'chars');
+    const { error } = await Promise.race([
+      sb.from('user_data').upsert(
+        { user_id: session.user.id, data: slim, updated_at: new Date().toISOString() },
+        { onConflict: 'user_id' }
+      ),
+      new Promise((_,rej) => setTimeout(() => rej(new Error('upsert timeout')), 8000))
+    ]);
     if (error) {
-      console.error('Supabase save error:', error.message);
-      showToast('⚠ Sync cloud fallito: ' + error.message, 4000);
+      console.error('[SB] upsert error:', error.message, error);
+      showToast('⚠ Sync fallito: ' + error.message, 5000);
+    } else {
+      console.log('[SB] step 4 - SAVED OK');
     }
   } catch(e) {
-    console.error('sbSaveNow exception:', e);
+    console.error('[SB] sbSaveNow exception:', e.message);
+    showToast('⚠ Sync fallito: ' + e.message, 5000);
   }
 }
 
