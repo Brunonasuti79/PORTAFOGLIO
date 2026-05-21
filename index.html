@@ -8632,6 +8632,7 @@ const sb = supabase.createClient(SB_URL, SB_KEY, {
 });
 
 let _sbSaveTimer = null;
+let _cachedSession = null; // sessione in memoria — evita getSession() network call
 
 // ── UI helpers ──────────────────────────────────────────────────
 function sbShowTab(tab) {
@@ -8792,32 +8793,26 @@ function getSlimData() {
 }
 
 async function sbSaveNow() {
+  // Usa sessione in memoria — nessuna chiamata di rete per il token
+  const session = _cachedSession;
+  if (!session?.user?.id) return;
   try {
-    console.log('[SB] sbSaveNow: step 1 - getSession...');
-    const { data: { session } } = await Promise.race([
-      sb.auth.getSession(),
-      new Promise((_,rej) => setTimeout(() => rej(new Error('getSession timeout')), 5000))
-    ]);
-    if (!session) { console.warn('[SB] no session'); return; }
-    console.log('[SB] step 2 - session ok, uid:', session.user.id);
     const slim = getSlimData();
-    console.log('[SB] step 3 - slim data size:', JSON.stringify(slim).length, 'chars');
     const { error } = await Promise.race([
       sb.from('user_data').upsert(
         { user_id: session.user.id, data: slim, updated_at: new Date().toISOString() },
         { onConflict: 'user_id' }
       ),
-      new Promise((_,rej) => setTimeout(() => rej(new Error('upsert timeout')), 8000))
+      new Promise((_,rej) => setTimeout(() => rej(new Error('upsert timeout 8s')), 8000))
     ]);
     if (error) {
-      console.error('[SB] upsert error:', error.message, error);
-      showToast('⚠ Sync fallito: ' + error.message, 5000);
+      console.error('[SB] save error:', error.message);
+      showToast('⚠ Sync fallito: ' + error.message, 4000);
     } else {
-      console.log('[SB] step 4 - SAVED OK');
+      console.log('[SB] saved OK');
     }
   } catch(e) {
-    console.error('[SB] sbSaveNow exception:', e.message);
-    showToast('⚠ Sync fallito: ' + e.message, 5000);
+    console.error('[SB] save exception:', e.message);
   }
 }
 
@@ -8950,10 +8945,12 @@ async function sbInit() {
     try {
       const overlay = document.getElementById('login-overlay');
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
+        _cachedSession = session; // cache locale
         await sbOnLogin(session);
       }
       if (event === 'SIGNED_OUT') {
         _appStarted = false;
+        _cachedSession = null;
         if (overlay) overlay.style.display = 'flex';
         sbSetLoading(false);
         try { sbClearMessages(); } catch(e) {}
@@ -8965,6 +8962,7 @@ async function sbInit() {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
+      _cachedSession = session;
       await sbOnLogin(session);
     } else {
       renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
