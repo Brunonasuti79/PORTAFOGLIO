@@ -8479,6 +8479,18 @@ async function sbUpdatePassword() {
 
 // ── Init ────────────────────────────────────────────────────────
 async function sbInit() {
+  // ── Logout guard: se arriviamo da un logout, NON fare auto-login ──
+  const isLogout = window.location.search.includes('logout=');
+  if (isLogout) {
+    // Pulisci l'URL senza ricaricare
+    history.replaceState(null, '', window.location.pathname);
+    // Assicura che la sessione sia davvero morta
+    try { await sb.auth.signOut(); } catch(e) {}
+    // Mostra login e ferma qui — nessun restore sessione
+    renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
+    return;
+  }
+
   try { await sbHandlePasswordRecovery(); } catch(e) { console.warn('recovery check failed:', e); }
 
   // Funzione condivisa per avviare l'app dopo login
