@@ -7418,7 +7418,10 @@ async function loadChartModalData(){
   const btn=document.getElementById('chart-modal-refresh');
   if(btn){btn.disabled=true;btn.textContent='Caricamento...';}
   const cfg=PERIOD_CFG[period];let loaded=false;
-  for(const sym of candidatesForHolding(h)){
+  // Usa buildWatchlistHistoryCandidates per watchlist (genera simboli Yahoo corretti es. NBIS.AS)
+  const wlItem=(ALL.watchlist||[]).find(w=>w.ticker===ticker);
+  const candidates = wlItem ? buildWatchlistHistoryCandidates(wlItem) : candidatesForHolding(h);
+  for(const sym of candidates){
     const res=await fetchTickerHistory(sym,cfg.interval,cfg.range);
     if(res&&res.pts.length>=3){
       if(!S.tickerHistory)S.tickerHistory={};if(!S.tickerHistory[ticker])S.tickerHistory[ticker]={};
@@ -7426,10 +7429,10 @@ async function loadChartModalData(){
       save();loaded=true;break;
     }
   }
-  if(!loaded)showToast('⚠ Storico non trovato');
+  if(!loaded)showToast('⚠ Storico non trovato per ' + ticker);
   if(btn){btn.disabled=false;btn.textContent='↻ Aggiorna';}
   renderChartModal();
-  renderPF(); // aggiorna sparkline nel portafoglio
+  renderPF();
 }
 
 async function fetchAHPrices() {
@@ -8808,15 +8811,23 @@ async function sbLoadData() {
     localWl.forEach(i => { if (!wlMap.has(i.ticker)) wlMap.set(i.ticker, i); });
     const wlMerged = [...wlMap.values()];
 
-    // Portfolios: usa remoto solo se ha savedAt più recente del locale
-    const localSavedAt  = ALL.savedAt  || '';
+    // Strategia merge: localStorage è SEMPRE fonte primaria per i portfolio.
+    // I dati remoti sovrascrivono SOLO se localStorage è vuoto (nuovo device).
+    const localHasData = (ALL.portfolios || []).some(pf => (pf.ops || []).length > 0);
     const remoteSavedAt = remote.savedAt || '';
-    const useRemotePortfolios = remoteSavedAt > localSavedAt;
+    const localSavedAt  = ALL.savedAt  || '';
 
-    if (useRemotePortfolios) {
+    if (!localHasData) {
+      // Nuovo device senza dati: usa tutto il remoto
       ALL = { ...ALL, ...remote };
+      console.log('[SB] nuovo device — caricati dati remoti');
+    } else {
+      // Device con dati locali: tieni sempre i portfolio locali
+      // Prendi dal remoto solo watchlist aggiuntiva
+      console.log('[SB] dati locali presenti — portfolio locale preservato');
     }
-    // Sempre: merge officialCloses e watchlist
+
+    // Sempre: merge officialCloses e watchlist (unione)
     ALL.officialCloses     = { ...localCloses,     ...(remote.officialCloses     || {}) };
     ALL.officialClosesMeta = { ...localClosesMeta, ...(remote.officialClosesMeta || {}) };
     ALL.watchlist = wlMerged;
@@ -8826,10 +8837,9 @@ async function sbLoadData() {
     try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
     injectOfficialClosesToTickerHistory();
 
-    // Se il merge ha dati locali più freschi, risalva
-    if (!useRemotePortfolios || wlMerged.length > remoteWl.length) sbSaveNow();
-
-    console.log('[SB] load OK, remote:', remoteSavedAt, 'local:', localSavedAt, 'useRemote:', useRemotePortfolios);
+    // Risalva sempre su Supabase con i dati correnti (aggiorna il remoto)
+    sbSaveNow();
+    console.log('[SB] load OK — remote:', remoteSavedAt, 'local:', localSavedAt);
   } catch(e) {
     console.warn('[SB] load fallback to localStorage:', e.message);
     // Nessun problema — localStorage è già caricato
