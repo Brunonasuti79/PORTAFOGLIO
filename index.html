@@ -8252,8 +8252,14 @@ function setupPWA() {
 // ════════════════════════════════════════════════════════════════
 const SB_URL = 'https://tncyxfkuutnnwtrpbkfz.supabase.co';
 const SB_KEY = 'sb_publishable_FeRkPsjSsHD1INt7rvpTSg_z6g4TZj6';
+const SB_STORAGE_KEY = 'sb_session_portafoglio';
 const sb = supabase.createClient(SB_URL, SB_KEY, {
-  auth: { persistSession: true, autoRefreshToken: true }
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    storage: window.localStorage,
+    storageKey: SB_STORAGE_KEY
+  }
 });
 
 let _sbSaveTimer = null;
@@ -8342,10 +8348,9 @@ async function sbRegister() {
 async function sbLogout() {
   window.__SB_LOGGING_OUT = true; // guard: blocca qualsiasi auto-relogin
   try { await sb.auth.signOut({ scope: 'global' }); } catch(e) { console.warn('signOut:', e); }
-  // Rimuovi solo i token Supabase — non toccare i dati portafoglio
-  try {
-    Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
-  } catch(e) {}
+  // Rimuovi SOLO la chiave sessione Supabase — dati portafoglio intatti
+  try { localStorage.removeItem(SB_STORAGE_KEY); } catch(e) {}
+  try { Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k)); } catch(e) {}
   try { sessionStorage.clear(); } catch(e) {}
   window.location.replace(window.location.pathname + '?logout=' + Date.now());
 }
