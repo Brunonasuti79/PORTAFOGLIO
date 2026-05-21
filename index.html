@@ -1252,6 +1252,22 @@ input[type=number]{-moz-appearance:textfield}
   </div>
 </div>
 
+<!-- WATCHLIST RENAME MODAL -->
+<div id="wlrenamemodal" class="mov hidden" onclick="if(event.target.id==='wlrenamemodal')closeWlRenameModal()">
+  <div class="msh" style="max-width:340px">
+    <div class="mtit">✏️ RINOMINA TITOLO</div>
+    <input type="hidden" id="wl-rename-id">
+    <div class="fld"><label>Nome visualizzato</label>
+      <input type="text" id="wl-rename-name" placeholder="es. Apple Inc." autocomplete="off"
+        onkeydown="if(event.key==='Enter')saveWlRename()">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="hbtn" onclick="closeWlRenameModal()" style="flex:1">Annulla</button>
+      <button class="hbtn" onclick="saveWlRename()" style="flex:2;font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">Salva</button>
+    </div>
+  </div>
+</div>
+
 <!-- WATCHLIST ALERT MODAL -->
 <div id="wlalertmodal" class="mov hidden" onclick="if(event.target.id==='wlalertmodal')closeWlAlertModal()">
   <div class="msh" style="max-width:340px">
@@ -7360,7 +7376,7 @@ function renderChartModal(){
   if(perDiv)perDiv.innerHTML=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="_chartModalPeriod='${p}';((S.tickerHistory||{})[_chartModalTicker]?.['${p}']?renderChartModal():loadChartModalData())">${p}</button>`).join('');
   const body=document.getElementById('chart-modal-body');if(!body)return;
   body.innerHTML=th?renderHistoryChart(ticker,th,hlds,period):`<div class="empty" style="padding:40px 20px">Premi <strong>↻ Aggiorna</strong> (${PERIOD_CFG[period]?.label}).</div>`;
-  if(th) setTimeout(()=>setupHistoryCrosshair(ticker,th),0);
+  // setupHistoryCrosshair rimosso — il mousemove è gestito dal handler globale su chart-modal-body
 }
 
 function setupHistoryCrosshair(ticker, th) {
@@ -7402,8 +7418,10 @@ function setupHistoryCrosshair(ticker, th) {
   const setText = (id, t) => { const el = svgEl.querySelector('#' + id); if (el) el.textContent = t; };
 
   svgEl.addEventListener('mousemove', function(e) {
-    const r   = svgEl.getBoundingClientRect();
-    const svgX = (e.clientX - r.left) * (W / r.width);
+    // getScreenCTM è il metodo corretto per SVG responsivi scalati via CSS
+    const ctm  = svgEl.getScreenCTM();
+    if (!ctm) return;
+    const svgX = (e.clientX - ctm.e) / ctm.a;
     if (svgX < pl || svgX > pl + cw) return;
     const idx  = Math.max(0, Math.min(pts.length - 1, Math.round((svgX - pl) / cw * (pts.length - 1))));
     const p    = pts[idx];
@@ -8409,6 +8427,30 @@ function setupPWA() {
 // ════════════════════════════════════════════════════════════════
 
 // ── Modal add ───────────────────────────────────────────────────
+function openWlRenameModal(id) {
+  const item = (ALL.watchlist || []).find(w => w.id === id);
+  if (!item) return;
+  document.getElementById('wl-rename-id').value = id;
+  document.getElementById('wl-rename-name').value = item.name || item.ticker;
+  document.getElementById('wlrenamemodal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('wl-rename-name')?.select(), 150);
+}
+function closeWlRenameModal() {
+  document.getElementById('wlrenamemodal').classList.add('hidden');
+}
+function saveWlRename() {
+  const id   = document.getElementById('wl-rename-id').value;
+  const name = document.getElementById('wl-rename-name').value.trim();
+  if (!name) return;
+  const item = (ALL.watchlist || []).find(w => w.id === id);
+  if (!item) return;
+  item.name = name;
+  save(); sbSaveNow();
+  closeWlRenameModal();
+  renderWatchlist();
+  showToast('✏️ Rinominato in "' + name + '"');
+}
+
 function openWatchlistModal() {
   document.getElementById('wl-ticker').value  = '';
   document.getElementById('wl-isin').value    = '';
@@ -8610,8 +8652,27 @@ function renderWatchlist() {
     // Medaglia (come nel portafoglio)
     const medalBadge = getAnyBadge(item.ticker, p || 0);
 
+    // Performance 1M e 1Y dalla history
+    const th1m = (S.tickerHistory||{})[item.ticker]?.['1M'];
+    const th1a = (S.tickerHistory||{})[item.ticker]?.['1A'];
+    const perfStr = (th) => {
+      if (!th?.pts?.length) return null;
+      const pts = th.pts.filter(x=>x.c>0);
+      if (pts.length < 2) return null;
+      const pct = ((pts[pts.length-1].c - pts[0].c) / pts[0].c) * 100;
+      const cls = pct >= 0 ? 'gc' : 'lc';
+      return `<span class="${cls}" style="font-size:10px;font-weight:700">${pct>=0?'+':''}${pct.toFixed(1)}%</span>`;
+    };
+    const perf1m = perfStr(th1m);
+    const perf1a = perfStr(th1a);
+    const perfRow = (perf1m || perf1a) ? `
+      <div style="display:flex;gap:10px;margin-top:4px">
+        ${perf1m ? `<span style="font-size:10px;color:var(--text3)">1M&nbsp;${perf1m}</span>` : ''}
+        ${perf1a ? `<span style="font-size:10px;color:var(--text3)">1A&nbsp;${perf1a}</span>` : ''}
+      </div>` : '';
+
     return `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px">
-      <!-- Sparkline badge settimanale (unico, prima del nome) -->
+      <!-- Sparkline badge settimanale -->
       <div style="flex-shrink:0">${sparkBadge}</div>
       <!-- Info titolo -->
       <div style="flex:1;min-width:0">
@@ -8624,15 +8685,20 @@ function renderWatchlist() {
         <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace">
           ${esc(item.ticker)}${item.isin ? ' · ' + esc(item.isin) : ''}${item.market ? ' · ' + esc(item.market) : ''}
         </div>
+        ${perfRow}
       </div>
       <!-- Prezzo e variazione -->
       <div style="text-align:right;flex-shrink:0">
         <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--text)">${pStr}</div>
         <div style="font-size:12px;margin-top:2px">${dayStr}</div>
       </div>
-      <!-- Rimuovi -->
-      <button onclick="removeWatchlistItem('${item.id}')"
-        style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px;flex-shrink:0;line-height:1;opacity:.6">×</button>
+      <!-- Azioni -->
+      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+        <button onclick="openWlRenameModal('${item.id}')"
+          style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.7" title="Rinomina">✏️</button>
+        <button onclick="removeWatchlistItem('${item.id}')"
+          style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.6" title="Rimuovi">×</button>
+      </div>
     </div>`;
   }).join('');
 
@@ -9151,8 +9217,9 @@ sbInit();
     const sy = v => pt_ + ch * (1 - (v - minP) / rng);
     const sym = th.ccy === 'USD' ? '$' : '€';
 
-    const r = svgEl.getBoundingClientRect();
-    const svgX = (e.clientX - r.left) * (W / r.width);
+    const ctm = svgEl.getScreenCTM();
+    if (!ctm) return;
+    const svgX = (e.clientX - ctm.e) / ctm.a;
     if (svgX < pl - 10 || svgX > pl + cw + 10) {
       ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id => {
         const el = svgEl.querySelector('#'+id); if (el) el.setAttribute('opacity','0');
