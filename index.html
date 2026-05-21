@@ -6274,6 +6274,7 @@ function renameCurrent(val) {
   if (!val || !val.trim()) return;
   S.name = val.trim();
   save();
+  sbSaveNow(); // sincrona: no perdita nome
   const titleEl = document.getElementById('port-title');
   if (titleEl) titleEl.textContent = S.name;
 }
@@ -8385,9 +8386,10 @@ function saveWatchlistItem() {
   };
   ALL.watchlist.push(item);
   save();
+  sbSaveNow(); // salva subito senza debounce
   closeWatchlistModal();
-  renderWatchlist(); // mostra subito la riga (senza prezzo)
-  fetchWlPrices([item]); // poi carica prezzo in background
+  renderWatchlist();
+  fetchWlPrices([item]);
   showToast('⭐ ' + ticker + ' aggiunto alla watchlist');
 }
 
@@ -8395,6 +8397,7 @@ function removeWatchlistItem(id) {
   if (!confirm('Rimuovere dalla watchlist?')) return;
   ALL.watchlist = (ALL.watchlist || []).filter(w => w.id !== id);
   save();
+  sbSaveNow();
   renderWatchlist();
 }
 
@@ -8717,21 +8720,41 @@ window.sbLogout = sbLogout;
 // ── Data sync ───────────────────────────────────────────────────
 async function sbLoadData() {
   try {
-    const { data, error } = await sb.from('user_data').select('data').maybeSingle();
+    const { data, error } = await sb.from('user_data').select('data,updated_at').maybeSingle();
     if (error) { console.warn('Supabase load error:', error.message); return; }
-    if (!data?.data) return; // nessun dato ancora salvato
+    if (!data?.data) {
+      // Nessun dato remoto — salva subito quello locale
+      await sbSaveNow();
+      return;
+    }
     const remote = data.data;
-    // Merge: dati portfolio dal cloud, officialCloses unione locale+cloud
+
+    // Merge officialCloses (unione)
     const localCloses     = ALL.officialCloses     || {};
     const localClosesMeta = ALL.officialClosesMeta || {};
+
+    // Merge watchlist: unione locale + remota (non perdere mai items aggiunti localmente)
+    const localWl  = ALL.watchlist || [];
+    const remoteWl = remote.watchlist || [];
+    const wlMerged = [...remoteWl];
+    localWl.forEach(lItem => {
+      if (!wlMerged.find(r => r.ticker === lItem.ticker)) wlMerged.push(lItem);
+    });
+
+    // Aggiorna ALL con dati remoti
     ALL = { ...ALL, ...remote };
     ALL.officialCloses     = { ...localCloses,     ...(remote.officialCloses     || {}) };
     ALL.officialClosesMeta = { ...localClosesMeta, ...(remote.officialClosesMeta || {}) };
-    // Ricalcola S dopo il merge
+    ALL.watchlist = wlMerged;
+
+    // Normalizza e aggiorna S
     ALL.portfolios.forEach(pf => normalizePortfolio(pf));
     S = ALL.portfolios.find(p => p.id === ALL.activePortfolioId) || ALL.portfolios[0];
     try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
     injectOfficialClosesToTickerHistory();
+
+    // Se il merge ha aggiunto watchlist items non presenti in remoto, risalva subito
+    if (wlMerged.length > remoteWl.length) await sbSaveNow();
   } catch(e) { console.warn('sbLoadData exception:', e); }
 }
 
