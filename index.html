@@ -1172,6 +1172,11 @@ input[type=number]{-moz-appearance:textfield}
         <circle cx="3.5" cy="6" r=".8" fill="currentColor"/><circle cx="3.5" cy="12" r=".8" fill="currentColor"/><circle cx="3.5" cy="18" r=".8" fill="currentColor"/>
       </svg><span>Operazioni</span>
     </button>
+    <button class="nbtn" id="nav-watchlist" onclick="showPage('watchlist')">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+      </svg><span>Watchlist</span>
+    </button>
     <button class="nbtn" id="nav-analisi" onclick="showPage('analisi')">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>
@@ -1191,6 +1196,57 @@ input[type=number]{-moz-appearance:textfield}
       </svg><span>Gestione</span>
     </button>
   </nav>
+</div>
+
+<!-- WATCHLIST PAGE -->
+  <div id="pg-watchlist" class="page">
+    <div class="ph">
+      <div class="ph-left"><div class="pt">WATCHLIST</div><div class="pt-sub">Titoli monitorati</div></div>
+      <div class="ph-actions">
+        <button class="hbtn" onclick="openWatchlistModal()" style="font-weight:700">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Aggiungi
+        </button>
+      </div>
+    </div>
+    <div id="wl-list"></div>
+  </div>
+
+<!-- WATCHLIST ADD MODAL -->
+<div id="wlmodal" class="mov hidden" onclick="if(event.target.id==='wlmodal')closeWatchlistModal()">
+  <div class="msh" style="max-width:380px">
+    <div class="mtit">⭐ AGGIUNGI ALLA WATCHLIST</div>
+    <div class="fld"><label>Ticker</label>
+      <input type="text" id="wl-ticker" placeholder="es. AAPL, ENI.MI, VWCE.DE" autocomplete="off" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')document.getElementById('wl-isin').focus()">
+    </div>
+    <div class="fld"><label>ISIN <span style="color:var(--text3);font-weight:400">(opzionale)</span></label>
+      <input type="text" id="wl-isin" placeholder="es. US0378331005" autocomplete="off" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()" onkeydown="if(event.key==='Enter')saveWatchlistItem()">
+    </div>
+    <div class="fld"><label>Nome <span style="color:var(--text3);font-weight:400">(opzionale)</span></label>
+      <input type="text" id="wl-name" placeholder="es. Apple Inc." autocomplete="off" onkeydown="if(event.key==='Enter')saveWatchlistItem()">
+    </div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="hbtn" onclick="closeWatchlistModal()" style="flex:1">Annulla</button>
+      <button class="hbtn" onclick="saveWatchlistItem()" style="flex:2;font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">⭐ Aggiungi</button>
+    </div>
+  </div>
+</div>
+
+<!-- WATCHLIST ALERT MODAL -->
+<div id="wlalertmodal" class="mov hidden" onclick="if(event.target.id==='wlalertmodal')closeWlAlertModal()">
+  <div class="msh" style="max-width:340px">
+    <div class="mtit">🔔 ALERT PREZZO</div>
+    <input type="hidden" id="wl-alert-id">
+    <div class="fld"><label id="wl-alert-lbl">Prezzo target</label>
+      <input type="number" id="wl-alert-price" placeholder="es. 150.00" step="0.01" inputmode="decimal">
+    </div>
+    <div id="wl-alert-cur" style="font-size:12px;color:var(--text3);margin-top:-6px;margin-bottom:8px"></div>
+    <div style="display:flex;gap:10px;margin-top:8px">
+      <button class="hbtn" onclick="closeWlAlertModal()" style="flex:1">Annulla</button>
+      <button class="hbtn" onclick="removeWlAlert()" style="flex:1;color:var(--red);border-color:var(--red)">Rimuovi</button>
+      <button class="hbtn" onclick="saveWlAlert()" style="flex:2;font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">Salva</button>
+    </div>
+  </div>
 </div>
 
 <!-- IMPORT MODAL -->
@@ -1742,6 +1798,7 @@ function load() {
   ALL.officialCloses = ALL.officialCloses || {};
   ALL.officialClosesMeta = ALL.officialClosesMeta || {};
   if (!ALL.settings) ALL.settings = {};
+  if (!ALL.watchlist) ALL.watchlist = [];
   // Non impostare Gist ID fisso nel codice: deve essere configurabile dall'utente.
   // Normalize all portfolios
   ALL.portfolios.forEach(pf => normalizePortfolio(pf));
@@ -5810,6 +5867,7 @@ function renderHistoryChart(ticker,th,hlds,period){
 const PAGE_GROUPS = {
   portfolio:  { pages:['portfolio'],                                         single:true },
   operations: { pages:['operations'],                                        single:true },
+  watchlist:  { pages:['watchlist'],                                         single:true },
   analisi:    { pages:['charts','proj','pnl','history'], labels:['Grafici','Proiezione','P&L','Storico'] },
   pianifica:  { pages:['rebalance','pac','pac-sim'],         labels:['Ribilanciamento','PAC','Simulatore'] },
   gestione:   { pages:['settings','tax','backup'],          labels:['Impostazioni','Tassazione','Backup'] },
@@ -5865,6 +5923,7 @@ function showPage(pg) {
   if (pg==='settings')  renderSettingsUI();
   if (pg==='backup')    renderGistUI();
   if (pg==='tax')       renderTaxUI();
+  if (pg==='watchlist') renderWatchlist();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -8245,6 +8304,222 @@ function setupPWA() {
   const m = { name:'Portafoglio BIT', short_name:'BIT', start_url:'.', display:'standalone', background_color:'#070b14', theme_color:'#070b14', icons:[{src:icon,sizes:'any',type:'image/svg+xml'}] };
   const blob = new Blob([JSON.stringify(m)], {type:'application/manifest+json'});
   document.getElementById('pwa-manifest').href = URL.createObjectURL(blob);
+}
+
+// ════════════════════════════════════════════════════════════════
+//  WATCHLIST
+// ════════════════════════════════════════════════════════════════
+
+// ── Modal add ───────────────────────────────────────────────────
+function openWatchlistModal() {
+  document.getElementById('wl-ticker').value = '';
+  document.getElementById('wl-isin').value   = '';
+  document.getElementById('wl-name').value   = '';
+  document.getElementById('wlmodal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('wl-ticker')?.focus(), 150);
+}
+function closeWatchlistModal() {
+  document.getElementById('wlmodal').classList.add('hidden');
+}
+
+function saveWatchlistItem() {
+  const ticker = document.getElementById('wl-ticker').value.trim().toUpperCase();
+  const isin   = document.getElementById('wl-isin').value.trim().toUpperCase();
+  const name   = document.getElementById('wl-name').value.trim();
+  if (!ticker) { alert('Inserisci il ticker'); return; }
+  if (!ALL.watchlist) ALL.watchlist = [];
+  if (ALL.watchlist.find(w => w.ticker === ticker)) { alert('Ticker già presente in watchlist'); return; }
+  const item = {
+    id: Date.now() + '_wl',
+    ticker,
+    isin,
+    name: name || ticker,
+    addedAt: new Date().toISOString(),
+    alertPrice: null
+  };
+  ALL.watchlist.push(item);
+  save();
+  closeWatchlistModal();
+  renderWatchlist();
+  // Avvia fetch prezzo subito
+  fetchWlPrices([item]);
+  showToast('⭐ ' + ticker + ' aggiunto alla watchlist');
+}
+
+function removeWatchlistItem(id) {
+  if (!confirm('Rimuovere dalla watchlist?')) return;
+  ALL.watchlist = (ALL.watchlist || []).filter(w => w.id !== id);
+  save();
+  renderWatchlist();
+}
+
+// ── Alert prezzo ────────────────────────────────────────────────
+function openWlAlertModal(id) {
+  const item = (ALL.watchlist || []).find(w => w.id === id);
+  if (!item) return;
+  document.getElementById('wl-alert-id').value    = id;
+  document.getElementById('wl-alert-lbl').textContent = 'Prezzo target per ' + item.ticker;
+  document.getElementById('wl-alert-price').value = item.alertPrice || '';
+  // Mostra prezzo corrente
+  const p = (S.prices || {})[item.ticker];
+  const cur = document.getElementById('wl-alert-cur');
+  if (cur) cur.textContent = p ? 'Prezzo attuale: ' + n2(p) : '';
+  document.getElementById('wlalertmodal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('wl-alert-price')?.focus(), 150);
+}
+function closeWlAlertModal() {
+  document.getElementById('wlalertmodal').classList.add('hidden');
+}
+function saveWlAlert() {
+  const id    = document.getElementById('wl-alert-id').value;
+  const price = parseFloat(document.getElementById('wl-alert-price').value.replace(',', '.'));
+  if (!price || price <= 0) { alert('Inserisci un prezzo valido'); return; }
+  const item = (ALL.watchlist || []).find(w => w.id === id);
+  if (!item) return;
+  item.alertPrice = price;
+  save();
+  closeWlAlertModal();
+  renderWatchlist();
+  showToast('🔔 Alert impostato a ' + n2(price));
+}
+function removeWlAlert() {
+  const id   = document.getElementById('wl-alert-id').value;
+  const item = (ALL.watchlist || []).find(w => w.id === id);
+  if (!item) return;
+  item.alertPrice = null;
+  save();
+  closeWlAlertModal();
+  renderWatchlist();
+  showToast('🔕 Alert rimosso');
+}
+
+// ── Fetch prezzi watchlist ───────────────────────────────────────
+async function fetchWlPrices(items) {
+  if (!items || !items.length) return;
+  for (const item of items) {
+    try {
+      const result = await fetchSinglePrice(item.ticker);
+      if (result && result.price > 0) {
+        if (!S.prices) S.prices = {};
+        S.prices[item.ticker] = result.price;
+        // Aggiorna variazione giorno
+        if (result.prevClose && result.prevClose > 0) {
+          if (!S.dailyChanges) S.dailyChanges = {};
+          S.dailyChanges[item.ticker] = {
+            pct: ((result.price - result.prevClose) / result.prevClose) * 100,
+            abs: result.price - result.prevClose,
+            prev: result.prevClose
+          };
+        }
+      }
+    } catch(e) {}
+  }
+  renderWatchlist();
+  // Controlla alert
+  checkWlAlerts();
+}
+
+function checkWlAlerts() {
+  (ALL.watchlist || []).forEach(item => {
+    if (!item.alertPrice) return;
+    const p = (S.prices || {})[item.ticker];
+    if (!p) return;
+    if (Math.abs(p - item.alertPrice) / item.alertPrice < 0.01) {
+      showToast('🔔 ALERT: ' + item.ticker + ' ha raggiunto il target ' + n2(item.alertPrice) + '!', 6000);
+    }
+  });
+}
+
+// ── Render ───────────────────────────────────────────────────────
+function renderWatchlist() {
+  const el = document.getElementById('wl-list');
+  if (!el) return;
+  const wl = ALL.watchlist || [];
+
+  if (!wl.length) {
+    el.innerHTML = `<div class="empty" style="padding:40px 20px;text-align:center">
+      <div style="font-size:32px;margin-bottom:12px">⭐</div>
+      <div style="color:var(--text2);font-weight:600;margin-bottom:6px">Watchlist vuota</div>
+      <div style="color:var(--text3);font-size:13px">Aggiungi titoli da monitorare con il tasto + in alto</div>
+    </div>`;
+    return;
+  }
+
+  el.innerHTML = wl.map(item => {
+    const p      = (S.prices || {})[item.ticker];
+    const dc     = (S.dailyChanges || {})[item.ticker];
+    const pStr   = p ? n2(p) + ' €' : '—';
+    const dayPct = dc ? dc.pct : null;
+    const dayAbs = dc ? dc.abs : null;
+    const gc     = dayPct !== null ? (dayPct >= 0 ? 'gc' : 'lc') : '';
+    const dayStr = dayPct !== null
+      ? `<span class="${gc}">${dayPct >= 0 ? '+' : ''}${dayPct.toFixed(2)}%</span>
+         <span class="${gc}" style="font-size:11px;margin-left:4px">${dayAbs >= 0 ? '+' : ''}${n2(Math.abs(dayAbs))}</span>`
+      : '<span style="color:var(--text3)">—</span>';
+
+    // Alert indicator
+    const hasAlert = item.alertPrice != null;
+    const alertHit = hasAlert && p && Math.abs(p - item.alertPrice) / item.alertPrice < 0.01;
+    const alertBadge = hasAlert
+      ? `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
+           style="cursor:pointer;background:${alertHit ? 'rgba(255,59,59,.2)' : 'rgba(123,167,255,.1)'};
+           border:1px solid ${alertHit ? 'var(--red)' : 'rgba(123,167,255,.3)'};
+           border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;
+           color:${alertHit ? 'var(--red)' : 'var(--blue)'};white-space:nowrap">
+           🔔 ${n2(item.alertPrice)}
+         </span>`
+      : `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
+           style="cursor:pointer;color:var(--text3);font-size:11px;padding:2px 4px">+ alert</span>`;
+
+    // Sparkline
+    const sparkPts = getSparkPts(item.ticker);
+    const sparkHtml = sparkPts.length ? renderSparkline(sparkPts) : '';
+
+    // Sticker grafico cliccabile
+    const chartBadge = `<span class="pf-badge" style="--bb:rgba(123,167,255,.4);--bg:rgba(123,167,255,.07);cursor:pointer;padding:2px 6px"
+      onclick="event.stopPropagation();openChartModal('${item.ticker}')" title="Grafico storico" tabindex="0" role="button">
+      <svg width="22" height="14" viewBox="0 0 22 14" fill="none" style="vertical-align:middle;display:block">
+        <path d="M1,13 L5,7 L10,10 L15,2 L21,5 L21,13 Z" fill="rgba(123,167,255,.2)"/>
+        <polyline points="1,13 5,7 10,10 15,2 21,5" fill="none" stroke="#7ba7ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+    </span>`;
+
+    return `<div class="holding-row" style="margin:0 14px 6px;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer"
+        onclick="openWlAlertModal('${item.id}')">
+      <!-- Sparkline -->
+      <div style="flex-shrink:0">${sparkHtml}</div>
+      <!-- Info titolo -->
+      <div style="flex:1;min-width:0">
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          <span style="font-weight:700;color:var(--text);font-size:14px">${esc(item.name || item.ticker)}</span>
+          ${chartBadge}
+          ${alertBadge}
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace">
+          ${esc(item.ticker)}${item.isin ? ' · ' + esc(item.isin) : ''}
+        </div>
+      </div>
+      <!-- Prezzo e variazione -->
+      <div style="text-align:right;flex-shrink:0">
+        <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--text)">${pStr}</div>
+        <div style="font-size:12px;margin-top:2px">${dayStr}</div>
+      </div>
+      <!-- Rimuovi -->
+      <button onclick="event.stopPropagation();removeWatchlistItem('${item.id}')"
+        style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1">×</button>
+    </div>`;
+  }).join('');
+
+  // Aggiorna sparkline watchlist
+  loadWlSparklines();
+}
+
+async function loadWlSparklines() {
+  const wl = ALL.watchlist || [];
+  if (!wl.length) return;
+  // Carica prezzi per i ticker senza prezzo
+  const missing = wl.filter(item => !(S.prices || {})[item.ticker]);
+  if (missing.length) fetchWlPrices(missing);
 }
 
 // ════════════════════════════════════════════════════════════════
