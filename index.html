@@ -8273,17 +8273,19 @@ function sbShowTab(tab) {
 
 function sbSetError(msg) {
   const el = document.getElementById('sb-error');
+  if (!el) return;
   el.textContent = msg; el.style.display = 'block';
-  document.getElementById('sb-info').style.display = 'none';
+  const ei = document.getElementById('sb-info'); if (ei) ei.style.display = 'none';
 }
 function sbSetInfo(msg) {
   const el = document.getElementById('sb-info');
+  if (!el) return;
   el.textContent = msg; el.style.display = 'block';
-  document.getElementById('sb-error').style.display = 'none';
+  const ee = document.getElementById('sb-error'); if (ee) ee.style.display = 'none';
 }
 function sbClearMessages() {
-  document.getElementById('sb-error').style.display = 'none';
-  document.getElementById('sb-info').style.display  = 'none';
+  const e1 = document.getElementById('sb-error'); if (e1) e1.style.display = 'none';
+  const e2 = document.getElementById('sb-info');  if (e2) e2.style.display  = 'none';
 }
 function sbSetLoading(loading) {
   const btn = document.getElementById('sb-btn');
@@ -8451,54 +8453,53 @@ async function sbUpdatePassword() {
 
 // ── Init ────────────────────────────────────────────────────────
 async function sbInit() {
-  // Controlla se stiamo tornando da un link di recupero password
-  await sbHandlePasswordRecovery();
-  // Ascolta cambi di stato auth
-  sb.auth.onAuthStateChange(async (event, session) => {
-    const overlay = document.getElementById('login-overlay');
-    if (event === 'SIGNED_IN' && session) {
-      // Aggiorna info account nelle impostazioni
+  try { await sbHandlePasswordRecovery(); } catch(e) { console.warn('recovery check failed:', e); }
+
+  // Funzione condivisa per avviare l'app dopo login
+  async function sbOnLogin(session) {
+    try {
+      const overlay = document.getElementById('login-overlay');
+      if (overlay) overlay.style.display = 'none';
       const infoEl = document.getElementById('sb-account-info');
       if (infoEl) infoEl.textContent = '✅ Connesso come ' + session.user.email;
-      // Carica dati dal cloud, poi mostra app
       await sbLoadData();
       renderAll();
       showPage('portfolio');
       autoSyncFromGistOnStartup();
       startAutoRefresh();
       loadSparklines();
-      if (overlay) overlay.style.display = 'none';
-      showToast('☁️ Connesso come ' + session.user.email);
-    }
-    if (event === 'SIGNED_OUT') {
-      if (overlay) overlay.style.display = 'flex';
-      sbSetLoading(false); // reset stato bottone
-      sbClearMessages();
-    }
+    } catch(e) { console.warn('sbOnLogin error:', e); }
+  }
+
+  // Ascolta cambi di stato auth (SIGNED_IN, INITIAL_SESSION, SIGNED_OUT, TOKEN_REFRESHED)
+  sb.auth.onAuthStateChange(async (event, session) => {
+    try {
+      const overlay = document.getElementById('login-overlay');
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
+        await sbOnLogin(session);
+      }
+      if (event === 'SIGNED_OUT') {
+        if (overlay) overlay.style.display = 'flex';
+        sbSetLoading(false);
+        try { sbClearMessages(); } catch(e) {}
+      }
+    } catch(e) { console.warn('onAuthStateChange error:', e); }
   });
 
-  // Controlla se c'è già una sessione attiva
-  const { data: { session } } = await sb.auth.getSession();
-  // Nasconde subito l'overlay se già loggato (evita flash)
-  if (session) {
-    const ov = document.getElementById('login-overlay');
-    if (ov) ov.style.display = 'none';
-  }
-  if (session) {
-    // Aggiorna info account nelle impostazioni
-    const infoEl2 = document.getElementById('sb-account-info');
-    if (infoEl2) infoEl2.textContent = '✅ Connesso come ' + session.user.email;
-    // Già loggato: carica e mostra app
-    await sbLoadData();
-    renderAll();
-    showPage('portfolio');
-    autoSyncFromGistOnStartup();
-    startAutoRefresh();
-    loadSparklines();
-    const overlay = document.getElementById('login-overlay');
-    if (overlay) overlay.style.display = 'none';
-  } else {
-    // Non loggato: mostra login, ma renderizza comunque l'app sotto
+  // Controlla sessione esistente esplicitamente (fallback)
+  try {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) {
+      await sbOnLogin(session);
+    } else {
+      // Non loggato: avvia l'app in background sotto il login
+      renderAll();
+      showPage('portfolio');
+      startAutoRefresh();
+      loadSparklines();
+    }
+  } catch(e) {
+    console.warn('getSession error:', e);
     renderAll();
     showPage('portfolio');
     startAutoRefresh();
