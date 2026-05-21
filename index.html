@@ -5950,7 +5950,10 @@ function showPage(pg) {
   if (pg==='settings')  renderSettingsUI();
   if (pg==='backup')    renderGistUI();
   if (pg==='tax')       renderTaxUI();
-  if (pg==='watchlist') renderWatchlist();
+  if (pg==='watchlist') {
+    renderWatchlist();          // render immediato con dati cache
+    loadWlSparklines();         // poi carica prezzi/sparkline in background
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -8586,8 +8589,8 @@ function renderWatchlist() {
     </div>`;
   }).join('');
 
-  // Aggiorna sparkline watchlist
-  loadWlSparklines();
+  // NON chiamare loadWlSparklines() qui — causerebbe loop infinito
+  // loadWlSparklines() viene chiamata solo da showPage('watchlist')
 }
 
 let _wlLoading = false;
@@ -8630,9 +8633,11 @@ async function loadWlSparklines() {
     _wlLoading = false;
   }
 
-  // Prima c'era un loop: renderWatchlist() chiamava loadWlSparklines(),
-  // che richiamava sempre renderWatchlist(), anche senza nuovi dati.
-  if (changed) renderWatchlist();
+  // Quando i dati cambiano, aggiorna solo i prezzi nella UI senza re-render completo
+  if (changed) {
+    // Re-render puntuale — loadWlSparklines NON viene richiamata da renderWatchlist
+    renderWatchlist();
+  }
 }
 
 function buildWatchlistHistoryCandidates(item) {
@@ -8999,7 +9004,7 @@ async function sbInit() {
       startAutoRefresh();
       loadSparklines();
     } catch(e) {
-      _appStarted = false;
+      // NON resettare _appStarted — evita loop TOKEN_REFRESHED
       console.error('sbOnLogin error:', e);
       try { renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines(); } catch(e2) {}
     }
@@ -9009,9 +9014,13 @@ async function sbInit() {
   sb.auth.onAuthStateChange(async (event, session) => {
     try {
       const overlay = document.getElementById('login-overlay');
-      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
-        _cachedSession = session; // cache locale
-        await sbOnLogin(session);
+      if (session) _cachedSession = session; // aggiorna sempre la cache
+      if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION') && session) {
+        await sbOnLogin(session); // login reale: carica dati e naviga
+      }
+      if (event === 'TOKEN_REFRESHED' && session) {
+        // Refresh silenzioso: aggiorna solo la cache, non navigare
+        console.log('[SB] token refreshed silently');
       }
       if (event === 'SIGNED_OUT') {
         _appStarted = false;
