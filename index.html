@@ -8340,8 +8340,8 @@ async function sbRegister() {
 }
 
 async function sbLogout() {
-  await sb.auth.signOut();
-  showToast('👋 Disconnesso');
+  try { await sb.auth.signOut(); } catch(e) {}
+  window.location.reload();
 }
 
 // ── Data sync ───────────────────────────────────────────────────
