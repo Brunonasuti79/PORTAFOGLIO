@@ -6868,16 +6868,21 @@ async function syncFromGist(silent=false) {
     const savedToken  = token;
     const savedGistId = gistId;
     if (backup.multiPortfolio && Array.isArray(backup.portfolios)) {
-      ALL.portfolios = backup.portfolios.map(pf => ({
-        ...pf,
-        ops: (pf.ops||[]).map(op => { normalizeOp(op); return op; }).filter(op=>op.ticker),
-        prices: pf.prices||{}, priceHistory: pf.priceHistory||[],
-        tickerHistory: pf.tickerHistory||{}, dailyChanges:{},
-        rebalanceTargets: pf.rebalanceTargets||{}
-      }));
-      ALL.activePortfolioId = backup.activePortfolioId || ALL.portfolios[0]?.id;
+      // In modalità silenziosa (avvio): NON sovrascrivere portfolio se il device ha già dati locali
+      const localHasOps = (ALL.portfolios||[]).some(pf => (pf.ops||[]).length > 0);
+      if (!silent || !localHasOps) {
+        ALL.portfolios = backup.portfolios.map(pf => ({
+          ...pf,
+          ops: (pf.ops||[]).map(op => { normalizeOp(op); return op; }).filter(op=>op.ticker),
+          prices: pf.prices||{}, priceHistory: pf.priceHistory||[],
+          tickerHistory: pf.tickerHistory||{}, dailyChanges:{},
+          rebalanceTargets: pf.rebalanceTargets||{}
+        }));
+        ALL.activePortfolioId = backup.activePortfolioId || ALL.portfolios[0]?.id;
+      }
       ALL.settings = preserveLocalSecrets({githubToken:savedToken, gistId:savedGistId, ak:ALL.settings?.ak, anthropicKey:ALL.settings?.anthropicKey}, backup.settings||{});
       ALL.fxRates  = backup.fxRates || {};
+      // officialCloses sempre aggiornati dal Gist (dati di mercato, non dati utente)
       ALL.officialCloses = backup.officialCloses || {};
       ALL.officialClosesMeta = backup.officialClosesMeta || {};
     }
