@@ -8427,6 +8427,16 @@ function setupPWA() {
 // ════════════════════════════════════════════════════════════════
 
 // ── Modal add ───────────────────────────────────────────────────
+function wlSetSort(key) {
+  if ((window._wlSort || 'name') === key) {
+    window._wlSortDir = (window._wlSortDir || 1) * -1; // inverti direzione
+  } else {
+    window._wlSort = key;
+    window._wlSortDir = key === 'name' ? 1 : -1; // nome asc, valori desc per default
+  }
+  renderWatchlist();
+}
+
 function openWlRenameModal(id) {
   const item = (ALL.watchlist || []).find(w => w.id === id);
   if (!item) return;
@@ -8588,10 +8598,48 @@ function checkWlAlerts() {
 function renderWatchlist() {
   const el = document.getElementById('wl-list');
   if (!el) return;
-  const wl = ALL.watchlist || [];
+  let wl = [...(ALL.watchlist || [])];
+
+  // Ordina secondo il sort attivo
+  const sort = window._wlSort || 'name';
+  const dir  = window._wlSortDir || 1; // 1=asc, -1=desc
+  const getPct = (item, period) => {
+    const th = (S.tickerHistory||{})[item.ticker]?.[period];
+    if (!th?.pts?.length) return null;
+    const pts = th.pts.filter(x=>x.c>0);
+    if (pts.length < 2) return null;
+    return ((pts[pts.length-1].c - pts[0].c) / pts[0].c) * 100;
+  };
+  wl.sort((a, b) => {
+    let va, vb;
+    if (sort === 'name')  { va = (a.name||a.ticker).toLowerCase(); vb = (b.name||b.ticker).toLowerCase(); return dir * va.localeCompare(vb); }
+    if (sort === '1M')    { va = getPct(a,'1M') ?? -Infinity; vb = getPct(b,'1M') ?? -Infinity; }
+    if (sort === '1A')    { va = getPct(a,'1A') ?? -Infinity; vb = getPct(b,'1A') ?? -Infinity; }
+    if (sort === 'price') { va = (S.prices||{})[a.ticker] ?? -Infinity; vb = (S.prices||{})[b.ticker] ?? -Infinity; }
+    return dir * (va - vb);
+  });
+
+  // Header filtri sort
+  const sortBtn = (key, label) => {
+    const active = (window._wlSort || 'name') === key;
+    const d = window._wlSortDir || 1;
+    const arrow = active ? (d === 1 ? ' ↑' : ' ↓') : '';
+    return `<button onclick="wlSetSort('${key}')"
+      style="flex:1;background:${active?'rgba(123,167,255,.15)':'none'};border:1px solid ${active?'var(--blue)':'var(--border2)'};
+      border-radius:8px;padding:5px 8px;font-size:11px;font-weight:${active?'700':'500'};
+      color:${active?'var(--blue)':'var(--text3)'};cursor:pointer;white-space:nowrap;font-family:'Outfit',sans-serif">
+      ${label}${arrow}</button>`;
+  };
+  const sortBar = `<div style="display:flex;gap:6px;margin:0 14px 8px;align-items:center">
+    <span style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;white-space:nowrap">Ordina</span>
+    ${sortBtn('name','Nome')}
+    ${sortBtn('1M','1 Mese')}
+    ${sortBtn('1A','1 Anno')}
+    ${sortBtn('price','Prezzo')}
+  </div>`;
 
   if (!wl.length) {
-    el.innerHTML = `<div class="empty" style="padding:40px 20px;text-align:center">
+    el.innerHTML = sortBar + `<div class="empty" style="padding:40px 20px;text-align:center">
       <div style="font-size:32px;margin-bottom:12px">⭐</div>
       <div style="color:var(--text2);font-weight:600;margin-bottom:6px">Watchlist vuota</div>
       <div style="color:var(--text3);font-size:13px">Aggiungi titoli da monitorare con il tasto + in alto</div>
@@ -8599,7 +8647,7 @@ function renderWatchlist() {
     return;
   }
 
-  el.innerHTML = wl.map(item => {
+  el.innerHTML = sortBar + '<div>' + wl.map(item => {
     const p      = (S.prices || {})[item.ticker];
     const dc     = (S.dailyChanges || {})[item.ticker];
     const pStr   = p ? n2(p) + ' €' : '—';
@@ -8665,11 +8713,19 @@ function renderWatchlist() {
     };
     const perf1m = perfStr(th1m);
     const perf1a = perfStr(th1a);
-    const perfRow = (perf1m || perf1a) ? `
-      <div style="display:flex;gap:10px;margin-top:4px">
-        ${perf1m ? `<span style="font-size:10px;color:var(--text3)">1M&nbsp;${perf1m}</span>` : ''}
-        ${perf1a ? `<span style="font-size:10px;color:var(--text3)">1A&nbsp;${perf1a}</span>` : ''}
-      </div>` : '';
+    const perfCol = (label, th) => {
+      if (!th?.pts?.length) return `<div style="display:flex;flex-direction:column;align-items:center;min-width:48px"><span style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px">${label}</span><span style="font-size:11px;color:var(--text3)">—</span></div>`;
+      const pts2 = th.pts.filter(x=>x.c>0);
+      if (pts2.length < 2) return `<div style="display:flex;flex-direction:column;align-items:center;min-width:48px"><span style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px">${label}</span><span style="font-size:11px;color:var(--text3)">—</span></div>`;
+      const pct2 = ((pts2[pts2.length-1].c - pts2[0].c) / pts2[0].c) * 100;
+      const col2 = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
+      const bg2  = pct2 >= 0 ? 'rgba(34,212,126,.1)' : 'rgba(255,59,59,.1)';
+      return `<div style="display:flex;flex-direction:column;align-items:center;min-width:48px;background:${bg2};border-radius:6px;padding:2px 6px">
+        <span style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px">${label}</span>
+        <span style="font-size:12px;font-weight:700;color:${col2};font-family:'JetBrains Mono',monospace">${pct2>=0?'+':''}${pct2.toFixed(1)}%</span>
+      </div>`;
+    };
+    const perfRow = `<div style="display:flex;gap:6px;flex-shrink:0">${perfCol('1M',th1m)}${perfCol('1A',th1a)}</div>`;
 
     return `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px">
       <!-- Sparkline badge settimanale -->
@@ -8685,8 +8741,9 @@ function renderWatchlist() {
         <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace">
           ${esc(item.ticker)}${item.isin ? ' · ' + esc(item.isin) : ''}${item.market ? ' · ' + esc(item.market) : ''}
         </div>
-        ${perfRow}
       </div>
+      <!-- Trend 1M e 1A come colonne a destra -->
+      ${perfRow}
       <!-- Prezzo e variazione -->
       <div style="text-align:right;flex-shrink:0">
         <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--text)">${pStr}</div>
@@ -8700,7 +8757,7 @@ function renderWatchlist() {
           style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.6" title="Rimuovi">×</button>
       </div>
     </div>`;
-  }).join('');
+  }).join('') + '</div>';
 
   // NON chiamare loadWlSparklines() qui — causerebbe loop infinito
   // loadWlSparklines() viene chiamata solo da showPage('watchlist')
