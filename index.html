@@ -1070,8 +1070,13 @@ input[type=number]{-moz-appearance:textfield}
     <div class="ssec">
       <div class="slbl">✎ Rinomina portafoglio</div>
       <div class="sdesc">Cambia il nome del portafoglio attivo. Per cambiare portafoglio usa il bottone "⇄ Cambia" in alto.</div>
-      <input class="sinput" type="text" id="pf-name-inp" placeholder="Es. ETF PAC, Azioni, BTP..."
-        oninput="renameCurrent(this.value)">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input class="sinput" type="text" id="pf-name-inp" placeholder="Es. ETF PAC, Azioni, BTP..."
+          autocomplete="off" style="flex:1;margin:0"
+          onkeydown="if(event.key==='Enter'){event.preventDefault();savePortfolioName();}">
+        <button class="hbtn" onclick="savePortfolioName()" style="flex-shrink:0;font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">Salva</button>
+      </div>
+      <div id="pf-name-st" style="display:none;color:var(--green);font-size:12px;margin-top:6px">✓ Nome salvato</div>
     </div>
     <div class="ssec">
       <div class="slbl">🔑 API Key Finnhub <span style="color:var(--green);font-weight:600">(fonte principale)</span></div>
@@ -1798,6 +1803,7 @@ function load() {
         ALL.fxRates  = d.fxRates || {};
         ALL.officialCloses = d.officialCloses || {};
         ALL.officialClosesMeta = d.officialClosesMeta || {};
+        ALL.watchlist = d.watchlist || [];
       } else {
         // Formato legacy — migrazione automatica
         const pf = newPortfolio(d.settings?.portfolioName || 'Portafoglio principale');
@@ -5904,6 +5910,9 @@ Object.entries(PAGE_GROUPS).forEach(([g,v]) => v.pages.forEach(p => PAGE_TO_GROU
 const lastGroupPage = {};
 
 function showPage(pg) {
+  if (pg === 'portfolio' && window._appFullyStarted) {
+    console.warn('⚠ showPage portfolio chiamato DOPO avvio da:', new Error().stack);
+  }
   // Se è un gruppo, risolvi all'ultima pagina visitata in quel gruppo
   if (PAGE_GROUPS[pg]) {
     pg = lastGroupPage[pg] || PAGE_GROUPS[pg].pages[0];
@@ -6278,6 +6287,16 @@ function onAkChange() {
 function onAntChange() {
   ALL.settings.anthropicKey = document.getElementById('ant-inp')?.value.trim() || '';
   save(); syncSettingsUI();
+}
+
+function savePortfolioName() {
+  const inp = document.getElementById('pf-name-inp');
+  if (!inp) return;
+  const val = inp.value.trim();
+  if (!val) return;
+  renameCurrent(val);
+  const st = document.getElementById('pf-name-st');
+  if (st) { st.style.display='block'; clearTimeout(window._pfNameT); window._pfNameT=setTimeout(()=>st.style.display='none',2000); }
 }
 
 function renameCurrent(val) {
@@ -9015,6 +9034,7 @@ async function sbInit() {
       await sbLoadData();
       renderAll();
       showPage('portfolio');
+      window._appFullyStarted = true; // da qui in poi le nav sono inattese
       try { autoSyncFromGistOnStartup(); } catch(e) {}
       startAutoRefresh();
       loadSparklines();
