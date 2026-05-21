@@ -7398,6 +7398,13 @@ async function loadChartModalData(){
   }
   // Ultimo fallback: crea holding minimale con solo il ticker
   if(!h) h={ticker,displayTicker:ticker,quoteTicker:ticker,market:'',isin:'',name:ticker,assetClass:'Azioni',qty:1,avgPrice:0};
+  // Per ticker senza suffisso di mercato, aggiungi candidato con suffisso ES. NBIS → NBIS.AS
+  const EU_MKT_MAP={MI:'MI',MOT:'MI',DE:'DE',PA:'PA',L:'L',SW:'SW',AS:'AS',F:'F',ST:'ST',CO:'CO',HE:'HE',OL:'OL',BR:'BR',VX:'VX'};
+  if(h.market && EU_MKT_MAP[h.market.toUpperCase()] && !ticker.includes('.')) {
+    h = {...h, ticker: ticker+'.'+EU_MKT_MAP[h.market.toUpperCase()],
+         displayTicker: ticker+'.'+EU_MKT_MAP[h.market.toUpperCase()],
+         quoteTicker: ticker+'.'+EU_MKT_MAP[h.market.toUpperCase()]};
+  }
   const btn=document.getElementById('chart-modal-refresh');
   if(btn){btn.disabled=true;btn.textContent='Caricamento...';}
   const cfg=PERIOD_CFG[period];let loaded=false;
@@ -8758,16 +8765,48 @@ async function sbLoadData() {
   } catch(e) { console.warn('sbLoadData exception:', e); }
 }
 
+// Dati slim per Supabase — rimuove cache pesante (tickerHistory, officialCloses)
+// che vengono ricostruiti localmente e dal GitHub Actions
+function getSlimData() {
+  return {
+    portfolios: (ALL.portfolios || []).map(pf => ({
+      id:             pf.id,
+      name:           pf.name,
+      ops:            pf.ops || [],
+      cashEUR:        pf.cashEUR || 0,
+      rebalanceTargets: pf.rebalanceTargets || {},
+      subTargets:     pf.subTargets || {},
+      taxRates:       pf.taxRates || {},
+      prices:         pf.prices || {},
+      dailyChanges:   pf.dailyChanges || {},
+      dailyCloses:    pf.dailyCloses || {},
+      sessionPrevCloses: pf.sessionPrevCloses || {},
+      // NON includiamo: tickerHistory, priceHistory, sparkDate (cache ricostruibile)
+    })),
+    activePortfolioId: ALL.activePortfolioId,
+    settings:          ALL.settings || {},
+    watchlist:         ALL.watchlist || [],
+    fxRates:           ALL.fxRates || {},
+    savedAt:           new Date().toISOString(),
+  };
+}
+
 async function sbSaveNow() {
   try {
     const { data: { session } } = await sb.auth.getSession();
     if (!session) return;
+    const slim = getSlimData();
     const { error } = await sb.from('user_data').upsert(
-      { user_id: session.user.id, data: ALL, updated_at: new Date().toISOString() },
+      { user_id: session.user.id, data: slim, updated_at: new Date().toISOString() },
       { onConflict: 'user_id' }
     );
-    if (error) console.warn('Supabase save error:', error.message);
-  } catch(e) { console.warn('sbSaveNow exception:', e); }
+    if (error) {
+      console.error('Supabase save error:', error.message);
+      showToast('⚠ Sync cloud fallito: ' + error.message, 4000);
+    }
+  } catch(e) {
+    console.error('sbSaveNow exception:', e);
+  }
 }
 
 // Debounce: raggruppa salvataggi ravvicinati in uno solo (dopo 2s)
