@@ -8231,152 +8231,6 @@ function setupPWA() {
 }
 
 // ════════════════════════════════════════════════════════════════
-//  INIT
-// ════════════════════════════════════════════════════════════════
-load();
-setupPWA();
-applyTheme(ALL.settings?.theme || 'dark');
-// Avvia Supabase — se loggato carica i dati cloud, altrimenti mostra login
-sbInit();
-
-// ── Crosshair globale per il grafico modale ──────────────────────
-// Usa event delegation sul body del modal — non dipende da setTimeout
-(function(){
-  const modalBody = document.getElementById('chart-modal-body');
-  if (!modalBody) return;
-
-  modalBody.addEventListener('mousemove', function(e) {
-    const svgEl = modalBody.querySelector('svg[id^="hist-svg-"]');
-    if (!svgEl) return;
-
-    // Costanti identiche a renderHistoryChart
-    const W=720, H=240, pl=62, pr=16, pt_=14, pb=34, cw=W-pl-pr, ch=H-pt_-pb;
-
-    // Recupera i pts dal ticker/periodo corrente
-    const ticker = _chartModalTicker;
-    const period = _chartModalPeriod || '1A';
-    if (!ticker) return;
-    const th = (S?.tickerHistory||{})[ticker]?.[period];
-    if (!th?.pts?.length) return;
-    const pts = th.pts.filter(p => p.c > 0);
-    if (pts.length < 3) return;
-
-    // Scala Y identica a renderHistoryChart
-    const hld = calcPF().find(h => h.ticker === ticker);
-    const avgLine = hld ? (hld.avgPrice || hld.avgPriceBuyCcy || 0) : 0;
-    const prices = pts.map(p => p.c);
-    const minP = Math.min(...prices, avgLine > 0 ? avgLine : Infinity) * 0.97;
-    const maxP = Math.max(...prices, avgLine > 0 ? avgLine : 0) * 1.03;
-    const rng  = maxP - minP || 1;
-    const sx = i => pl + (i / (pts.length - 1)) * cw;
-    const sy = v => pt_ + ch * (1 - (v - minP) / rng);
-    const sym = th.ccy === 'USD' ? '$' : '€';
-
-    const r = svgEl.getBoundingClientRect();
-    const svgX = (e.clientX - r.left) * (W / r.width);
-    if (svgX < pl - 10 || svgX > pl + cw + 10) {
-      ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id => {
-        const el = svgEl.querySelector('#'+id); if (el) el.setAttribute('opacity','0');
-      });
-      return;
-    }
-    const idx = Math.max(0, Math.min(pts.length-1, Math.round((svgX - pl) / cw * (pts.length-1))));
-    const p  = pts[idx];
-    const px = sx(idx), py = sy(p.c);
-    const bw = 180, bh = 58;
-    const d  = new Date(p.t);
-    const dateStr = d.toLocaleDateString('it-IT', {weekday:'short',day:'2-digit',month:'short',year:'numeric'});
-    const valStr  = p.c.toLocaleString('it-IT', {minimumFractionDigits:2,maximumFractionDigits:2}) + ' ' + sym;
-    const bx = px + bw + 16 > pl + cw ? px - bw - 16 : px + 16;
-    const by = py > pt_ + ch / 2 ? py - bh - 10 : py + 10;
-
-    const set = (id, attrs) => {
-      const el = svgEl.querySelector('#'+id);
-      if (el) Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k,v));
-    };
-    // Stile tooltip al primo hover
-    const box = svgEl.querySelector('#hcbox');
-    if (box && box.getAttribute('width') === '130') {
-      box.setAttribute('width', bw); box.setAttribute('height', bh);
-      box.setAttribute('fill','#060e1c'); box.setAttribute('stroke','#7ba7ff'); box.setAttribute('stroke-width','1.5');
-      const t1 = svgEl.querySelector('#hct1');
-      if (t1) { t1.setAttribute('font-size','11'); t1.setAttribute('fill','rgba(180,210,255,.8)'); t1.setAttribute('font-family','system-ui,sans-serif'); }
-      const t2 = svgEl.querySelector('#hct2');
-      if (t2) { t2.setAttribute('font-size','15'); t2.setAttribute('fill','#7ba7ff'); t2.setAttribute('font-weight','700'); t2.setAttribute('font-family','monospace'); }
-      const dot = svgEl.querySelector('#hcdot');
-      if (dot) { dot.setAttribute('r','5'); }
-    }
-    set('hcv',   {x1:px,x2:px,y1:pt_,y2:pt_+ch,opacity:1});
-    set('hch',   {x1:pl,x2:pl+cw,y1:py,y2:py,opacity:1});
-    set('hcbox', {x:bx,y:by,opacity:1});
-    set('hcdot', {cx:px,cy:py,opacity:1});
-    set('hct1',  {x:bx+bw/2,y:by+18,opacity:1});
-    svgEl.querySelector('#hct1').textContent = dateStr;
-    set('hct2',  {x:bx+bw/2,y:by+40,opacity:1});
-    svgEl.querySelector('#hct2').textContent = valStr;
-  });
-
-  modalBody.addEventListener('mouseleave', function() {
-    const svgEl = modalBody.querySelector('svg[id^="hist-svg-"]');
-    if (!svgEl) return;
-    ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id => {
-      const el = svgEl.querySelector('#'+id); if (el) el.setAttribute('opacity','0');
-    });
-  });
-})();
-
-
-startAutoRefresh();
-loadSparklines();
-function setOpsChartPeriod(btn) {
-  _opsChartPeriod = btn.textContent;
-  renderOpsChart();
-}
-
-</script>
-
-<div id="badge-tip"></div>
-<script>
-(function(){
-  const tip = document.getElementById('badge-tip');
-  let hideTimer;
-  document.addEventListener('mouseover', function(e){
-    const badge = e.target.closest('.pf-badge');
-    if (!badge) return;
-    clearTimeout(hideTimer);
-    const raw = badge.getAttribute('data-tip') || '';
-    const parts = raw.split('\n');
-    tip.innerHTML = '<strong>' + parts[0] + '</strong>' + (parts[1] ? '<span>' + parts[1] + '</span>' : '');
-    // colore bordo dal badge
-    const bb = badge.style.getPropertyValue('--bb') || '#888';
-    tip.style.borderColor = bb;
-    tip.style.display = 'block';
-    positionTip(badge);
-    requestAnimationFrame(() => tip.classList.add('visible'));
-  });
-  document.addEventListener('mouseout', function(e){
-    const badge = e.target.closest('.pf-badge');
-    if (!badge) return;
-    tip.classList.remove('visible');
-    hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 160);
-  });
-  function positionTip(badge) {
-    const r = badge.getBoundingClientRect();
-    tip.style.display = 'block';
-    const tw = tip.offsetWidth || 200;
-    let left = r.left + r.width/2 - tw/2;
-    let top  = r.top - tip.offsetHeight - 12 + window.scrollY;
-    // evita uscita a destra/sinistra
-    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
-    if (top < window.scrollY + 8) top = r.bottom + 12 + window.scrollY;
-    tip.style.left = left + 'px';
-    tip.style.top  = top + 'px';
-  }
-})();
-</script>
-
-<script>
-// ════════════════════════════════════════════════════════════════
 //  SUPABASE — Auth + Cloud Sync
 // ════════════════════════════════════════════════════════════════
 const SB_URL = 'https://tncyxfkuutnnwtrpbkfz.supabase.co';
@@ -8537,7 +8391,152 @@ async function sbInit() {
     loadSparklines();
   }
 }
+
+// ════════════════════════════════════════════════════════════════
+//  INIT
+// ════════════════════════════════════════════════════════════════
+load();
+setupPWA();
+applyTheme(ALL.settings?.theme || 'dark');
+// Avvia Supabase — se loggato carica i dati cloud, altrimenti mostra login
+sbInit();
+
+// ── Crosshair globale per il grafico modale ──────────────────────
+// Usa event delegation sul body del modal — non dipende da setTimeout
+(function(){
+  const modalBody = document.getElementById('chart-modal-body');
+  if (!modalBody) return;
+
+  modalBody.addEventListener('mousemove', function(e) {
+    const svgEl = modalBody.querySelector('svg[id^="hist-svg-"]');
+    if (!svgEl) return;
+
+    // Costanti identiche a renderHistoryChart
+    const W=720, H=240, pl=62, pr=16, pt_=14, pb=34, cw=W-pl-pr, ch=H-pt_-pb;
+
+    // Recupera i pts dal ticker/periodo corrente
+    const ticker = _chartModalTicker;
+    const period = _chartModalPeriod || '1A';
+    if (!ticker) return;
+    const th = (S?.tickerHistory||{})[ticker]?.[period];
+    if (!th?.pts?.length) return;
+    const pts = th.pts.filter(p => p.c > 0);
+    if (pts.length < 3) return;
+
+    // Scala Y identica a renderHistoryChart
+    const hld = calcPF().find(h => h.ticker === ticker);
+    const avgLine = hld ? (hld.avgPrice || hld.avgPriceBuyCcy || 0) : 0;
+    const prices = pts.map(p => p.c);
+    const minP = Math.min(...prices, avgLine > 0 ? avgLine : Infinity) * 0.97;
+    const maxP = Math.max(...prices, avgLine > 0 ? avgLine : 0) * 1.03;
+    const rng  = maxP - minP || 1;
+    const sx = i => pl + (i / (pts.length - 1)) * cw;
+    const sy = v => pt_ + ch * (1 - (v - minP) / rng);
+    const sym = th.ccy === 'USD' ? '$' : '€';
+
+    const r = svgEl.getBoundingClientRect();
+    const svgX = (e.clientX - r.left) * (W / r.width);
+    if (svgX < pl - 10 || svgX > pl + cw + 10) {
+      ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id => {
+        const el = svgEl.querySelector('#'+id); if (el) el.setAttribute('opacity','0');
+      });
+      return;
+    }
+    const idx = Math.max(0, Math.min(pts.length-1, Math.round((svgX - pl) / cw * (pts.length-1))));
+    const p  = pts[idx];
+    const px = sx(idx), py = sy(p.c);
+    const bw = 180, bh = 58;
+    const d  = new Date(p.t);
+    const dateStr = d.toLocaleDateString('it-IT', {weekday:'short',day:'2-digit',month:'short',year:'numeric'});
+    const valStr  = p.c.toLocaleString('it-IT', {minimumFractionDigits:2,maximumFractionDigits:2}) + ' ' + sym;
+    const bx = px + bw + 16 > pl + cw ? px - bw - 16 : px + 16;
+    const by = py > pt_ + ch / 2 ? py - bh - 10 : py + 10;
+
+    const set = (id, attrs) => {
+      const el = svgEl.querySelector('#'+id);
+      if (el) Object.entries(attrs).forEach(([k,v]) => el.setAttribute(k,v));
+    };
+    // Stile tooltip al primo hover
+    const box = svgEl.querySelector('#hcbox');
+    if (box && box.getAttribute('width') === '130') {
+      box.setAttribute('width', bw); box.setAttribute('height', bh);
+      box.setAttribute('fill','#060e1c'); box.setAttribute('stroke','#7ba7ff'); box.setAttribute('stroke-width','1.5');
+      const t1 = svgEl.querySelector('#hct1');
+      if (t1) { t1.setAttribute('font-size','11'); t1.setAttribute('fill','rgba(180,210,255,.8)'); t1.setAttribute('font-family','system-ui,sans-serif'); }
+      const t2 = svgEl.querySelector('#hct2');
+      if (t2) { t2.setAttribute('font-size','15'); t2.setAttribute('fill','#7ba7ff'); t2.setAttribute('font-weight','700'); t2.setAttribute('font-family','monospace'); }
+      const dot = svgEl.querySelector('#hcdot');
+      if (dot) { dot.setAttribute('r','5'); }
+    }
+    set('hcv',   {x1:px,x2:px,y1:pt_,y2:pt_+ch,opacity:1});
+    set('hch',   {x1:pl,x2:pl+cw,y1:py,y2:py,opacity:1});
+    set('hcbox', {x:bx,y:by,opacity:1});
+    set('hcdot', {cx:px,cy:py,opacity:1});
+    set('hct1',  {x:bx+bw/2,y:by+18,opacity:1});
+    svgEl.querySelector('#hct1').textContent = dateStr;
+    set('hct2',  {x:bx+bw/2,y:by+40,opacity:1});
+    svgEl.querySelector('#hct2').textContent = valStr;
+  });
+
+  modalBody.addEventListener('mouseleave', function() {
+    const svgEl = modalBody.querySelector('svg[id^="hist-svg-"]');
+    if (!svgEl) return;
+    ['hcv','hch','hcbox','hcdot','hct1','hct2'].forEach(id => {
+      const el = svgEl.querySelector('#'+id); if (el) el.setAttribute('opacity','0');
+    });
+  });
+})();
+
+
+startAutoRefresh();
+loadSparklines();
+function setOpsChartPeriod(btn) {
+  _opsChartPeriod = btn.textContent;
+  renderOpsChart();
+}
+
 </script>
+
+<div id="badge-tip"></div>
+<script>
+(function(){
+  const tip = document.getElementById('badge-tip');
+  let hideTimer;
+  document.addEventListener('mouseover', function(e){
+    const badge = e.target.closest('.pf-badge');
+    if (!badge) return;
+    clearTimeout(hideTimer);
+    const raw = badge.getAttribute('data-tip') || '';
+    const parts = raw.split('\n');
+    tip.innerHTML = '<strong>' + parts[0] + '</strong>' + (parts[1] ? '<span>' + parts[1] + '</span>' : '');
+    // colore bordo dal badge
+    const bb = badge.style.getPropertyValue('--bb') || '#888';
+    tip.style.borderColor = bb;
+    tip.style.display = 'block';
+    positionTip(badge);
+    requestAnimationFrame(() => tip.classList.add('visible'));
+  });
+  document.addEventListener('mouseout', function(e){
+    const badge = e.target.closest('.pf-badge');
+    if (!badge) return;
+    tip.classList.remove('visible');
+    hideTimer = setTimeout(() => { tip.style.display = 'none'; }, 160);
+  });
+  function positionTip(badge) {
+    const r = badge.getBoundingClientRect();
+    tip.style.display = 'block';
+    const tw = tip.offsetWidth || 200;
+    let left = r.left + r.width/2 - tw/2;
+    let top  = r.top - tip.offsetHeight - 12 + window.scrollY;
+    // evita uscita a destra/sinistra
+    left = Math.max(8, Math.min(left, window.innerWidth - tw - 8));
+    if (top < window.scrollY + 8) top = r.bottom + 12 + window.scrollY;
+    tip.style.left = left + 'px';
+    tip.style.top  = top + 'px';
+  }
+})();
+</script>
+
 
 </body>
 </html>
