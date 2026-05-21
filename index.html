@@ -936,6 +936,7 @@ input[type=number]{-moz-appearance:textfield}
           <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 9px;cursor:pointer;color:rgba(255,255,255,.7);font-size:13px;line-height:1">🌙</button>
           <button id="btn-ref" onclick="fetchPrices()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 13px;cursor:pointer;color:#fff;font-size:14px;font-weight:700;line-height:1">⟳</button>
           <button onclick="runDiagnostic()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 8px;cursor:pointer;color:rgba(255,255,255,.7);font-size:14px;line-height:1">🔧</button>
+          <button onclick="sbLogout()" title="Logout" style="background:none;border:0.5px solid rgba(255,80,80,.3);border-radius:8px;padding:6px 8px;cursor:pointer;color:rgba(255,80,80,.7);font-size:14px;line-height:1">⏻</button>
           <button onclick="openTutorial()" title="Tutorial" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 8px;cursor:pointer;color:#fff;font-weight:700;line-height:1;display:flex;align-items:center;justify-content:center"><svg width="16" height="16" viewBox="-40 -50 80 90" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><path d="M0,-28 C14,-28 24,-17 24,-4 C24,6 18,15 11,20 L9,30 Q9,34 0,34 Q-9,34 -9,30 L-11,20 C-18,15 -24,6 -24,-4 C-24,-17 -14,-28 0,-28 Z"/><rect x="-7" y="34" width="14" height="4" rx="2"/><line x1="0" y1="-38" x2="0" y2="-44"/><line x1="28" y1="-16" x2="33" y2="-19"/><line x1="28" y1="8" x2="33" y2="11"/><line x1="-28" y1="-16" x2="-33" y2="-19"/><line x1="-28" y1="8" x2="-33" y2="11"/></svg></button>
         </div>
       </div>
@@ -8365,11 +8366,18 @@ async function sbInit() {
     }
     if (event === 'SIGNED_OUT') {
       if (overlay) overlay.style.display = 'flex';
+      sbSetLoading(false); // reset stato bottone
+      sbClearMessages();
     }
   });
 
   // Controlla se c'è già una sessione attiva
   const { data: { session } } = await sb.auth.getSession();
+  // Nasconde subito l'overlay se già loggato (evita flash)
+  if (session) {
+    const ov = document.getElementById('login-overlay');
+    if (ov) ov.style.display = 'none';
+  }
   if (session) {
     // Aggiorna info account nelle impostazioni
     const infoEl2 = document.getElementById('sb-account-info');
