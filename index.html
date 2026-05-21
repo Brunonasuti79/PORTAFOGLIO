@@ -1252,13 +1252,18 @@ input[type=number]{-moz-appearance:textfield}
   <div class="msh" style="max-width:340px">
     <div class="mtit">🔔 ALERT PREZZO</div>
     <input type="hidden" id="wl-alert-id">
-    <div class="fld"><label id="wl-alert-lbl">Prezzo target</label>
-      <input type="number" id="wl-alert-price" placeholder="es. 150.00" step="0.01" inputmode="decimal">
+    <div id="wl-alert-cur" style="font-size:12px;color:var(--text3);margin-bottom:12px;text-align:center"></div>
+    <div class="fld">
+      <label style="color:var(--green)">▲ Avvisa se sale SOPRA</label>
+      <input type="number" id="wl-alert-above" placeholder="es. 160.00 — lascia vuoto per disattivare" step="0.01" inputmode="decimal">
     </div>
-    <div id="wl-alert-cur" style="font-size:12px;color:var(--text3);margin-top:-6px;margin-bottom:8px"></div>
+    <div class="fld">
+      <label style="color:var(--red)">▼ Avvisa se scende SOTTO</label>
+      <input type="number" id="wl-alert-below" placeholder="es. 130.00 — lascia vuoto per disattivare" step="0.01" inputmode="decimal">
+    </div>
     <div style="display:flex;gap:10px;margin-top:8px">
       <button class="hbtn" onclick="closeWlAlertModal()" style="flex:1">Annulla</button>
-      <button class="hbtn" onclick="removeWlAlert()" style="flex:1;color:var(--red);border-color:var(--red)">Rimuovi</button>
+      <button class="hbtn" onclick="removeWlAlert()" style="flex:1;color:var(--red);border-color:var(--red)">Rimuovi tutto</button>
       <button class="hbtn" onclick="saveWlAlert()" style="flex:2;font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">Salva</button>
     </div>
   </div>
@@ -7368,7 +7373,14 @@ function setupHistoryCrosshair(ticker, th) {
 }
 async function loadChartModalData(){
   const ticker=_chartModalTicker;if(!ticker)return;
-  const period=_chartModalPeriod,hlds=calcPF(),h=hlds.find(h=>h.ticker===ticker);if(!h)return;
+  const period=_chartModalPeriod,hlds=calcPF();
+  let h=hlds.find(h=>h.ticker===ticker);
+  // Fallback: cerca in watchlist (ticker non ancora in portafoglio)
+  if(!h){
+    const wlItem=(ALL.watchlist||[]).find(w=>w.ticker===ticker);
+    if(wlItem) h={ticker,displayTicker:ticker,quoteTicker:ticker,market:wlItem.market||'',isin:wlItem.isin||'',name:wlItem.name||ticker,assetClass:'Azioni',qty:1,avgPrice:0};
+  }
+  if(!h)return;
   const btn=document.getElementById('chart-modal-refresh');
   if(btn){btn.disabled=true;btn.textContent='Caricamento...';}
   const cfg=PERIOD_CFG[period];let loaded=false;
@@ -8375,39 +8387,40 @@ function openWlAlertModal(id) {
   const item = (ALL.watchlist || []).find(w => w.id === id);
   if (!item) return;
   document.getElementById('wl-alert-id').value    = id;
-  document.getElementById('wl-alert-lbl').textContent = 'Prezzo target per ' + item.ticker;
-  document.getElementById('wl-alert-price').value = item.alertPrice || '';
-  // Mostra prezzo corrente
-  const p = (S.prices || {})[item.ticker];
+  document.getElementById('wl-alert-above').value = item.alertAbove || '';
+  document.getElementById('wl-alert-below').value = item.alertBelow || '';
+  const p   = (S.prices || {})[item.ticker];
   const cur = document.getElementById('wl-alert-cur');
-  if (cur) cur.textContent = p ? 'Prezzo attuale: ' + n2(p) : '';
+  if (cur) cur.textContent = item.ticker + (p ? '  —  Prezzo attuale: ' + n2(p) : '');
   document.getElementById('wlalertmodal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('wl-alert-price')?.focus(), 150);
+  setTimeout(() => document.getElementById('wl-alert-above')?.focus(), 150);
 }
 function closeWlAlertModal() {
   document.getElementById('wlalertmodal').classList.add('hidden');
 }
 function saveWlAlert() {
   const id    = document.getElementById('wl-alert-id').value;
-  const price = parseFloat(document.getElementById('wl-alert-price').value.replace(',', '.'));
-  if (!price || price <= 0) { alert('Inserisci un prezzo valido'); return; }
+  const above = parseFloat(document.getElementById('wl-alert-above').value.replace(',','.')) || null;
+  const below = parseFloat(document.getElementById('wl-alert-below').value.replace(',','.')) || null;
+  if (above && below && above <= below) { alert('Il prezzo SOPRA deve essere maggiore del prezzo SOTTO'); return; }
   const item = (ALL.watchlist || []).find(w => w.id === id);
   if (!item) return;
-  item.alertPrice = price;
-  save();
-  closeWlAlertModal();
-  renderWatchlist();
-  showToast('🔔 Alert impostato a ' + n2(price));
+  item.alertAbove = above;
+  item.alertBelow = below;
+  item.alertPrice = above || below; // compat
+  save(); closeWlAlertModal(); renderWatchlist();
+  const msgs = [];
+  if (above) msgs.push('▲ sopra ' + n2(above));
+  if (below) msgs.push('▼ sotto ' + n2(below));
+  showToast(msgs.length ? '🔔 Alert: ' + msgs.join(' · ') : '🔕 Alert rimossi');
 }
 function removeWlAlert() {
   const id   = document.getElementById('wl-alert-id').value;
   const item = (ALL.watchlist || []).find(w => w.id === id);
   if (!item) return;
-  item.alertPrice = null;
-  save();
-  closeWlAlertModal();
-  renderWatchlist();
-  showToast('🔕 Alert rimosso');
+  item.alertAbove = null; item.alertBelow = null; item.alertPrice = null;
+  save(); closeWlAlertModal(); renderWatchlist();
+  showToast('🔕 Alert rimossi');
 }
 
 // ── Fetch prezzi watchlist ───────────────────────────────────────
@@ -8447,12 +8460,12 @@ async function fetchWlPrices(items) {
 
 function checkWlAlerts() {
   (ALL.watchlist || []).forEach(item => {
-    if (!item.alertPrice) return;
     const p = (S.prices || {})[item.ticker];
     if (!p) return;
-    if (Math.abs(p - item.alertPrice) / item.alertPrice < 0.01) {
-      showToast('🔔 ALERT: ' + item.ticker + ' ha raggiunto il target ' + n2(item.alertPrice) + '!', 6000);
-    }
+    if (item.alertAbove && p >= item.alertAbove)
+      showToast('🔔 ' + item.ticker + ' sopra target ▲ ' + n2(item.alertAbove) + '!', 7000);
+    if (item.alertBelow && p <= item.alertBelow)
+      showToast('🔔 ' + item.ticker + ' sotto target ▼ ' + n2(item.alertBelow) + '!', 7000);
   });
 }
 
@@ -8483,21 +8496,26 @@ function renderWatchlist() {
          <span class="${gc}" style="font-size:11px;margin-left:4px">${dayAbs >= 0 ? '+' : ''}${n2(Math.abs(dayAbs))}</span>`
       : '<span style="color:var(--text3)">—</span>';
 
-    // Alert indicator
-    const hasAlert = item.alertPrice != null;
-    const alertHit = hasAlert && p && Math.abs(p - item.alertPrice) / item.alertPrice < 0.01;
-    const alertBadge = hasAlert
-      ? `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
-           style="cursor:pointer;background:${alertHit ? 'rgba(255,59,59,.2)' : 'rgba(123,167,255,.1)'};
-           border:1px solid ${alertHit ? 'var(--red)' : 'rgba(123,167,255,.3)'};
-           border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;
-           color:${alertHit ? 'var(--red)' : 'var(--blue)'};white-space:nowrap">
-           🔔 ${n2(item.alertPrice)}
-         </span>`
-      : `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
-           style="cursor:pointer;color:var(--text3);font-size:11px;padding:2px 4px">+ alert</span>`;
+    // Sparkline badge (andamento settimana) — prima del nome
+    const sparkBadge = renderSparklineBadge(item.ticker);
 
-    // Sparkline (getSparkPts può tornare null per titoli nuovi)
+    // Alert badge sopra/sotto
+    const hasAbove = item.alertAbove != null;
+    const hasBelow = item.alertBelow != null;
+    const hitAbove = hasAbove && p && p >= item.alertAbove;
+    const hitBelow = hasBelow && p && p <= item.alertBelow;
+    let alertBadge = '';
+    if (hasAbove)
+      alertBadge += `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
+        style="cursor:pointer;background:${hitAbove?'rgba(31,224,126,.2)':'rgba(31,224,126,.08)'};border:1px solid ${hitAbove?'var(--green)':'rgba(31,224,126,.3)'};border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;color:var(--green);white-space:nowrap">▲ ${n2(item.alertAbove)}</span>`;
+    if (hasBelow)
+      alertBadge += `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
+        style="cursor:pointer;background:${hitBelow?'rgba(255,59,59,.2)':'rgba(255,59,59,.08)'};border:1px solid ${hitBelow?'var(--red)':'rgba(255,59,59,.3)'};border-radius:6px;padding:2px 7px;font-size:10px;font-weight:700;color:var(--red);white-space:nowrap">▼ ${n2(item.alertBelow)}</span>`;
+    if (!hasAbove && !hasBelow)
+      alertBadge = `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
+        style="cursor:pointer;color:var(--text3);font-size:11px;padding:2px 4px">🔔 alert</span>`;
+
+    // Sparkline linea piccola
     const sparkHtml = renderSparkline(getSparkPts(item.ticker));
 
     // Sticker grafico cliccabile
@@ -8516,6 +8534,7 @@ function renderWatchlist() {
       <!-- Info titolo -->
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+          ${sparkBadge}
           <span style="font-weight:700;color:var(--text);font-size:14px">${esc(item.name || item.ticker)}</span>
           ${chartBadge}
           ${alertBadge}
@@ -8542,9 +8561,28 @@ function renderWatchlist() {
 async function loadWlSparklines() {
   const wl = ALL.watchlist || [];
   if (!wl.length) return;
-  // Carica prezzi per i ticker senza prezzo
-  const missing = wl.filter(item => !(S.prices || {})[item.ticker]);
-  if (missing.length) fetchWlPrices(missing);
+  // Carica prezzi mancanti
+  const missingPrices = wl.filter(item => !(S.prices || {})[item.ticker]);
+  if (missingPrices.length) fetchWlPrices(missingPrices);
+  // Carica storia per sparkline badge (come loadSparklines del portafoglio)
+  for (const item of wl) {
+    if (getSparkPts(item.ticker)) continue; // già in cache
+    const fakeH = { ticker:item.ticker, displayTicker:item.ticker, quoteTicker:item.ticker,
+                    market:item.market||'', isin:item.isin||'', name:item.name||item.ticker,
+                    assetClass:'Azioni', qty:1, avgPrice:0 };
+    for (const sym of candidatesForHolding(fakeH)) {
+      try {
+        const res = await fetchTickerHistory(sym, '1d', '10d');
+        if (res && res.pts && res.pts.length >= 3) {
+          if (!S.tickerHistory) S.tickerHistory = {};
+          if (!S.tickerHistory[item.ticker]) S.tickerHistory[item.ticker] = {};
+          S.tickerHistory[item.ticker]['1M'] = { pts:res.pts, ccy:res.ccy, sym, updated:Date.now() };
+          save(); break;
+        }
+      } catch(e) {}
+    }
+  }
+  renderWatchlist();
 }
 
 // ════════════════════════════════════════════════════════════════
