@@ -8340,22 +8340,16 @@ async function sbRegister() {
 }
 
 async function sbLogout() {
+  window.__SB_LOGGING_OUT = true; // guard: blocca qualsiasi auto-relogin
+  try { await sb.auth.signOut({ scope: 'global' }); } catch(e) { console.warn('signOut:', e); }
+  // Rimuovi solo i token Supabase — non toccare i dati portafoglio
   try {
-    // Scope global: invalida TUTTE le sessioni attive
-    await sb.auth.signOut({ scope: 'global' });
-  } catch(e) { console.warn('signOut error:', e); }
-  // Pulisci ogni tipo di storage
-  try { localStorage.clear(); } catch(e) {}
-  try { sessionStorage.clear(); } catch(e) {}
-  // Cancella eventuali cookie Supabase
-  try {
-    document.cookie.split(';').forEach(c => {
-      document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
-    });
+    Object.keys(localStorage).filter(k => k.startsWith('sb-')).forEach(k => localStorage.removeItem(k));
   } catch(e) {}
-  // Redirect con timestamp — forza reload senza cache
-  window.location.href = window.location.pathname + '?logout=' + Date.now();
+  try { sessionStorage.clear(); } catch(e) {}
+  window.location.replace(window.location.pathname + '?logout=' + Date.now());
 }
+window.sbLogout = sbLogout;
 
 // ── Data sync ───────────────────────────────────────────────────
 async function sbLoadData() {
@@ -8479,23 +8473,22 @@ async function sbUpdatePassword() {
 
 // ── Init ────────────────────────────────────────────────────────
 async function sbInit() {
-  // ── Logout guard: se arriviamo da un logout, NON fare auto-login ──
+  // ── Logout guard: se arriviamo da un logout, blocca tutto il restore ──
   const isLogout = window.location.search.includes('logout=');
   if (isLogout) {
-    // Pulisci l'URL senza ricaricare
+    window.__SB_LOGGING_OUT = true;
     history.replaceState(null, '', window.location.pathname);
-    // Assicura che la sessione sia davvero morta
     try { await sb.auth.signOut(); } catch(e) {}
-    // Mostra login e ferma qui — nessun restore sessione
     renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
-    return;
+    return; // STOP — nessun restore sessione
   }
 
   try { await sbHandlePasswordRecovery(); } catch(e) { console.warn('recovery check failed:', e); }
 
   // Funzione condivisa per avviare l'app dopo login
   async function sbOnLogin(session) {
-    sbSetLoading(false); // sempre sblocca il bottone
+    if (window.__SB_LOGGING_OUT) return; // guard: ignora eventi durante logout
+    sbSetLoading(false);
     try {
       const overlay = document.getElementById('login-overlay');
       if (overlay) overlay.style.display = 'none';
@@ -8509,13 +8502,13 @@ async function sbInit() {
       loadSparklines();
     } catch(e) {
       console.error('sbOnLogin error:', e);
-      // Se qualcosa va storto dopo il login, mostra l'app comunque
       try { renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines(); } catch(e2) {}
     }
   }
 
-  // Ascolta cambi di stato auth (SIGNED_IN, INITIAL_SESSION, SIGNED_OUT, TOKEN_REFRESHED)
+  // Ascolta cambi di stato auth
   sb.auth.onAuthStateChange(async (event, session) => {
+    if (window.__SB_LOGGING_OUT) return; // guard
     try {
       const overlay = document.getElementById('login-overlay');
       if ((event === 'SIGNED_IN' || event === 'INITIAL_SESSION' || event === 'TOKEN_REFRESHED') && session) {
@@ -8529,24 +8522,18 @@ async function sbInit() {
     } catch(e) { console.warn('onAuthStateChange error:', e); }
   });
 
-  // Controlla sessione esistente esplicitamente (fallback)
+  // Controlla sessione esistente (fallback)
   try {
+    if (window.__SB_LOGGING_OUT) return; // guard
     const { data: { session } } = await sb.auth.getSession();
     if (session) {
       await sbOnLogin(session);
     } else {
-      // Non loggato: avvia l'app in background sotto il login
-      renderAll();
-      showPage('portfolio');
-      startAutoRefresh();
-      loadSparklines();
+      renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
     }
   } catch(e) {
     console.warn('getSession error:', e);
-    renderAll();
-    showPage('portfolio');
-    startAutoRefresh();
-    loadSparklines();
+    renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
   }
 }
 
