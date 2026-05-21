@@ -8253,6 +8253,12 @@ function setupPWA() {
 const SB_URL = 'https://tncyxfkuutnnwtrpbkfz.supabase.co';
 const SB_KEY = 'sb_publishable_FeRkPsjSsHD1INt7rvpTSg_z6g4TZj6';
 const SB_STORAGE_KEY = 'sb_session_portafoglio';
+
+// !! DEVE stare PRIMA di createClient — altrimenti il SDK ripristina la sessione in memoria
+if (window.location.search.includes('logout=')) {
+  try { localStorage.removeItem(SB_STORAGE_KEY); } catch(e) {}
+}
+
 const sb = supabase.createClient(SB_URL, SB_KEY, {
   auth: {
     persistSession: true,
