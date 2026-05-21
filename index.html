@@ -8300,17 +8300,30 @@ async function sbLogin() {
   const password = document.getElementById('sb-password').value;
   if (!email || !password) { sbSetError('Inserisci email e password'); return; }
   sbSetLoading(true); sbClearMessages();
-  const { data, error } = await sb.auth.signInWithPassword({ email, password });
-  sbSetLoading(false);
-  if (error) {
-    console.error('Login error:', error);
-    const msg = error.message === 'Invalid login credentials' ? 'Email o password errati'
-      : error.message === 'Email not confirmed' ? 'Email non confermata — vai su Supabase → Authentication → Providers → Email e disabilita "Confirm email"'
-      : error.message;
-    sbSetError('❌ ' + msg);
-    return;
+  // Timeout sicurezza: se dopo 12s non è successo nulla, sblocca il bottone
+  const safetyTimer = setTimeout(() => {
+    sbSetLoading(false);
+    sbSetError('Timeout — riprova o controlla la connessione');
+  }, 12000);
+  try {
+    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    if (error) {
+      clearTimeout(safetyTimer);
+      sbSetLoading(false);
+      const msg = error.message === 'Invalid login credentials' ? 'Email o password errati'
+        : error.message === 'Email not confirmed' ? 'Email non confermata — disabilita "Confirm email" in Supabase'
+        : error.message;
+      sbSetError('❌ ' + msg);
+      return;
+    }
+    // Login OK — onAuthStateChange gestisce il resto
+    // Il bottone resta disabilitato fino a che l'app non è pronta (sbOnLogin lo sblocca)
+    clearTimeout(safetyTimer);
+  } catch(e) {
+    clearTimeout(safetyTimer);
+    sbSetLoading(false);
+    sbSetError('❌ Errore di rete: ' + e.message);
   }
-  // onAuthStateChange gestisce il resto
 }
 
 async function sbRegister() {
@@ -8457,6 +8470,7 @@ async function sbInit() {
 
   // Funzione condivisa per avviare l'app dopo login
   async function sbOnLogin(session) {
+    sbSetLoading(false); // sempre sblocca il bottone
     try {
       const overlay = document.getElementById('login-overlay');
       if (overlay) overlay.style.display = 'none';
@@ -8465,10 +8479,14 @@ async function sbInit() {
       await sbLoadData();
       renderAll();
       showPage('portfolio');
-      autoSyncFromGistOnStartup();
+      try { autoSyncFromGistOnStartup(); } catch(e) {}
       startAutoRefresh();
       loadSparklines();
-    } catch(e) { console.warn('sbOnLogin error:', e); }
+    } catch(e) {
+      console.error('sbOnLogin error:', e);
+      // Se qualcosa va storto dopo il login, mostra l'app comunque
+      try { renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines(); } catch(e2) {}
+    }
   }
 
   // Ascolta cambi di stato auth (SIGNED_IN, INITIAL_SESSION, SIGNED_OUT, TOKEN_REFRESHED)
