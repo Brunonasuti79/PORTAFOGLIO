@@ -8480,8 +8480,8 @@ async function fetchWlPrices(items) {
       }
     } catch(e) { console.warn('fetchWlPrices error for', item.ticker, e); }
   }
-  renderWatchlist();
   checkWlAlerts();
+  // renderWatchlist() è chiamata da loadWlSparklines dopo il completamento
 }
 
 function checkWlAlerts() {
@@ -8583,12 +8583,15 @@ function renderWatchlist() {
   loadWlSparklines();
 }
 
+let _wlLoading = false;
 async function loadWlSparklines() {
+  if (_wlLoading) return; // guard anti-loop
+  _wlLoading = true;
   const wl = ALL.watchlist || [];
-  if (!wl.length) return;
+  if (!wl.length) { _wlLoading = false; return; }
   // Carica prezzi mancanti
   const missingPrices = wl.filter(item => !(S.prices || {})[item.ticker]);
-  if (missingPrices.length) fetchWlPrices(missingPrices);
+  if (missingPrices.length) await fetchWlPrices(missingPrices);
   // Carica storia per sparkline badge (come loadSparklines del portafoglio)
   for (const item of wl) {
     if (getSparkPts(item.ticker)) continue; // già in cache
@@ -8607,6 +8610,7 @@ async function loadWlSparklines() {
       } catch(e) {}
     }
   }
+  _wlLoading = false;
   renderWatchlist();
 }
 
@@ -8727,43 +8731,60 @@ window.sbLogout = sbLogout;
 
 // ── Data sync ───────────────────────────────────────────────────
 async function sbLoadData() {
+  // localStorage è la fonte primaria — sempre aggiornata da save()
+  // Supabase è usato SOLO per sincronizzare tra device diversi
+  // Timeout aggressivo: se Supabase non risponde in 6s, usa solo localStorage
   try {
-    const { data, error } = await sb.from('user_data').select('data,updated_at').maybeSingle();
-    if (error) { console.warn('Supabase load error:', error.message); return; }
+    const fetchPromise = sb.from('user_data').select('data').maybeSingle();
+    const timeoutPromise = new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 6000));
+    const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
+
+    if (error) { console.warn('[SB] load error:', error.message); return; }
     if (!data?.data) {
-      // Nessun dato remoto — salva subito quello locale
-      await sbSaveNow();
+      // Prima volta — salva dati locali su Supabase
+      sbSaveNow();
       return;
     }
     const remote = data.data;
 
-    // Merge officialCloses (unione)
+    // Merge: preserva tutto locale, aggiungi solo ciò che manca
     const localCloses     = ALL.officialCloses     || {};
     const localClosesMeta = ALL.officialClosesMeta || {};
 
-    // Merge watchlist: unione locale + remota (non perdere mai items aggiunti localmente)
+    // Watchlist: unione — non perdiamo mai items locali
     const localWl  = ALL.watchlist || [];
     const remoteWl = remote.watchlist || [];
-    const wlMerged = [...remoteWl];
-    localWl.forEach(lItem => {
-      if (!wlMerged.find(r => r.ticker === lItem.ticker)) wlMerged.push(lItem);
-    });
+    const wlMap = new Map();
+    remoteWl.forEach(i => wlMap.set(i.ticker, i));
+    localWl.forEach(i => { if (!wlMap.has(i.ticker)) wlMap.set(i.ticker, i); });
+    const wlMerged = [...wlMap.values()];
 
-    // Aggiorna ALL con dati remoti
-    ALL = { ...ALL, ...remote };
+    // Portfolios: usa remoto solo se ha savedAt più recente del locale
+    const localSavedAt  = ALL.savedAt  || '';
+    const remoteSavedAt = remote.savedAt || '';
+    const useRemotePortfolios = remoteSavedAt > localSavedAt;
+
+    if (useRemotePortfolios) {
+      ALL = { ...ALL, ...remote };
+    }
+    // Sempre: merge officialCloses e watchlist
     ALL.officialCloses     = { ...localCloses,     ...(remote.officialCloses     || {}) };
     ALL.officialClosesMeta = { ...localClosesMeta, ...(remote.officialClosesMeta || {}) };
     ALL.watchlist = wlMerged;
 
-    // Normalizza e aggiorna S
     ALL.portfolios.forEach(pf => normalizePortfolio(pf));
     S = ALL.portfolios.find(p => p.id === ALL.activePortfolioId) || ALL.portfolios[0];
     try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
     injectOfficialClosesToTickerHistory();
 
-    // Se il merge ha aggiunto watchlist items non presenti in remoto, risalva subito
-    if (wlMerged.length > remoteWl.length) await sbSaveNow();
-  } catch(e) { console.warn('sbLoadData exception:', e); }
+    // Se il merge ha dati locali più freschi, risalva
+    if (!useRemotePortfolios || wlMerged.length > remoteWl.length) sbSaveNow();
+
+    console.log('[SB] load OK, remote:', remoteSavedAt, 'local:', localSavedAt, 'useRemote:', useRemotePortfolios);
+  } catch(e) {
+    console.warn('[SB] load fallback to localStorage:', e.message);
+    // Nessun problema — localStorage è già caricato
+  }
 }
 
 // Dati slim per Supabase — rimuove cache pesante (tickerHistory, officialCloses)
@@ -8788,7 +8809,7 @@ function getSlimData() {
     settings:          ALL.settings || {},
     watchlist:         ALL.watchlist || [],
     fxRates:           ALL.fxRates || {},
-    savedAt:           new Date().toISOString(),
+    savedAt:           new Date().toISOString(), // usato per merge multi-device
   };
 }
 
@@ -8819,7 +8840,7 @@ async function sbSaveNow() {
 // Debounce: raggruppa salvataggi ravvicinati in uno solo (dopo 2s)
 function sbScheduleSave() {
   clearTimeout(_sbSaveTimer);
-  _sbSaveTimer = setTimeout(sbSaveNow, 2000);
+  _sbSaveTimer = setTimeout(sbSaveNow, 5000); // 5s debounce
 }
 
 function sbShowForgot() {
