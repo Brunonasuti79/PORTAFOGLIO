@@ -7279,11 +7279,22 @@ function startAutoRefresh(){
 let _chartModalTicker=null,_chartModalPeriod='1A';
 function openChartModal(ticker){
   _chartModalTicker=ticker;
-  const hlds=calcPF(),h=hlds.find(h=>h.ticker===ticker);if(!h)return;
-  document.getElementById('chart-modal-title').textContent=h.name||h.displayTicker;
-  document.getElementById('chart-modal-sub').textContent=h.displayTicker+(h.isin?' · '+h.isin:'');
+  _chartModalPeriod=_chartModalPeriod||'1A';
+  const hlds=calcPF();
+  let h=hlds.find(h=>h.ticker===ticker);
+  // Fallback watchlist
+  if(!h){
+    const wl=(ALL.watchlist||[]).find(w=>w.ticker===ticker);
+    if(wl) h={ticker,displayTicker:ticker,name:wl.name||ticker,isin:wl.isin||'',market:wl.market||''};
+  }
+  if(!h) h={ticker,displayTicker:ticker,name:ticker,isin:'',market:''};
+  const titleEl=document.getElementById('chart-modal-title');
+  const subEl=document.getElementById('chart-modal-sub');
+  if(titleEl) titleEl.textContent=h.name||h.displayTicker;
+  if(subEl) subEl.textContent=h.displayTicker+(h.isin?' · '+h.isin:'');
   document.getElementById('chart-modal').classList.remove('hidden');
   renderChartModal();
+  loadChartModalData();
 }
 function closeChartModal(){document.getElementById('chart-modal').classList.add('hidden');_chartModalTicker=null;}
 function renderChartModal(){
@@ -7375,12 +7386,17 @@ async function loadChartModalData(){
   const ticker=_chartModalTicker;if(!ticker)return;
   const period=_chartModalPeriod,hlds=calcPF();
   let h=hlds.find(h=>h.ticker===ticker);
-  // Fallback: cerca in watchlist (ticker non ancora in portafoglio)
+  // Fallback: cerca in watchlist
   if(!h){
     const wlItem=(ALL.watchlist||[]).find(w=>w.ticker===ticker);
-    if(wlItem) h={ticker,displayTicker:ticker,quoteTicker:ticker,market:wlItem.market||'',isin:wlItem.isin||'',name:wlItem.name||ticker,assetClass:'Azioni',qty:1,avgPrice:0};
+    if(wlItem){
+      h={ticker,displayTicker:ticker,quoteTicker:ticker,
+         market:wlItem.market||'',isin:wlItem.isin||'',
+         name:wlItem.name||ticker,assetClass:'Azioni',qty:1,avgPrice:0};
+    }
   }
-  if(!h)return;
+  // Ultimo fallback: crea holding minimale con solo il ticker
+  if(!h) h={ticker,displayTicker:ticker,quoteTicker:ticker,market:'',isin:'',name:ticker,assetClass:'Azioni',qty:1,avgPrice:0};
   const btn=document.getElementById('chart-modal-refresh');
   if(btn){btn.disabled=true;btn.textContent='Caricamento...';}
   const cfg=PERIOD_CFG[period];let loaded=false;
@@ -8527,20 +8543,19 @@ function renderWatchlist() {
       </svg>
     </span>`;
 
-    return `<div class="holding-row" style="margin:0 14px 6px;border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px;cursor:pointer"
-        onclick="openWlAlertModal('${item.id}')">
-      <!-- Sparkline -->
+    return `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+      <!-- Sparkline linea -->
       <div style="flex-shrink:0">${sparkHtml}</div>
       <!-- Info titolo -->
       <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
+          <span style="font-weight:700;color:var(--text);font-size:14px;white-space:nowrap">${esc(item.name || item.ticker)}</span>
           ${sparkBadge}
-          <span style="font-weight:700;color:var(--text);font-size:14px">${esc(item.name || item.ticker)}</span>
           ${chartBadge}
           ${alertBadge}
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace">
-          ${esc(item.ticker)}${item.isin ? ' · ' + esc(item.isin) : ''}
+          ${esc(item.ticker)}${item.isin ? ' · ' + esc(item.isin) : ''}${item.market ? ' · ' + esc(item.market) : ''}
         </div>
       </div>
       <!-- Prezzo e variazione -->
@@ -8549,8 +8564,8 @@ function renderWatchlist() {
         <div style="font-size:12px;margin-top:2px">${dayStr}</div>
       </div>
       <!-- Rimuovi -->
-      <button onclick="event.stopPropagation();removeWatchlistItem('${item.id}')"
-        style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:0 2px;flex-shrink:0;line-height:1">×</button>
+      <button onclick="removeWatchlistItem('${item.id}')"
+        style="background:none;border:none;color:var(--text3);font-size:18px;cursor:pointer;padding:0 4px;flex-shrink:0;line-height:1;opacity:.6">×</button>
     </div>`;
   }).join('');
 
