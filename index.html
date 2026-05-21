@@ -8340,10 +8340,21 @@ async function sbRegister() {
 }
 
 async function sbLogout() {
-  try { await sb.auth.signOut(); } catch(e) { console.warn('signOut error:', e); }
+  try {
+    // Scope global: invalida TUTTE le sessioni attive
+    await sb.auth.signOut({ scope: 'global' });
+  } catch(e) { console.warn('signOut error:', e); }
+  // Pulisci ogni tipo di storage
   try { localStorage.clear(); } catch(e) {}
   try { sessionStorage.clear(); } catch(e) {}
-  window.location.reload(true);
+  // Cancella eventuali cookie Supabase
+  try {
+    document.cookie.split(';').forEach(c => {
+      document.cookie = c.trim().split('=')[0] + '=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/';
+    });
+  } catch(e) {}
+  // Redirect con timestamp — forza reload senza cache
+  window.location.href = window.location.pathname + '?logout=' + Date.now();
 }
 
 // ── Data sync ───────────────────────────────────────────────────
