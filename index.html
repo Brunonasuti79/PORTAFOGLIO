@@ -8497,9 +8497,8 @@ function renderWatchlist() {
       : `<span onclick="event.stopPropagation();openWlAlertModal('${item.id}')"
            style="cursor:pointer;color:var(--text3);font-size:11px;padding:2px 4px">+ alert</span>`;
 
-    // Sparkline
-    const sparkPts = getSparkPts(item.ticker);
-    const sparkHtml = sparkPts.length ? renderSparkline(sparkPts) : '';
+    // Sparkline (getSparkPts può tornare null per titoli nuovi)
+    const sparkHtml = renderSparkline(getSparkPts(item.ticker));
 
     // Sticker grafico cliccabile
     const chartBadge = `<span class="pf-badge" style="--bb:rgba(123,167,255,.4);--bg:rgba(123,167,255,.07);cursor:pointer;padding:2px 6px"
