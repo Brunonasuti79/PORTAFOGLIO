@@ -7442,16 +7442,19 @@ async function loadChartModalData(){
   const btn=document.getElementById('chart-modal-refresh');
   if(btn){btn.disabled=true;btn.textContent='Caricamento...';}
   const cfg=PERIOD_CFG[period];let loaded=false;
-  // Usa buildWatchlistHistoryCandidates per watchlist (genera simboli Yahoo corretti es. NBIS.AS)
   const wlItem=(ALL.watchlist||[]).find(w=>w.ticker===ticker);
   const candidates = wlItem ? buildWatchlistHistoryCandidates(wlItem) : candidatesForHolding(h);
+  console.log('[CHART] ticker:', ticker, 'period:', period, 'candidates:', candidates);
   for(const sym of candidates){
-    const res=await fetchTickerHistory(sym,cfg.interval,cfg.range);
-    if(res&&res.pts.length>=3){
-      if(!S.tickerHistory)S.tickerHistory={};if(!S.tickerHistory[ticker])S.tickerHistory[ticker]={};
-      S.tickerHistory[ticker][period]={pts:res.pts,ccy:res.ccy,sym,updated:Date.now()};
-      save();loaded=true;break;
-    }
+    try {
+      const res=await fetchTickerHistory(sym,cfg.interval,cfg.range);
+      console.log('[CHART] sym:', sym, 'pts:', res?.pts?.length ?? 'null');
+      if(res&&res.pts.length>=3){
+        if(!S.tickerHistory)S.tickerHistory={};if(!S.tickerHistory[ticker])S.tickerHistory[ticker]={};
+        S.tickerHistory[ticker][period]={pts:res.pts,ccy:res.ccy,sym,updated:Date.now()};
+        save();loaded=true;break;
+      }
+    } catch(e) { console.warn('[CHART] sym:', sym, 'errore:', e.message); }
   }
   if(!loaded)showToast('⚠ Storico non trovato per ' + ticker);
   if(btn){btn.disabled=false;btn.textContent='↻ Aggiorna';}
