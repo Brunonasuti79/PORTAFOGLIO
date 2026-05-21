@@ -1226,6 +1226,20 @@ input[type=number]{-moz-appearance:textfield}
     <div class="fld"><label>Nome <span style="color:var(--text3);font-weight:400">(opzionale)</span></label>
       <input type="text" id="wl-name" placeholder="es. Apple Inc." autocomplete="off" onkeydown="if(event.key==='Enter')saveWatchlistItem()">
     </div>
+    <div class="fld"><label>Mercato <span style="color:var(--text3);font-weight:400">(opzionale)</span></label>
+      <select id="wl-market" style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:10px;padding:10px 14px;color:var(--text);font-family:'Outfit',sans-serif;font-size:14px;outline:none">
+        <option value="">-- Seleziona mercato --</option>
+        <option value="MI">🇮🇹 Milano (MI)</option>
+        <option value="DE">🇩🇪 Xetra (DE)</option>
+        <option value="PA">🇫🇷 Parigi (PA)</option>
+        <option value="L">🇬🇧 Londra (L)</option>
+        <option value="AS">🇳🇱 Amsterdam (AS)</option>
+        <option value="SW">🇨🇭 Svizzera (SW)</option>
+        <option value="NASDAQ">🇺🇸 NASDAQ</option>
+        <option value="NYSE">🇺🇸 NYSE</option>
+        <option value="OTHER">Altro</option>
+      </select>
+    </div>
     <div style="display:flex;gap:10px;margin-top:8px">
       <button class="hbtn" onclick="closeWatchlistModal()" style="flex:1">Annulla</button>
       <button class="hbtn" onclick="saveWatchlistItem()" style="flex:2;font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">⭐ Aggiungi</button>
@@ -8313,9 +8327,10 @@ function setupPWA() {
 
 // ── Modal add ───────────────────────────────────────────────────
 function openWatchlistModal() {
-  document.getElementById('wl-ticker').value = '';
-  document.getElementById('wl-isin').value   = '';
-  document.getElementById('wl-name').value   = '';
+  document.getElementById('wl-ticker').value  = '';
+  document.getElementById('wl-isin').value    = '';
+  document.getElementById('wl-name').value    = '';
+  document.getElementById('wl-market').value  = '';
   document.getElementById('wlmodal').classList.remove('hidden');
   setTimeout(() => document.getElementById('wl-ticker')?.focus(), 150);
 }
@@ -8327,6 +8342,7 @@ function saveWatchlistItem() {
   const ticker = document.getElementById('wl-ticker').value.trim().toUpperCase();
   const isin   = document.getElementById('wl-isin').value.trim().toUpperCase();
   const name   = document.getElementById('wl-name').value.trim();
+  const market = document.getElementById('wl-market').value.trim();
   if (!ticker) { alert('Inserisci il ticker'); return; }
   if (!ALL.watchlist) ALL.watchlist = [];
   if (ALL.watchlist.find(w => w.ticker === ticker)) { alert('Ticker già presente in watchlist'); return; }
@@ -8335,15 +8351,15 @@ function saveWatchlistItem() {
     ticker,
     isin,
     name: name || ticker,
+    market,
     addedAt: new Date().toISOString(),
     alertPrice: null
   };
   ALL.watchlist.push(item);
   save();
   closeWatchlistModal();
-  renderWatchlist();
-  // Avvia fetch prezzo subito
-  fetchWlPrices([item]);
+  renderWatchlist(); // mostra subito la riga (senza prezzo)
+  fetchWlPrices([item]); // poi carica prezzo in background
   showToast('⭐ ' + ticker + ' aggiunto alla watchlist');
 }
 
@@ -8399,11 +8415,21 @@ async function fetchWlPrices(items) {
   if (!items || !items.length) return;
   for (const item of items) {
     try {
-      const result = await fetchSinglePrice(item.ticker);
+      // Usa lo stesso sistema del portafoglio: costruisce un holding fittizio
+      const fakeHolding = {
+        ticker:       item.ticker,
+        displayTicker:item.ticker,
+        quoteTicker:  item.ticker,
+        market:       item.market || '',
+        isin:         item.isin   || '',
+        name:         item.name   || item.ticker,
+        assetClass:   'Azioni',
+        qty: 1, avgPrice: 0
+      };
+      const result = await fetchPriceForHolding(fakeHolding);
       if (result && result.price > 0) {
         if (!S.prices) S.prices = {};
         S.prices[item.ticker] = result.price;
-        // Aggiorna variazione giorno
         if (result.prevClose && result.prevClose > 0) {
           if (!S.dailyChanges) S.dailyChanges = {};
           S.dailyChanges[item.ticker] = {
@@ -8413,10 +8439,9 @@ async function fetchWlPrices(items) {
           };
         }
       }
-    } catch(e) {}
+    } catch(e) { console.warn('fetchWlPrices error for', item.ticker, e); }
   }
   renderWatchlist();
-  // Controlla alert
   checkWlAlerts();
 }
 
