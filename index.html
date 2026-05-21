@@ -1794,6 +1794,7 @@ function load() {
         ALL.portfolios = d.portfolios;
         ALL.activePortfolioId = d.activePortfolioId;
         ALL.settings = Object.assign({ak:'',anthropicKey:''}, d.settings || {});
+        ALL.savedAt  = d.savedAt || ALL.savedAt || '';
         ALL.fxRates  = d.fxRates || {};
         ALL.officialCloses = d.officialCloses || {};
         ALL.officialClosesMeta = d.officialClosesMeta || {};
@@ -1805,6 +1806,7 @@ function load() {
         ALL.portfolios = [pf];
         ALL.activePortfolioId = pf.id;
         ALL.settings = Object.assign({ak:'',anthropicKey:''}, d.settings || {});
+        ALL.savedAt  = d.savedAt || ALL.savedAt || '';
         ALL.officialCloses = d.officialCloses || {};
         ALL.officialClosesMeta = d.officialClosesMeta || {};
       }
@@ -1828,6 +1830,9 @@ function load() {
 }
 
 function save() {
+  // Timestamp locale: fondamentale per evitare che Supabase sovrascriva
+  // modifiche appena fatte (nome portafoglio, watchlist, ecc.) con dati vecchi.
+  ALL.savedAt = new Date().toISOString();
   try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
   scheduleAutoGistSync('save');
   sbScheduleSave(); // sync Supabase in background
@@ -5710,7 +5715,9 @@ async function loadSingleTickerHistory(){
   const btn=document.getElementById('hist-btn');
   if(btn){btn.disabled=true;btn.textContent='Caricamento...';}
   const cfg=PERIOD_CFG[period];let loaded=false;
-  for(const sym of candidatesForHolding(h)){
+  const wlItemForHistory = (ALL.watchlist||[]).find(w=>w.ticker===ticker);
+  const historyCandidates = wlItemForHistory ? buildWatchlistHistoryCandidates(wlItemForHistory) : candidatesForHolding(h);
+  for(const sym of historyCandidates){
     const res=await fetchTickerHistory(sym,cfg.interval,cfg.range);
     if(res&&res.pts.length>=3){
       if(!S.tickerHistory)S.tickerHistory={};if(!S.tickerHistory[sel])S.tickerHistory[sel]={};
@@ -7305,7 +7312,7 @@ function renderChartModal(){
   // Sovrascrive il punto di oggi con il prezzo live
   if(th?.pts?.length){
     const hld=hlds.find(h=>h.ticker===ticker);
-    const curP=hld&&S.prices?.[hld.ticker]?S.prices[hld.ticker]:null;
+    const curP=(hld&&S.prices?.[hld.ticker]) ? S.prices[hld.ticker] : (S.prices?.[ticker] || null);
     if(curP){
       const tDay=todayRome(),tTs=new Date(tDay+'T12:00:00').getTime();
       const lastPt=th.pts[th.pts.length-1],lastDay=localDateKeyFromMs(lastPt.t);
@@ -8587,31 +8594,68 @@ let _wlLoading = false;
 async function loadWlSparklines() {
   if (_wlLoading) return; // guard anti-loop
   _wlLoading = true;
-  const wl = ALL.watchlist || [];
-  if (!wl.length) { _wlLoading = false; return; }
-  // Carica prezzi mancanti
-  const missingPrices = wl.filter(item => !(S.prices || {})[item.ticker]);
-  if (missingPrices.length) await fetchWlPrices(missingPrices);
-  // Carica storia per sparkline badge (come loadSparklines del portafoglio)
-  for (const item of wl) {
-    if (getSparkPts(item.ticker)) continue; // già in cache
-    const fakeH = { ticker:item.ticker, displayTicker:item.ticker, quoteTicker:item.ticker,
-                    market:item.market||'', isin:item.isin||'', name:item.name||item.ticker,
-                    assetClass:'Azioni', qty:1, avgPrice:0 };
-    for (const sym of candidatesForHolding(fakeH)) {
-      try {
-        const res = await fetchTickerHistory(sym, '1d', '10d');
-        if (res && res.pts && res.pts.length >= 3) {
-          if (!S.tickerHistory) S.tickerHistory = {};
-          if (!S.tickerHistory[item.ticker]) S.tickerHistory[item.ticker] = {};
-          S.tickerHistory[item.ticker]['1M'] = { pts:res.pts, ccy:res.ccy, sym, updated:Date.now() };
-          save(); break;
-        }
-      } catch(e) {}
+  let changed = false;
+
+  try {
+    const wl = ALL.watchlist || [];
+    if (!wl.length) return;
+
+    // Carica prezzi mancanti
+    const missingPrices = wl.filter(item => !(S.prices || {})[item.ticker]);
+    if (missingPrices.length) {
+      await fetchWlPrices(missingPrices);
+      changed = true;
     }
+
+    // Carica storia per sparkline badge / grafico watchlist
+    for (const item of wl) {
+      if (getSparkPts(item.ticker)) continue; // già in cache
+
+      const candidates = buildWatchlistHistoryCandidates(item);
+      for (const sym of candidates) {
+        try {
+          const res = await fetchTickerHistory(sym, '1d', '1mo');
+          if (res && res.pts && res.pts.length >= 3) {
+            if (!S.tickerHistory) S.tickerHistory = {};
+            if (!S.tickerHistory[item.ticker]) S.tickerHistory[item.ticker] = {};
+            S.tickerHistory[item.ticker]['1M'] = { pts:res.pts, ccy:res.ccy, sym, updated:Date.now() };
+            save();
+            changed = true;
+            break;
+          }
+        } catch(e) {}
+      }
+    }
+  } finally {
+    _wlLoading = false;
   }
-  _wlLoading = false;
-  renderWatchlist();
+
+  // Prima c'era un loop: renderWatchlist() chiamava loadWlSparklines(),
+  // che richiamava sempre renderWatchlist(), anche senza nuovi dati.
+  if (changed) renderWatchlist();
+}
+
+function buildWatchlistHistoryCandidates(item) {
+  const ticker = fc(item?.ticker || '');
+  if (!ticker) return [];
+  const market = fc(item?.market || '');
+  const out = [];
+
+  // 1) ticker inserito dall'utente
+  out.push(ticker);
+
+  // 2) ticker con suffisso Yahoo se il mercato lo richiede
+  const m = MARKETS.find(x => x.code === market);
+  if (m?.suffix && !ticker.includes('.')) out.push(ticker + m.suffix);
+
+  // 3) alias da ISIN_DB se presenti
+  const db = ISIN_DB[fc(item?.isin || '')];
+  if (db?.quotes) {
+    if (market && db.quotes[market]) out.push(db.quotes[market]);
+    Object.values(db.quotes).forEach(v => out.push(v));
+  }
+
+  return [...new Set(out.map(fc).filter(Boolean))];
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -8809,7 +8853,7 @@ function getSlimData() {
     settings:          ALL.settings || {},
     watchlist:         ALL.watchlist || [],
     fxRates:           ALL.fxRates || {},
-    savedAt:           new Date().toISOString(), // usato per merge multi-device
+    savedAt:           ALL.savedAt || new Date().toISOString(), // usato per merge multi-device
   };
 }
 
