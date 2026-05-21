@@ -1136,10 +1136,10 @@ input[type=number]{-moz-appearance:textfield}
 <!-- CASH DEPOSIT MODAL -->
 <div id="cashmodal" class="mov hidden" onclick="if(event.target.id==='cashmodal')closeCashModal()">
   <div class="msh" style="max-width:340px">
-    <div class="mtit">💶 DEPOSITO LIQUIDITÀ</div>
+    <div class="mtit">💶 DEPOSITA / PRELEVA</div>
     <div class="fld">
-      <label>Importo (€)</label>
-      <input type="number" id="cash-dep-amount" placeholder="es. 1500" min="0" step="0.01" inputmode="decimal">
+      <label>Importo (€) — negativo per prelievo</label>
+      <input type="number" id="cash-dep-amount" placeholder="es. 1500 o -500" step="0.01" inputmode="decimal">
     </div>
     <div class="fld">
       <label>Data</label>
@@ -1151,7 +1151,7 @@ input[type=number]{-moz-appearance:textfield}
     </div>
     <div style="display:flex;gap:10px;margin-top:8px">
       <button class="hbtn" onclick="closeCashModal()" style="flex:1">Annulla</button>
-      <button class="hbtn" onclick="saveCashDeposit()" style="flex:2;font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">💾 Salva deposito</button>
+      <button class="hbtn" onclick="saveCashDeposit()" style="flex:2;font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">💾 Salva</button>
     </div>
   </div>
 </div>
@@ -3356,7 +3356,7 @@ function renderPF() {
     ca.innerHTML = `<div style="margin:0 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:5px 12px;display:flex;align-items:center;gap:10px">
       <span class="sum-cl" style="flex-shrink:0">Liquidità</span>
       <div id="cash-hv" class="sum-cv" style="transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'—'}</div>
-      <button onclick="openCashModal()" style="flex-shrink:0;background:none;border:none;padding:0 0 0 20px;cursor:pointer;white-space:nowrap"><span class="sum-cl" style="color:var(--blue)">DEPOSITA</span></button>
+      <button onclick="openCashModal()" style="flex-shrink:0;background:none;border:none;padding:0 0 0 20px;cursor:pointer;white-space:nowrap"><span class="sum-cl" style="color:var(--blue)">DEP / PREL</span></button>
       <div style="flex:1"></div>
       <div style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${nHlds} Titoli</div>
     </div>
@@ -5883,11 +5883,11 @@ function showToast(msg, duration=3500) {
 // Annulla l'effetto sulla liquidità di un'operazione già salvata
 function reverseCashForOp(op) {
   if (!op || S.cashEUR == null) return;
-  // Deposito liquidità: inverso = sottrai
+  // Deposito/prelievo liquidità: inverso = sottrai il totalCost (che può essere negativo)
   if (op.ticker === '__CASH__') {
-    const amount = op.totalCost || op.price || 0;
+    const amount = op.totalCost || 0;
     S.cashEUR = Math.max(0, (S.cashEUR||0) - amount);
-    showToast('💶 Deposito annullato: −'+e2(amount));
+    showToast(amount >= 0 ? '💶 Deposito annullato: −'+e2(amount) : '💸 Prelievo annullato: +'+e2(Math.abs(amount)));
     return;
   }
   if (op.titleCcy === 'USD' && op.purchCcy === 'USD') return;
@@ -7373,8 +7373,10 @@ function closeCashModal() {
 function saveCashDeposit() {
   const amount = parseFloat(document.getElementById('cash-dep-amount').value.replace(',','.'));
   const date   = document.getElementById('cash-dep-date').value;
-  const note   = document.getElementById('cash-dep-note').value.trim() || 'Deposito liquidità';
-  if (!amount || amount <= 0) { alert('Inserisci un importo valido'); return; }
+  const defaultNote = amount < 0 ? 'Prelievo liquidità' : 'Deposito liquidità';
+  const note   = document.getElementById('cash-dep-note').value.trim() || defaultNote;
+  if (isNaN(amount) || amount === 0) { alert('Inserisci un importo valido (positivo per deposito, negativo per prelievo)'); return; }
+  if (amount < 0 && Math.abs(amount) > (S.cashEUR||0)) { alert('Prelievo non consentito: importo superiore alla liquidità disponibile (€ ' + ((S.cashEUR||0).toFixed(2).replace('.',',')) + ')'); return; }
   if (!date) { alert('Inserisci la data'); return; }
   // Salva come op speciale
   const op = {
@@ -7382,19 +7384,19 @@ function saveCashDeposit() {
     ticker: '__CASH__', displayTicker: 'CASH',
     quoteTicker: '__CASH__', market: '',
     name: note, assetClass: 'Liquidità',
-    type: 'buy', qty: 1, price: amount,
-    avgPrice: amount, avgPriceBuyCcy: amount,
+    type: amount >= 0 ? 'buy' : 'sell', qty: 1, price: Math.abs(amount),
+    avgPrice: Math.abs(amount), avgPriceBuyCcy: Math.abs(amount),
     commission: 0, totalCost: amount,
     buyCcy: 'EUR', titleCcy: 'EUR',
     date, isin: ''
   };
   if (!S.ops) S.ops = [];
   S.ops.push(op);
-  S.cashEUR = (S.cashEUR||0) + amount;
+  S.cashEUR = Math.max(0, (S.cashEUR||0) + amount); // non va sotto zero
   save();
   closeCashModal();
   renderAll();
-  showToast('💶 Deposito aggiunto: ' + e2(amount));
+  showToast(amount >= 0 ? '💶 Deposito: +' + e2(amount) : '💸 Prelievo: −' + e2(Math.abs(amount)));
 }
 
 // ── Market status ────────────────────────────────────────────────
