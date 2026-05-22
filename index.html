@@ -1081,8 +1081,9 @@ input[type=number]{-moz-appearance:textfield}
     <div class="ssec">
       <div class="slbl">🔑 API Key Finnhub <span style="color:var(--green);font-weight:600">(fonte principale)</span></div>
       <div class="sdesc">Chiamata diretta, senza CORS. Gratuita su <a href="https://finnhub.io" target="_blank" style="color:var(--blue)">finnhub.io</a> → Sign up → Dashboard.</div>
-      <input class="sinput" type="password" id="ak-inp" placeholder="d7t6fhhr01q..." autocomplete="off" oninput="onAkChange()">
+      <input class="sinput" type="text" id="ak-inp" placeholder="d7t6fhhr01q..." autocomplete="new-password" oninput="onAkChange()" spellcheck="false" autocorrect="off" autocapitalize="off">
       <div id="ak-st" class="akst ko">Nessuna API key Finnhub</div>
+      <div id="ak-warn" style="display:none;margin-top:4px;font-size:11px;color:var(--red);font-weight:600">⚠ La key sembra non valida — le API key Finnhub hanno ~20 caratteri alfanumerici senza simboli speciali</div>
     </div>
 
     <div class="ssec">
@@ -6299,7 +6300,14 @@ function saveQuick() {
 //  SETTINGS
 // ════════════════════════════════════════════════════════════════
 function onAkChange() {
-  ALL.settings.ak = document.getElementById('ak-inp')?.value.trim() || '';
+  const raw = document.getElementById('ak-inp')?.value.trim() || '';
+  ALL.settings.ak = raw;
+  // Avvisa se la key sembra una password invece che una API key Finnhub
+  const warn = document.getElementById('ak-warn');
+  if (warn) {
+    const looksWrong = raw.length > 0 && (raw.includes('$') || raw.includes('@') || raw.length < 15 || /[A-Z]/.test(raw) && raw.length < 18);
+    warn.style.display = looksWrong ? 'block' : 'none';
+  }
   save(); syncSettingsUI();
 }
 function onAntChange() {
@@ -7313,7 +7321,8 @@ function isExtendedHours(){
 }
 
 function startAutoRefresh(){
-  if(window._art){clearInterval(window._art);}
+  if(window._art) return; // già attivo — non resettare
+  if(window._artOld){clearInterval(window._artOld);}
   window._art=setInterval(function(){
     try{
       var ny=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',hour12:false}).format(new Date());
@@ -7326,7 +7335,7 @@ function startAutoRefresh(){
       var nyMins=h*60+parseInt(new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',minute:'numeric'}).format(new Date()));
       if((euMins>=540&&euMins<1050)||(nyMins>=570&&nyMins<960)) fetchPrices();
     }catch(e){}
-  },180000);
+  },90000); // 90s — più reattivo durante orari di borsa
 }
 
 let _chartModalTicker=null,_chartModalPeriod='1A',_chartModalReturnPage='portfolio',_chartModalTh=null;
@@ -7352,6 +7361,10 @@ function openChartModal(ticker){
   renderChartModal();
   loadChartModalData();
 }
+function stopAutoRefresh(){
+  if(window._art){clearInterval(window._art); window._art=null;}
+}
+
 function closeChartModal(){
   document.getElementById('chart-modal').classList.add('hidden');
   _chartModalTicker=null;
