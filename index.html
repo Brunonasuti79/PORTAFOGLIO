@@ -8875,6 +8875,19 @@ const sb = supabase.createClient(SB_URL, SB_KEY, {
 let _sbSaveTimer = null;
 let _cachedSession = null; // sessione in memoria — evita getSession() network call
 
+async function sbGetFreshSession() {
+  // La cache può contenere una sessione vecchia: prima chiediamo sempre al client
+  // Supabase la sessione effettivamente attiva, così le request hanno il JWT giusto.
+  try {
+    const { data } = await sb.auth.getSession();
+    if (data?.session?.user?.id) {
+      _cachedSession = data.session;
+      return data.session;
+    }
+  } catch(e) {}
+  return _cachedSession;
+}
+
 // ── UI helpers ──────────────────────────────────────────────────
 function sbShowTab(tab) {
   const isLogin = tab === 'login';
@@ -8972,7 +8985,10 @@ async function sbLoadData() {
   // Supabase è usato SOLO per sincronizzare tra device diversi
   // Timeout aggressivo: se Supabase non risponde in 6s, usa solo localStorage
   try {
-    const fetchPromise = sb.from('user_data').select('data').maybeSingle();
+    const session = await sbGetFreshSession();
+    const uid = session?.user?.id;
+    if (!uid) return;
+    const fetchPromise = sb.from('user_data').select('data').eq('user_id', uid).maybeSingle();
     const timeoutPromise = new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 6000));
     const { data, error } = await Promise.race([fetchPromise, timeoutPromise]);
 
@@ -9058,37 +9074,64 @@ function getSlimData() {
 }
 
 async function sbSaveNow() {
-  let session = _cachedSession;
-  if (!session?.user?.id) return;
+  const session = await sbGetFreshSession();
+  const uid = session?.user?.id;
+  if (!uid) return;
+
   try {
     const slim = getSlimData();
-    const doUpsert = (uid) => sb.from('user_data').upsert(
-      { user_id: uid, data: slim, updated_at: new Date().toISOString() },
-      { onConflict: 'user_id' }
-    );
-    let { error } = await Promise.race([
-      doUpsert(session.user.id),
-      new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+    const row = {
+      user_id: uid,
+      data: slim,
+      updated_at: new Date().toISOString()
+    };
+
+    const timeout = (ms=8000) => new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), ms));
+
+    // Prima prova: UPDATE della riga dell'utente.
+    // Se la riga non esiste ancora, poi facciamo INSERT.
+    let { data: updatedRows, error } = await Promise.race([
+      sb.from('user_data')
+        .update({ data: row.data, updated_at: row.updated_at })
+        .eq('user_id', uid)
+        .select('user_id'),
+      timeout()
     ]);
-    // Se RLS o auth error: refresh sessione e riprova una volta
-    if (error && (error.message?.includes('row-level security') || error.message?.includes('JWT'))) {
-      console.warn('[SB] sessione scaduta, refresh...');
-      try {
-        const { data } = await sb.auth.refreshSession();
-        if (data?.session) {
-          _cachedSession = data.session;
-          session = data.session;
-          const retry = await Promise.race([
-            doUpsert(session.user.id),
-            new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 8000))
-          ]);
-          error = retry.error;
-        }
-      } catch(re) { console.warn('[SB] refresh fallito:', re.message); }
+
+    if (!error && Array.isArray(updatedRows) && updatedRows.length > 0) {
+      console.log('[SB] saved OK');
+      return;
     }
+
+    // Se UPDATE non ha trovato righe, crea la prima riga.
+    if (!error && (!updatedRows || updatedRows.length === 0)) {
+      const insertRes = await Promise.race([
+        sb.from('user_data').insert(row).select('user_id').single(),
+        timeout()
+      ]);
+      error = insertRes.error;
+    }
+
+    // Fallback: se esiste già una riga ma insert/update hanno avuto conflitto,
+    // prova UPSERT vincolato su user_id.
+    if (error && /duplicate|conflict/i.test(error.message || '')) {
+      const upsertRes = await Promise.race([
+        sb.from('user_data')
+          .upsert(row, { onConflict: 'user_id' })
+          .select('user_id')
+          .single(),
+        timeout()
+      ]);
+      error = upsertRes.error;
+    }
+
     if (error) {
       console.error('[SB] save error:', error.message);
-      showToast('⚠ Sync fallito: ' + error.message, 4000);
+      if ((error.message || '').includes('row-level security')) {
+        showToast('⚠ Sync Supabase bloccato da RLS: controlla policy user_data', 5000);
+      } else {
+        showToast('⚠ Sync fallito: ' + error.message, 4000);
+      }
     } else {
       console.log('[SB] saved OK');
     }
