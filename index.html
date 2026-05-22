@@ -8614,6 +8614,7 @@ function renderWatchlist() {
     let va, vb;
     if (sort === 'name')  { va = (a.name||a.ticker).toLowerCase(); vb = (b.name||b.ticker).toLowerCase(); return dir * va.localeCompare(vb); }
     if (sort === '1M')    { va = getPct(a,'1M') ?? -Infinity; vb = getPct(b,'1M') ?? -Infinity; }
+    if (sort === '6M')    { va = getPct(a,'6M') ?? -Infinity; vb = getPct(b,'6M') ?? -Infinity; }
     if (sort === '1A')    { va = getPct(a,'1A') ?? -Infinity; vb = getPct(b,'1A') ?? -Infinity; }
     if (sort === 'price') { va = (S.prices||{})[a.ticker] ?? -Infinity; vb = (S.prices||{})[b.ticker] ?? -Infinity; }
     return dir * (va - vb);
@@ -8633,8 +8634,9 @@ function renderWatchlist() {
     <div style="width:64px;flex-shrink:0"></div>
     <div style="flex:1">${colHdr('name','Titolo')}</div>
     <div style="display:flex;gap:6px;flex-shrink:0">
-      <span style="min-width:48px;text-align:center">${colHdr('1M','1M','center')}</span>
-      <span style="min-width:48px;text-align:center">${colHdr('1A','1A','center')}</span>
+      <span style="min-width:60px;text-align:center">${colHdr('1M','1M','center')}</span>
+      <span style="min-width:60px;text-align:center">${colHdr('6M','6M','center')}</span>
+      <span style="min-width:60px;text-align:center">${colHdr('1A','1A','center')}</span>
     </div>
     <div style="min-width:80px;text-align:right">${colHdr('price','Prezzo','right')}</div>
     <div style="width:40px"></div>
@@ -8690,73 +8692,59 @@ function renderWatchlist() {
     // Sparkline linea piccola
     const sparkHtml = renderSparkline(getSparkPts(item.ticker));
 
-    // Sticker grafico cliccabile
-    const chartBadge = `<span class="pf-badge" style="--bb:rgba(123,167,255,.4);--bg:rgba(123,167,255,.07);cursor:pointer;padding:2px 6px"
-      onclick="event.stopPropagation();openChartModal('${item.ticker}')" title="Grafico storico" tabindex="0" role="button">
-      <svg width="22" height="14" viewBox="0 0 22 14" fill="none" style="vertical-align:middle;display:block">
-        <path d="M1,13 L5,7 L10,10 L15,2 L21,5 L21,13 Z" fill="rgba(123,167,255,.2)"/>
-        <polyline points="1,13 5,7 10,10 15,2 21,5" fill="none" stroke="#7ba7ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-      </svg>
-    </span>`;
+
 
     // Medaglia (come nel portafoglio)
-    const medalBadge = getAnyBadge(item.ticker, p || 0);
+    const _rawMedal = getAnyBadge(item.ticker, p || 0);
+    const medalBadge = _rawMedal ? _rawMedal.replace('class="pf-badge"', 'class="pf-badge" style="font-size:18px;padding:3px 10px"') : '';
 
-    // Performance 1M e 1Y dalla history
+    // Chart badge grande
+    const chartBadge = `<span class="pf-badge" onclick="event.stopPropagation();openChartModal('${item.ticker}')"
+      style="font-size:18px;padding:3px 10px;--bb:rgba(123,167,255,.4);--bg:rgba(123,167,255,.07);cursor:pointer" title="Grafico storico">📈</span>`;
+
+    // Performance 1M 6M 1A
     const th1m = (S.tickerHistory||{})[item.ticker]?.['1M'];
+    const th6m = (S.tickerHistory||{})[item.ticker]?.['6M'];
     const th1a = (S.tickerHistory||{})[item.ticker]?.['1A'];
-    const perfStr = (th) => {
-      if (!th?.pts?.length) return null;
-      const pts = th.pts.filter(x=>x.c>0);
-      if (pts.length < 2) return null;
-      const pct = ((pts[pts.length-1].c - pts[0].c) / pts[0].c) * 100;
-      const cls = pct >= 0 ? 'gc' : 'lc';
-      return `<span class="${cls}" style="font-size:10px;font-weight:700">${pct>=0?'+':''}${pct.toFixed(1)}%</span>`;
-    };
-    const perf1m = perfStr(th1m);
-    const perf1a = perfStr(th1a);
-    const perfCol = (label, th) => {
-      if (!th?.pts?.length) return `<div style="display:flex;flex-direction:column;align-items:center;min-width:48px"><span style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px">${label}</span><span style="font-size:11px;color:var(--text3)">—</span></div>`;
+    const perfCard = (th) => {
+      if (!th?.pts?.length) return `<div style="min-width:60px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center"><span style="font-size:15px;color:var(--text3);font-family:'JetBrains Mono',monospace">—</span></div>`;
       const pts2 = th.pts.filter(x=>x.c>0);
-      if (pts2.length < 2) return `<div style="display:flex;flex-direction:column;align-items:center;min-width:48px"><span style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px">${label}</span><span style="font-size:11px;color:var(--text3)">—</span></div>`;
+      if (pts2.length < 2) return `<div style="min-width:60px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center"><span style="font-size:15px;color:var(--text3);font-family:'JetBrains Mono',monospace">—</span></div>`;
       const pct2 = ((pts2[pts2.length-1].c - pts2[0].c) / pts2[0].c) * 100;
       const col2 = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
-      const bg2  = pct2 >= 0 ? 'rgba(34,212,126,.1)' : 'rgba(255,59,59,.1)';
-      return `<div style="display:flex;flex-direction:column;align-items:center;min-width:48px;background:${bg2};border-radius:6px;padding:2px 6px">
-        <span style="font-size:9px;color:var(--text3);font-weight:700;letter-spacing:.5px">${label}</span>
-        <span style="font-size:12px;font-weight:700;color:${col2};font-family:'JetBrains Mono',monospace">${pct2>=0?'+':''}${pct2.toFixed(1)}%</span>
-      </div>`;
+      const bg2  = pct2 >= 0 ? 'rgba(31,224,126,.1)' : 'rgba(255,59,59,.1)';
+      return `<div style="min-width:60px;background:${bg2};border-radius:8px;padding:6px 8px;text-align:center"><span style="font-size:15px;font-weight:700;color:${col2};font-family:'JetBrains Mono',monospace;line-height:1.2">${pct2>=0?'+':''}${pct2.toFixed(1)}%</span></div>`;
     };
-    const perfRow = `<div style="display:flex;gap:6px;flex-shrink:0">${perfCol('1M',th1m)}${perfCol('1A',th1a)}</div>`;
+    const perfRow = `<div style="display:flex;gap:6px;flex-shrink:0">${perfCard(th1m)}${perfCard(th6m)}${perfCard(th1a)}</div>`;
 
-    return `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:center;gap:10px">
+    return `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:flex-start;gap:10px">
       <!-- Sparkline badge settimanale -->
       <div style="flex-shrink:0">${sparkBadge}</div>
       <!-- Info titolo -->
-      <div style="flex:1;min-width:0">
-        <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap">
-          <span style="font-weight:700;color:var(--text);font-size:14px;white-space:nowrap">${esc(item.name || item.ticker)}</span>
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span style="font-weight:700;color:var(--text);font-size:15px;white-space:nowrap">${esc(item.name || item.ticker)}</span>
           ${medalBadge}
           ${chartBadge}
           ${alertBadge}
         </div>
-        <div style="font-size:11px;color:var(--text3);margin-top:2px;font-family:'JetBrains Mono',monospace">
+        <div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace">
           ${esc(item.ticker)}${item.isin ? ' · ' + esc(item.isin) : ''}${item.market ? ' · ' + esc(item.market) : ''}
         </div>
       </div>
-      <!-- Trend 1M e 1A come colonne a destra -->
+      <!-- Trend 1M 6M 1A -->
       ${perfRow}
       <!-- Prezzo e variazione -->
-      <div style="text-align:right;flex-shrink:0">
-        <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--text)">${pStr}</div>
-        <div style="font-size:12px;margin-top:2px">${dayStr}</div>
+      <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;gap:2px">
+        <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--text)">${pStr}</div>
+        <div style="font-size:12px">${dayStr}</div>
       </div>
       <!-- Azioni -->
-      <div style="display:flex;flex-direction:column;gap:4px;flex-shrink:0">
+      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
         <button onclick="openWlRenameModal('${item.id}')"
           style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.7" title="Rinomina">✏️</button>
         <button onclick="removeWatchlistItem('${item.id}')"
-          style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.6" title="Rimuovi">×</button>
+          style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.5" title="Rimuovi">×</button>
       </div>
     </div>`;
   }).join('') + '</div>';
