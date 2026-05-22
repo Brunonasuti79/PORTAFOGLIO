@@ -9058,18 +9058,34 @@ function getSlimData() {
 }
 
 async function sbSaveNow() {
-  // Usa sessione in memoria — nessuna chiamata di rete per il token
-  const session = _cachedSession;
+  let session = _cachedSession;
   if (!session?.user?.id) return;
   try {
     const slim = getSlimData();
-    const { error } = await Promise.race([
-      sb.from('user_data').upsert(
-        { user_id: session.user.id, data: slim, updated_at: new Date().toISOString() },
-        { onConflict: 'user_id' }
-      ),
-      new Promise((_,rej) => setTimeout(() => rej(new Error('upsert timeout 8s')), 8000))
+    const doUpsert = (uid) => sb.from('user_data').upsert(
+      { user_id: uid, data: slim, updated_at: new Date().toISOString() },
+      { onConflict: 'user_id' }
+    );
+    let { error } = await Promise.race([
+      doUpsert(session.user.id),
+      new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 8000))
     ]);
+    // Se RLS o auth error: refresh sessione e riprova una volta
+    if (error && (error.message?.includes('row-level security') || error.message?.includes('JWT'))) {
+      console.warn('[SB] sessione scaduta, refresh...');
+      try {
+        const { data } = await sb.auth.refreshSession();
+        if (data?.session) {
+          _cachedSession = data.session;
+          session = data.session;
+          const retry = await Promise.race([
+            doUpsert(session.user.id),
+            new Promise((_,rej) => setTimeout(() => rej(new Error('timeout')), 8000))
+          ]);
+          error = retry.error;
+        }
+      } catch(re) { console.warn('[SB] refresh fallito:', re.message); }
+    }
     if (error) {
       console.error('[SB] save error:', error.message);
       showToast('⚠ Sync fallito: ' + error.message, 4000);
