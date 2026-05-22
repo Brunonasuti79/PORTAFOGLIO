@@ -8645,12 +8645,9 @@ function renderWatchlist() {
       color:${active?'var(--blue)':'var(--text3)'};text-align:${align||'left'};
       user-select:none;white-space:nowrap">${label}<span style="opacity:${active?1:.4}">${arrow}</span></span>`;
   };
-  const sortBar = `<div style="display:grid;grid-template-columns:68px 1fr 36px 36px 100px 60px 60px 60px 95px 32px;gap:8px;align-items:center;padding:0 14px 6px;border-bottom:1px solid var(--border);margin-bottom:8px">
+  const sortBar = `<div style="display:grid;grid-template-columns:68px 1fr 60px 60px 60px 95px 32px;gap:8px;align-items:center;padding:0 14px 6px;border-bottom:1px solid var(--border);margin-bottom:8px">
     <div></div>
     <div>${colHdr('name','Titolo')}</div>
-    <div></div>
-    <div></div>
-    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px">Alert</div>
     <div style="text-align:center">${colHdr('1M','1M','center')}</div>
     <div style="text-align:center">${colHdr('6M','6M','center')}</div>
     <div style="text-align:center">${colHdr('1A','1A','center')}</div>
@@ -8711,12 +8708,14 @@ function renderWatchlist() {
 
 
     // Medaglia (come nel portafoglio)
-    const _rawMedal = getAnyBadge(item.ticker, p || 0);
-    const medalBadge = _rawMedal ? _rawMedal.replace('class="pf-badge"', 'class="pf-badge" style="font-size:18px;padding:3px 10px"') : '';
-
-    // Chart badge grande
+    // Badge identici al portafoglio
+    const medalBadge = getAnyBadge(item.ticker, p || 0);
     const chartBadge = `<span class="pf-badge" onclick="event.stopPropagation();openChartModal('${item.ticker}')"
-      style="font-size:18px;padding:3px 10px;--bb:rgba(123,167,255,.4);--bg:rgba(123,167,255,.07);cursor:pointer" title="Grafico storico">📈</span>`;
+      style="--bb:rgba(123,167,255,.4);--bg:rgba(123,167,255,.07);cursor:pointer" title="Grafico storico" tabindex="0">
+      <svg width="22" height="14" viewBox="0 0 22 14" fill="none" style="vertical-align:middle;display:block">
+        <path d="M1,13 L5,7 L10,10 L15,2 L21,5 L21,13 Z" fill="rgba(123,167,255,.2)"/>
+        <polyline points="1,13 5,7 10,10 15,2 21,5" fill="none" stroke="#7ba7ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg></span>`;
 
     // Performance 1M 6M 1A
     const th1m = (S.tickerHistory||{})[item.ticker]?.['1M'];
@@ -8736,21 +8735,20 @@ function renderWatchlist() {
     // Estrai le 3 card trend come celle separate
     const [c1m, c6m, c1a] = [perfCard(th1m), perfCard(th6m), perfCard(th1a)];
 
-    return `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:grid;grid-template-columns:68px 1fr 36px 36px 100px 60px 60px 60px 95px 32px;gap:8px;align-items:center">
-      <!-- Sparkline: placeholder se vuoto -->
+    return `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:grid;grid-template-columns:68px 1fr 60px 60px 60px 95px 32px;gap:8px;align-items:center">
+      <!-- Sparkline -->
       <div>${sparkBadge}</div>
-      <!-- Nome + ticker -->
+      <!-- Nome + badge tutti nella stessa cella -->
       <div>
-        <div style="font-weight:700;color:var(--text);font-size:15px">${esc(item.name || item.ticker)}</div>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:nowrap">
+          <span style="font-weight:700;color:var(--text);font-size:15px;white-space:nowrap">${esc(item.name || item.ticker)}</span>
+          ${medalBadge}
+          ${chartBadge}
+          <span style="white-space:nowrap">${alertBadge}</span>
+        </div>
         <div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px">${esc(item.ticker)}${item.isin?' · '+esc(item.isin):''}${item.market?' · '+esc(item.market):''}</div>
       </div>
-      <!-- Medaglia colonna fissa -->
-      <div style="display:flex;justify-content:center">${medalBadge}</div>
-      <!-- Grafico colonna fissa -->
-      <div style="display:flex;justify-content:center">${chartBadge}</div>
-      <!-- Alert colonna fissa -->
-      <div>${alertBadge}</div>
-      <!-- Trend -->
+      <!-- Trend 1M 6M 1A -->
       ${c1m}${c6m}${c1a}
       <!-- Prezzo -->
       <div style="text-align:right">
