@@ -7329,7 +7329,7 @@ function startAutoRefresh(){
   },180000);
 }
 
-let _chartModalTicker=null,_chartModalPeriod='1A',_chartModalReturnPage='portfolio';
+let _chartModalTicker=null,_chartModalPeriod='1A',_chartModalReturnPage='portfolio',_chartModalTh=null;
 function openChartModal(ticker){
   _chartModalTicker=ticker;
   _chartModalPeriod=_chartModalPeriod||'1A';
@@ -7375,6 +7375,7 @@ function renderChartModal(){
   const perDiv=document.getElementById('chart-modal-periods');
   if(perDiv)perDiv.innerHTML=Object.keys(PERIOD_CFG).map(p=>`<button class="hist-period${period===p?' active':''}" onclick="_chartModalPeriod='${p}';((S.tickerHistory||{})[_chartModalTicker]?.['${p}']?renderChartModal():loadChartModalData())">${p}</button>`).join('');
   const body=document.getElementById('chart-modal-body');if(!body)return;
+  _chartModalTh = th || null; // salva th con prezzo live iniettato — usato dal crosshair
   body.innerHTML=th?renderHistoryChart(ticker,th,hlds,period):`<div class="empty" style="padding:40px 20px">Premi <strong>↻ Aggiorna</strong> (${PERIOD_CFG[period]?.label}).</div>`;
   // setupHistoryCrosshair rimosso — il mousemove è gestito dal handler globale su chart-modal-body
 }
@@ -7870,11 +7871,18 @@ function getMedalBadge(ticker, currentPrice) {
     return mx;
   };
 
-  const m1 = maxInDays(30), m6 = maxInDays(180), m12 = maxInDays(365), all = maxAll();
-  if (near(all, currentPrice))  return _badgeHtml('🏆','Massimo storico','Prezzo ai livelli più alti mai registrati','rgba(251,191,36,.22)','rgba(251,191,36,.6)');
-  if (near(m12, currentPrice))  return _badgeHtml('🚀','Massimo 12 mesi','Vicino al picco dell\'ultimo anno','rgba(139,92,246,.18)','rgba(139,92,246,.5)');
-  if (near(m6, currentPrice))   return _badgeHtml('⚡','Massimo 6 mesi','Ai livelli più alti degli ultimi 6 mesi','rgba(250,204,21,.18)','rgba(250,204,21,.5)');
-  if (near(m1, currentPrice))   return _badgeHtml('🔥','Massimo 30 giorni','Prezzo al top dell\'ultimo mese','rgba(251,146,60,.18)','rgba(251,146,60,.5)');
+  const _thM = S.tickerHistory?.[ticker] || {};
+  const _has1AM = (_thM['1A']?.pts?.length||0) >= 50;
+  const _has6MM = (_thM['6M']?.pts?.length||0) >= 100;
+  const _has2AM = (_thM['2A']?.pts?.length||0) >= 80;
+  const m1M = maxInDays(30);
+  const m6M  = _has6MM ? maxInDays(180) : null;
+  const m12M = _has1AM ? maxInDays(365) : null;
+  const allM = _has2AM ? maxAll() : null;
+  if (allM  && near(allM,  currentPrice))  return _badgeHtml('🏆','Massimo storico','Prezzo ai livelli più alti mai registrati','rgba(251,191,36,.22)','rgba(251,191,36,.6)');
+  if (m12M  && near(m12M, currentPrice))  return _badgeHtml('🚀','Massimo 12 mesi','Vicino al picco dell\'ultimo anno','rgba(139,92,246,.18)','rgba(139,92,246,.5)');
+  if (m6M   && near(m6M,  currentPrice))   return _badgeHtml('⚡','Massimo 6 mesi','Ai livelli più alti degli ultimi 6 mesi','rgba(250,204,21,.18)','rgba(250,204,21,.5)');
+  if (m1M   && near(m1M,  currentPrice))   return _badgeHtml('🔥','Massimo 30 giorni','Prezzo al top dell\'ultimo mese','rgba(251,146,60,.18)','rgba(251,146,60,.5)');
   return '';
 }
 
@@ -7926,11 +7934,18 @@ function getLowBadge(ticker, currentPrice) {
     return mn;
   };
 
-  const m1 = minInDays(30), m6 = minInDays(180), m12 = minInDays(365), all = minAll();
-  if (near(all, currentPrice))  return _badgeHtml('💀','Minimo storico','Prezzo ai livelli più bassi mai registrati','rgba(127,29,29,.25)','rgba(239,68,68,.6)');
-  if (near(m12, currentPrice))  return _badgeHtml('📉','Minimo 12 mesi','Vicino al minimo dell\'ultimo anno','rgba(185,28,28,.18)','rgba(239,68,68,.5)');
-  if (near(m6, currentPrice))   return _badgeHtml('⚠️','Minimo 6 mesi','Ai livelli più bassi degli ultimi 6 mesi','rgba(245,158,11,.15)','rgba(245,158,11,.5)');
-  if (near(m1, currentPrice))   return _badgeHtml('🔴','Minimo 30 giorni','Prezzo al minimo dell\'ultimo mese','rgba(239,68,68,.15)','rgba(239,68,68,.5)');
+  const _thL = S.tickerHistory?.[ticker] || {};
+  const _has1AL = (_thL['1A']?.pts?.length||0) >= 50;
+  const _has6ML = (_thL['6M']?.pts?.length||0) >= 100;
+  const _has2AL = (_thL['2A']?.pts?.length||0) >= 80;
+  const m1 = minInDays(30);
+  const m6  = _has6ML ? minInDays(180) : null;
+  const m12 = _has1AL ? minInDays(365) : null;
+  const all = _has2AL ? minAll() : null;
+  if (all  && near(all,  currentPrice))  return _badgeHtml('💀','Minimo storico','Prezzo ai livelli più bassi mai registrati','rgba(127,29,29,.25)','rgba(239,68,68,.6)');
+  if (m12  && near(m12, currentPrice))  return _badgeHtml('📉','Minimo 12 mesi','Vicino al minimo dell\'ultimo anno','rgba(185,28,28,.18)','rgba(239,68,68,.5)');
+  if (m6   && near(m6,  currentPrice))   return _badgeHtml('⚠️','Minimo 6 mesi','Ai livelli più bassi degli ultimi 6 mesi','rgba(245,158,11,.15)','rgba(245,158,11,.5)');
+  if (m1   && near(m1,  currentPrice))   return _badgeHtml('🔴','Minimo 30 giorni','Prezzo al minimo dell\'ultimo mese','rgba(239,68,68,.15)','rgba(239,68,68,.5)');
   return '';
 }
 
@@ -8630,16 +8645,17 @@ function renderWatchlist() {
       color:${active?'var(--blue)':'var(--text3)'};text-align:${align||'left'};
       user-select:none;white-space:nowrap">${label}<span style="opacity:${active?1:.4}">${arrow}</span></span>`;
   };
-  const sortBar = `<div style="display:flex;align-items:center;gap:10px;margin:0 14px 4px;padding:4px 14px 6px;border-bottom:1px solid var(--border)">
-    <div style="width:64px;flex-shrink:0"></div>
-    <div style="flex:1">${colHdr('name','Titolo')}</div>
-    <div style="display:flex;gap:6px;flex-shrink:0">
-      <span style="min-width:60px;text-align:center">${colHdr('1M','1M','center')}</span>
-      <span style="min-width:60px;text-align:center">${colHdr('6M','6M','center')}</span>
-      <span style="min-width:60px;text-align:center">${colHdr('1A','1A','center')}</span>
-    </div>
-    <div style="min-width:80px;text-align:right">${colHdr('price','Prezzo','right')}</div>
-    <div style="width:40px"></div>
+  const sortBar = `<div style="display:grid;grid-template-columns:68px 1fr 36px 36px 100px 60px 60px 60px 95px 32px;gap:8px;align-items:center;padding:0 14px 6px;border-bottom:1px solid var(--border);margin-bottom:8px">
+    <div></div>
+    <div>${colHdr('name','Titolo')}</div>
+    <div></div>
+    <div></div>
+    <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px">Alert</div>
+    <div style="text-align:center">${colHdr('1M','1M','center')}</div>
+    <div style="text-align:center">${colHdr('6M','6M','center')}</div>
+    <div style="text-align:center">${colHdr('1A','1A','center')}</div>
+    <div style="text-align:right">${colHdr('price','Prezzo','right')}</div>
+    <div></div>
   </div>`;
 
   if (!wl.length) {
@@ -8715,36 +8731,36 @@ function renderWatchlist() {
       const bg2  = pct2 >= 0 ? 'rgba(31,224,126,.1)' : 'rgba(255,59,59,.1)';
       return `<div style="min-width:60px;background:${bg2};border-radius:8px;padding:6px 8px;text-align:center"><span style="font-size:15px;font-weight:700;color:${col2};font-family:'JetBrains Mono',monospace;line-height:1.2">${pct2>=0?'+':''}${pct2.toFixed(1)}%</span></div>`;
     };
-    const perfRow = `<div style="display:flex;gap:6px;flex-shrink:0">${perfCard(th1m)}${perfCard(th6m)}${perfCard(th1a)}</div>`;
+    // perfRow non più usato — le card sono celle dirette nella grid
 
-    return `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:flex;align-items:flex-start;gap:10px">
-      <!-- Sparkline badge settimanale -->
-      <div style="flex-shrink:0">${sparkBadge}</div>
-      <!-- Info titolo -->
-      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:4px">
-        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-          <span style="font-weight:700;color:var(--text);font-size:15px;white-space:nowrap">${esc(item.name || item.ticker)}</span>
-          ${medalBadge}
-          ${chartBadge}
-          ${alertBadge}
-        </div>
-        <div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace">
-          ${esc(item.ticker)}${item.isin ? ' · ' + esc(item.isin) : ''}${item.market ? ' · ' + esc(item.market) : ''}
-        </div>
+    // Estrai le 3 card trend come celle separate
+    const [c1m, c6m, c1a] = [perfCard(th1m), perfCard(th6m), perfCard(th1a)];
+
+    return `<div style="margin:0 14px 6px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 14px;display:grid;grid-template-columns:68px 1fr 36px 36px 100px 60px 60px 60px 95px 32px;gap:8px;align-items:center">
+      <!-- Sparkline: placeholder se vuoto -->
+      <div>${sparkBadge}</div>
+      <!-- Nome + ticker -->
+      <div>
+        <div style="font-weight:700;color:var(--text);font-size:15px">${esc(item.name || item.ticker)}</div>
+        <div style="font-size:11px;color:var(--text3);font-family:'JetBrains Mono',monospace;margin-top:2px">${esc(item.ticker)}${item.isin?' · '+esc(item.isin):''}${item.market?' · '+esc(item.market):''}</div>
       </div>
-      <!-- Trend 1M 6M 1A -->
-      ${perfRow}
-      <!-- Prezzo e variazione -->
-      <div style="text-align:right;flex-shrink:0;display:flex;flex-direction:column;gap:2px">
-        <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:16px;color:var(--text)">${pStr}</div>
-        <div style="font-size:12px">${dayStr}</div>
+      <!-- Medaglia colonna fissa -->
+      <div style="display:flex;justify-content:center">${medalBadge}</div>
+      <!-- Grafico colonna fissa -->
+      <div style="display:flex;justify-content:center">${chartBadge}</div>
+      <!-- Alert colonna fissa -->
+      <div>${alertBadge}</div>
+      <!-- Trend -->
+      ${c1m}${c6m}${c1a}
+      <!-- Prezzo -->
+      <div style="text-align:right">
+        <div style="font-family:'JetBrains Mono',monospace;font-weight:700;font-size:15px;color:var(--text)">${pStr}</div>
+        <div style="font-size:12px;margin-top:2px">${dayStr}</div>
       </div>
       <!-- Azioni -->
-      <div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">
-        <button onclick="openWlRenameModal('${item.id}')"
-          style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.7" title="Rinomina">✏️</button>
-        <button onclick="removeWatchlistItem('${item.id}')"
-          style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:2px 4px;line-height:1;opacity:.5" title="Rimuovi">×</button>
+      <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
+        <button onclick="openWlRenameModal('${item.id}')" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:0;line-height:1;opacity:.7" title="Rinomina">✏️</button>
+        <button onclick="removeWatchlistItem('${item.id}')" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:0;line-height:1;opacity:.5" title="Rimuovi">×</button>
       </div>
     </div>`;
   }).join('') + '</div>';
@@ -9244,18 +9260,19 @@ sbInit();
     // Costanti identiche a renderHistoryChart
     const W=720, H=240, pl=62, pr=16, pt_=14, pb=34, cw=W-pl-pr, ch=H-pt_-pb;
 
-    // Recupera i pts dal ticker/periodo corrente
+    // Usa _chartModalTh — stesso oggetto usato per disegnare il grafico (con prezzo live)
     const ticker = _chartModalTicker;
-    const period = _chartModalPeriod || '1A';
-    if (!ticker) return;
-    const th = (S?.tickerHistory||{})[ticker]?.[period];
+    if (!ticker || !_chartModalTh) return;
+    const th = _chartModalTh;
     if (!th?.pts?.length) return;
     const pts = th.pts.filter(p => p.c > 0);
     if (pts.length < 3) return;
 
     // Scala Y identica a renderHistoryChart
-    const hld = calcPF().find(h => h.ticker === ticker);
-    const avgLine = hld ? (hld.avgPrice || hld.avgPriceBuyCcy || 0) : 0;
+    const hld = calcPF().find(h => h.ticker === ticker)
+      || (ALL.watchlist||[]).find(w => w.ticker === ticker)
+      || {avgPrice:0, avgPriceBuyCcy:0};
+    const avgLine = hld.avgPrice || hld.avgPriceBuyCcy || 0;
     const prices = pts.map(p => p.c);
     const minP = Math.min(...prices, avgLine > 0 ? avgLine : Infinity) * 0.97;
     const maxP = Math.max(...prices, avgLine > 0 ? avgLine : 0) * 1.03;
