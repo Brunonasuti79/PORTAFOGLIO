@@ -8601,13 +8601,40 @@ async function loadETFDataFromGist() {
     _etfData = JSON.parse(content);
     ALL.etfComposition = _etfData;
     save();
-    const meta = _etfData.__meta || {};
-    const ok  = (meta.updated || []).length;
-    const nok = (meta.failed  || []).length;
-    const msg = `✅ Caricati ${ok + (meta.staticData?.length||0)} ETF`
-      + (meta.staticData?.length ? ` (${meta.staticData.length} con dati statici)` : '')
-      + (nok ? ` · ⚠ ${nok} non trovati` : '');
-    showToast(msg, 5000);
+    const meta2 = _etfData.__meta || {};
+    const allUpdated = [...(meta2.updated||[]), ...(meta2.staticData||[])];
+    const failed2    = meta2.failed || [];
+    // Mostra riepilogo spunte nell'area status
+    const statusEl = document.getElementById('etf-update-status');
+    if (statusEl) {
+      const rows = allUpdated.map(tk => {
+        const name = _etfData[tk]?.name || tk;
+        const src  = _etfData[tk]?.source || '';
+        const srcTag = src === 'static'
+          ? `<span style="font-size:10px;color:var(--text3);background:var(--bg3);border-radius:4px;padding:1px 5px">📋 statico</span>`
+          : `<span style="font-size:10px;color:var(--green);background:rgba(34,212,126,.1);border-radius:4px;padding:1px 5px">🔄 live</span>`;
+        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+          <span style="color:var(--green);font-size:14px">✓</span>
+          <span style="font-size:12px;flex:1">${name}</span>
+          ${srcTag}
+        </div>`;
+      }).join('');
+      const failRows = failed2.map(tk =>
+        `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+          <span style="color:var(--red);font-size:14px">✗</span>
+          <span style="font-size:12px;color:var(--text2)">${_etfData[tk]?.name||tk}</span>
+          <span style="font-size:10px;color:var(--red)">non trovato</span>
+        </div>`
+      ).join('');
+      statusEl.innerHTML = `
+        <div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:12px">
+          <div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.6px;margin-bottom:8px">
+            Aggiornamento ${allUpdated.length}/${allUpdated.length+failed2.length} ETF
+          </div>
+          ${rows}${failRows}
+        </div>`;
+    }
+    showToast(`✅ ${allUpdated.length} ETF caricati`, 3000);
     renderETFAnalytics();
   } catch(e) {
     showToast('⚠ ' + e.message, 4000);
@@ -8699,11 +8726,24 @@ const GEO_FLAGS = {
 // Calcola peso ETF nel portafoglio (usa valore corrente)
 function getETFWeight(etfList) {
   const hlds = calcPF();
+  // Mappa ISIN → valore totale nel portafoglio
+  const isinToValue = {};
+  hlds.forEach(h => {
+    const op = (S.ops||[]).find(o => (o.quoteTicker||o.ticker) === h.ticker);
+    const isin = (op?.isin||'').trim();
+    const v = currentValueAllEUR(h)||0;
+    if (isin && v > 0) isinToValue[isin] = (isinToValue[isin]||0) + v;
+  });
+
   const withVal = etfList.map(e => {
+    // Prima cerca per ticker esatto, poi per ISIN
     const h = hlds.find(x => x.ticker === e.ticker);
-    const v = h ? (currentValueAllEUR(h)||0) : e.valueEUR||0;
+    let v = h ? (currentValueAllEUR(h)||0) : 0;
+    if (!v && e.isin && isinToValue[e.isin]) v = isinToValue[e.isin];
+    if (!v) v = e.valueEUR||0;
     return { ...e, valueEUR: v };
   }).filter(e => e.valueEUR > 0);
+
   const total = withVal.reduce((s,e)=>s+e.valueEUR,0)||1;
   return { withVal, total };
 }
@@ -8782,6 +8822,18 @@ function renderETFSection(title, type, etfs, data) {
   const m = ETF_MACRO_LABELS[type];
   const etfTags = withVal.map(e=>`<span style="background:var(--bg3);border-radius:6px;padding:2px 8px;font-size:11px;color:var(--text2)">${data[e.ticker]?.name||e.ticker}</span>`).join(' ');
   const topOv = Object.entries(overlaps).filter(([,v])=>v.etfs.length>1&&v.total>0.3).sort((a,b)=>b[1].total-a[1].total).slice(0,5);
+    // Top holdings per peso pesato sull'intera categoria
+    const topHoldings = {};
+    for (const e of withVal) {
+      const d = data[e.ticker]; if (!d||!d.holdings?.length) continue;
+      const w = e.valueEUR / total;
+      d.holdings.forEach(h => {
+        if (!h.name) return;
+        if (!topHoldings[h.name]) topHoldings[h.name] = {total:0,etfs:[]};
+        topHoldings[h.name].total += w * h.weight;
+        if (!topHoldings[h.name].etfs.includes(e.ticker)) topHoldings[h.name].etfs.push(e.ticker);
+      });
+    }
 
   return `<div style="margin-bottom:28px">
     <!-- Section header -->
@@ -8800,15 +8852,37 @@ function renderETFSection(title, type, etfs, data) {
         ${renderGeoGrid(aggGeo)}
       </div>
     </div>
-    ${topOv.length ? `
-    <!-- Sovrapposizioni -->
-    <div style="margin-top:16px">
-      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Sovrapposizioni</div>
-      ${topOv.map(([name,v])=>`<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;background:var(--bg2);border-radius:8px;margin-bottom:4px">
-        <span style="flex:1;font-size:12px">${name}</span>
-        <span style="font-size:11px;color:var(--text3)">${v.etfs.join(' · ')}</span>
-        <span style="font-weight:700;font-size:12px;font-family:'JetBrains Mono',monospace;color:${m.color}">${v.total.toFixed(1)}%</span>
-      </div>`).join('')}
+    ${(topOv.length || Object.keys(topHoldings).length) ? `
+    <div style="margin-top:20px;display:grid;grid-template-columns:${topOv.length && Object.keys(topHoldings).length ? '1fr 1fr' : '1fr'};gap:20px">
+
+      ${Object.keys(topHoldings).length ? `
+      <!-- Top 10 aziende per peso -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">
+          🏢 Top aziende per peso
+        </div>
+        ${Object.entries(topHoldings).sort((a,b)=>b[1].total-a[1].total).slice(0,10).map(([name,v],i)=>`
+          <div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg2);border-radius:8px;margin-bottom:4px">
+            <span style="font-size:11px;font-weight:700;color:var(--text3);width:18px;text-align:right">${i+1}</span>
+            <span style="flex:1;font-size:12px;font-weight:500">${name}</span>
+            ${v.etfs.length > 1 ? `<span style="font-size:10px;color:${m.color};background:${m.bg};border-radius:4px;padding:1px 5px">${v.etfs.length} ETF</span>` : ''}
+            <span style="font-weight:700;font-size:12px;font-family:'JetBrains Mono',monospace;color:${m.color};width:42px;text-align:right">${v.total.toFixed(1)}%</span>
+          </div>`).join('')}
+      </div>` : ''}
+
+      ${topOv.length ? `
+      <!-- Aziende in più ETF -->
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">
+          🔄 Sovrapposizioni tra ETF
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Aziende presenti in più ETF della categoria</div>
+        ${topOv.map(([name,v])=>`<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg2);border-radius:8px;margin-bottom:4px">
+          <span style="flex:1;font-size:12px">${name}</span>
+          <span style="font-size:10px;color:var(--text3)">${v.etfs.join(' · ')}</span>
+          <span style="font-weight:700;font-size:12px;font-family:'JetBrains Mono',monospace;color:${m.color};width:42px;text-align:right">${v.total.toFixed(1)}%</span>
+        </div>`).join('')}
+      </div>` : ''}
     </div>` : ''}
     <div style="border-top:1px solid var(--border);margin-top:20px"></div>
   </div>`;
@@ -8838,12 +8912,17 @@ function renderETFAnalytics() {
       return;
     }
 
-    // Classifica tutti gli ETF disponibili nel JSON
-    const allETFs = Object.keys(data).filter(k=>k!=='__meta').map(tk=>({
-      ticker: tk,
-      isin: data[tk]?.isin||'',
-      valueEUR: 1,
-    }));
+    // Classifica ETF disponibili nel JSON — deduplica per ISIN (es. XMME.DE e XMME.MI)
+    const seenISIN = new Set();
+    const allETFs = Object.keys(data).filter(k=>k!=='__meta')
+      .map(tk => ({ ticker: tk, isin: data[tk]?.isin||'', valueEUR: 1 }))
+      .filter(e => {
+        if (!e.isin) return true; // senza ISIN teniamo sempre
+        if (seenISIN.has(e.isin)) return false; // duplicato, skip
+        seenISIN.add(e.isin);
+        return true;
+      });
+
     const { withVal: allWithVal, total: grandTotal } = getETFWeight(allETFs);
 
     // Gruppa per macro-classe
