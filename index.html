@@ -3702,6 +3702,11 @@ function toggleHolding(ticker) {
 
 function renderPF() {
   const allHlds = calcPF();
+  const cats = [...new Set(allHlds.map(h=>h.assetClass||UNCATEGORIZED))].sort();
+  const filteredHlds = pfFilterCategory==='Tutte'
+    ? allHlds
+    : allHlds.filter(h=>(h.assetClass||UNCATEGORIZED)===pfFilterCategory);
+  const visible = sortHoldings(filteredHlds);
 
   const titleEl = document.getElementById('port-title');
   if (titleEl) titleEl.textContent = S?.name || 'PORTAFOGLIO';
@@ -3798,13 +3803,14 @@ function renderPF() {
   const ca = document.getElementById('cash-area');
   if (ca) {
     const cash = S.cashEUR||0;
-    const nHlds = allHlds.length;
+    const nHlds = visible.length;
+    const countLbl = pfFilterCategory==='Tutte' ? `${nHlds} Titoli` : `${nHlds} di ${allHlds.length} Titoli`;
     ca.innerHTML = `<div style="margin:0 14px 4px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:5px 12px;display:flex;align-items:center;gap:8px">
       <span class="sum-cl" style="flex-shrink:0">Liquidità</span>
       <div id="cash-hv" class="sum-cv" style="transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'—'}</div>
       <button onclick="openCashModal()" style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;cursor:pointer;font-family:'Outfit',sans-serif">DEPOSITO / PRELIEVO</button>
       <div style="flex:1"></div>
-      <div style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${nHlds} Titoli</div>
+      <div style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${countLbl}</div>
     </div>
 `;
   }
@@ -3817,11 +3823,6 @@ function renderPF() {
   }
 
   // Category filter (select) + sort col header helper
-  const cats = [...new Set(allHlds.map(h=>h.assetClass||UNCATEGORIZED))].sort();
-  
-  const visible = sortHoldings(
-    pfFilterCategory==='Tutte' ? allHlds : allHlds.filter(h=>(h.assetClass||UNCATEGORIZED)===pfFilterCategory)
-  );
   // port-cnt ora è inline nel filterBar
 
 
@@ -3943,6 +3944,41 @@ function renderPF() {
     </tr>${detail}`;
   }).join('');
 
+  const filterRecapHtml = (() => {
+    if (pfFilterCategory === 'Tutte') return '';
+    const invested = filteredHlds.reduce((a,h)=>a+(costBasisAllEUR(h)||0),0);
+    let current = 0, pricedInvested = 0, missing = 0;
+    for (const h of filteredHlds) {
+      const v = currentValueAllEUR(h);
+      if (v == null) { missing++; continue; }
+      current += v;
+      pricedInvested += costBasisAllEUR(h)||0;
+    }
+    const gain = current - pricedInvested;
+    const gCls = gain >= 0 ? 'gain' : 'loss';
+    const missingHtml = missing ? `<div style="font-size:10px;color:var(--text3);margin-top:6px;text-align:right">${missing} titolo/i senza prezzo aggiornato: valore e gain calcolati sui titoli prezzati.</div>` : '';
+    return `<div style="margin:6px 14px 80px;background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:10px 12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px">
+        <div style="font-size:10px;color:var(--text3);text-transform:uppercase;letter-spacing:1px;font-weight:800">Recap filtro · ${esc(pfFilterCategory)}</div>
+        <div style="font-size:10px;color:var(--blue);font-weight:800;background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.18);border-radius:999px;padding:3px 9px;white-space:nowrap">${filteredHlds.length} titoli</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
+        <div style="background:rgba(7,11,20,.28);border:1px solid rgba(123,167,255,.10);border-radius:11px;padding:8px 10px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:4px">Totale investito</div>
+          <div class="sum-cv${S.hideValues?' sum-hv':''}" style="font-size:15px">${e2(invested)}</div>
+        </div>
+        <div style="background:rgba(7,11,20,.28);border:1px solid rgba(123,167,255,.10);border-radius:11px;padding:8px 10px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:4px">Valore attuale</div>
+          <div class="sum-cv${S.hideValues?' sum-hv':''}" style="font-size:15px">${current>0?e2(current):'—'}</div>
+        </div>
+        <div style="background:rgba(7,11,20,.28);border:1px solid rgba(123,167,255,.10);border-radius:11px;padding:8px 10px;border-left:3px solid ${gain>=0?'rgba(34,212,126,.55)':'rgba(255,82,82,.55)'}">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:4px">Gain / Loss</div>
+          <div class="sum-cv ${gCls}${S.hideValues?' sum-hv':''}" style="font-size:15px">${current>0?(gain>=0?'+':'')+e2(gain):'—'}</div>
+        </div>
+      </div>${missingHtml}
+    </div>`;
+  })();
+
   pl.innerHTML = `${filterBar}
     <div class="pf-table-wrap" style="margin-top:3px">
       <table class="pf-table">
@@ -3957,7 +3993,7 @@ function renderPF() {
         </tr></thead>
         <tbody>${rows}</tbody>
       </table>
-    </div>`;
+    </div>${filterRecapHtml}`;
 }
 
 // ════════════════════════════════════════════════════════════════
