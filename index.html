@@ -1044,6 +1044,9 @@ input[type=number]{-moz-appearance:textfield}
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Aggiungi
         </button>
+        <button class="hbtn" id="notif-btn"
+          onclick="requestNotifPermission().then(ok=>{document.getElementById('notif-btn').textContent=ok?'🔔 ON':'🔕';showToast(ok?'✓ Notifiche abilitate':'Notifiche bloccate dal browser',3000)})"
+          style="font-size:11px;opacity:.7" title="Abilita notifiche alert">🔔</button>
       </div>
     </div>
     <div id="wl-list"></div>
@@ -3097,6 +3100,7 @@ async function fetchPrices() {
     btn.innerHTML = '⟳ Aggiorna';
     await fetchAHPrices();
     renderAll();
+    checkWlAlertsAndNotify();
   }
 }
 
@@ -8455,6 +8459,44 @@ function setupPWA() {
 // ════════════════════════════════════════════════════════════════
 
 // ── Modal add ───────────────────────────────────────────────────
+// ── Push Notifications ──────────────────────────────────────
+async function requestNotifPermission() {
+  if (!('Notification' in window)) return false;
+  if (Notification.permission === 'granted') return true;
+  if (Notification.permission === 'denied') return false;
+  const perm = await Notification.requestPermission();
+  return perm === 'granted';
+}
+
+function sendPushNotif(title, body, tag) {
+  if (Notification.permission !== 'granted') return;
+  try { new Notification(title, { body, tag, icon: '/PORTAFOGLIO/icon-192.png' }); } catch(e) {}
+}
+
+function checkWlAlertsAndNotify() {
+  const wl = ALL.watchlist || [];
+  for (const item of wl) {
+    const p = (S.prices || {})[item.ticker];
+    if (!p) continue;
+    if (item.alertAbove > 0 && p >= item.alertAbove) {
+      const key = `notif_above_${item.ticker}_${item.alertAbove}`;
+      if (!sessionStorage.getItem(key)) {
+        sendPushNotif(`🔔 ${item.name || item.ticker} — TARGET RAGGIUNTO`,
+          `Prezzo ${p.toFixed(2)} ≥ target ▲ ${item.alertAbove.toFixed(2)}`, key);
+        sessionStorage.setItem(key, '1');
+      }
+    }
+    if (item.alertBelow > 0 && p <= item.alertBelow) {
+      const key = `notif_below_${item.ticker}_${item.alertBelow}`;
+      if (!sessionStorage.getItem(key)) {
+        sendPushNotif(`🔔 ${item.name || item.ticker} — SOTTO TARGET`,
+          `Prezzo ${p.toFixed(2)} ≤ target ▼ ${item.alertBelow.toFixed(2)}`, key);
+        sessionStorage.setItem(key, '1');
+      }
+    }
+  }
+}
+
 function wlSetSort(key) {
   if ((window._wlSort || 'name') === key) {
     window._wlSortDir = (window._wlSortDir || 1) * -1; // inverti direzione
@@ -8463,6 +8505,24 @@ function wlSetSort(key) {
     window._wlSortDir = key === 'name' ? 1 : -1; // nome asc, valori desc per default
   }
   renderWatchlist();
+}
+
+function openBuyFromWatchlist(id) {
+  const item = (ALL.watchlist || []).find(w => w.id === id);
+  if (!item) return;
+  showPage('operations');
+  setTimeout(() => {
+    openModal();
+    const fTicker = document.getElementById('f-ticker');
+    const fIsin   = document.getElementById('f-isin');
+    const fName   = document.getElementById('f-name');
+    if (fTicker) { fTicker.value = item.ticker; fTicker.dispatchEvent(new Event('input')); }
+    if (fIsin && item.isin)  fIsin.value = item.isin;
+    if (fName && item.name)  fName.value = item.name;
+    const livePrice = (S.prices || {})[item.ticker];
+    const fPrice = document.getElementById('f-price');
+    if (fPrice && livePrice) fPrice.value = livePrice.toFixed(4);
+  }, 300);
 }
 
 function openWlRenameModal(id) {
@@ -8770,9 +8830,10 @@ function renderWatchlist() {
         <div style="font-size:12px;margin-top:2px">${dayStr}</div>
       </div>
       <!-- Azioni -->
-      <div style="display:flex;flex-direction:column;gap:6px;align-items:center">
-        <button onclick="openWlRenameModal('${item.id}')" style="background:none;border:none;color:var(--text3);font-size:13px;cursor:pointer;padding:0;line-height:1;opacity:.7" title="Rinomina">✏️</button>
-        <button onclick="removeWatchlistItem('${item.id}')" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;padding:0;line-height:1;opacity:.5" title="Rimuovi">×</button>
+      <div style="display:flex;flex-direction:column;gap:4px;align-items:center">
+        <button onclick="openBuyFromWatchlist('${item.id}')" style="background:rgba(31,224,126,.12);border:1px solid rgba(31,224,126,.4);border-radius:6px;color:var(--green);font-size:10px;font-weight:700;cursor:pointer;padding:2px 5px;line-height:1.4;white-space:nowrap" title="Aggiungi al portafoglio">+BUY</button>
+        <button onclick="openWlRenameModal('${item.id}')" style="background:none;border:none;color:var(--text3);font-size:12px;cursor:pointer;padding:0;line-height:1;opacity:.7" title="Rinomina">✏️</button>
+        <button onclick="removeWatchlistItem('${item.id}')" style="background:none;border:none;color:var(--text3);font-size:15px;cursor:pointer;padding:0;line-height:1;opacity:.5" title="Rimuovi">×</button>
       </div>
     </div>`;
   }).join('') + '</div>';
@@ -8783,6 +8844,7 @@ function renderWatchlist() {
 
 let _wlLoading = false;
 async function loadWlSparklines() {
+  if (Notification.permission === 'default') requestNotifPermission();
   if (_wlLoading) return; // guard anti-loop
   _wlLoading = true;
   let changed = false;
@@ -8798,24 +8860,33 @@ async function loadWlSparklines() {
       changed = true;
     }
 
-    // Carica storia per sparkline badge / grafico watchlist
+    // Carica storia 1M (sparkline) + 6M + 1A (trend cards) — tutti i periodi utili
+    const PERIODS_TO_LOAD = [
+      { key:'1M', interval:'1d',  range:'1mo' },
+      { key:'6M', interval:'1d',  range:'6mo' },
+      { key:'1A', interval:'1wk', range:'1y'  },
+    ];
     for (const item of wl) {
-      if (getSparkPts(item.ticker)) continue; // già in cache
-
+      const missing = PERIODS_TO_LOAD.filter(p =>
+        !S.tickerHistory?.[item.ticker]?.[p.key]?.pts?.length
+      );
+      if (!missing.length) continue;
       const candidates = buildWatchlistHistoryCandidates(item);
-      for (const sym of candidates) {
-        try {
-          const res = await fetchTickerHistory(sym, '1d', '1mo');
-          if (res && res.pts && res.pts.length >= 3) {
-            if (!S.tickerHistory) S.tickerHistory = {};
-            if (!S.tickerHistory[item.ticker]) S.tickerHistory[item.ticker] = {};
-            S.tickerHistory[item.ticker]['1M'] = { pts:res.pts, ccy:res.ccy, sym, updated:Date.now() };
-            save();
-            changed = true;
-            break;
-          }
-        } catch(e) {}
+      for (const per of missing) {
+        for (const sym of candidates) {
+          try {
+            const res = await fetchTickerHistory(sym, per.interval, per.range);
+            if (res && res.pts && res.pts.length >= 3) {
+              if (!S.tickerHistory) S.tickerHistory = {};
+              if (!S.tickerHistory[item.ticker]) S.tickerHistory[item.ticker] = {};
+              S.tickerHistory[item.ticker][per.key] = { pts:res.pts, ccy:res.ccy, sym, updated:Date.now() };
+              changed = true;
+              break;
+            }
+          } catch(e) {}
+        }
       }
+      if (changed) save();
     }
   } finally {
     _wlLoading = false;
