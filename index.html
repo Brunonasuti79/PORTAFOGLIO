@@ -8634,8 +8634,20 @@ async function loadETFDataFromGist() {
           ${rows}${failRows}
         </div>`;
     }
-    showToast(`✅ ${allUpdated.length} ETF caricati`, 3000);
+    // Deduplica per ISIN prima di contare
+    const seenI = new Set();
+    const uniqueUpdated = allUpdated.filter(tk => {
+      const isin = _etfData[tk]?.isin||tk;
+      if (seenI.has(isin)) return false;
+      seenI.add(isin); return true;
+    });
+    showToast(`✅ ${uniqueUpdated.length} ETF caricati`, 3000);
+    // Salva HTML spunte prima che renderETFAnalytics lo sovrascriva
+    const savedStatus = statusEl ? statusEl.innerHTML : '';
     renderETFAnalytics();
+    // Ripristina spunte dopo render
+    const newStatus = document.getElementById('etf-update-status');
+    if (newStatus && savedStatus) newStatus.innerHTML = savedStatus;
   } catch(e) {
     showToast('⚠ ' + e.message, 4000);
   } finally {
