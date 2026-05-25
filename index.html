@@ -3739,7 +3739,7 @@ function renderPF() {
     const eyeClose = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
     sa.innerHTML = `<div class="sum-card2">
       <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;flex:1;min-width:0">
+        <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;flex:1;min-width:0;align-items:start">
           <div style="min-width:0">
             <div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-weight:700">Valore portafoglio</div>
             <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap">
@@ -3752,11 +3752,12 @@ function renderPF() {
               `}
             </div>
           </div>
-          <div style="min-width:0;border-left:1px solid rgba(123,167,255,.18);padding-left:14px">
+          <div style="min-width:0;border-left:1px solid rgba(123,167,255,.18);padding-left:10px">
             <div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-weight:700">Capitale complessivo</div>
-            <div class="sum-tot${hv}" style="font-size:28px;font-weight:700;letter-spacing:-.5px;line-height:1.05">${e2(totalCapital)}</div>
+            <div class="sum-tot${hv}" style="font-size:clamp(21px,3.8vw,28px);font-weight:700;letter-spacing:-.5px;line-height:1.05;white-space:nowrap">${e2(totalCapital)}</div>
             <div class="${hv.trim()}" style="font-size:10px;color:var(--text3);font-weight:600;margin-top:2px;line-height:1.2">Portafoglio + liquidità</div>
           </div>
+          <div></div>
         </div>
         <button class="sum-eye" onclick="toggleSumValues()" title="${S.hideValues?'Mostra':'Nascondi'} valori">${S.hideValues?eyeClose:eyeOpen}</button>
       </div>
