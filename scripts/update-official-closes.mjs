@@ -154,44 +154,33 @@ async function fetchFinnhub(ticker, key) {
 const BTP_ISIN_RE = /^IT\d{10}$/;
 
 async function fetchBTPDirect(ticker) {
-  // Estrae ISIN dal ticker (es. IT0005530032.MI → IT0005530032)
   const isin = ticker.replace(/\.(MI|MOT)$/i, '').trim();
   if (!BTP_ISIN_RE.test(isin)) return null;
 
-  const urls = [
-    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}.en.html`,
-    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}-MOTX.html`,
-    `https://live.euronext.com/api/Product/GetQuote?isin=${isin}&mic=XMOT&type=BOND`,
-    `https://api.live.euronext.com/v1/quotes/${isin}/XMOT`,
-  ];
-
-  const rxPrice = [
-    /"(?:last|price|lastPrice|currentPrice)":\s*([\d.]+)/i,
-    /data-(?:value|price|last)="([\d.,]+)"/i,
-    /<strong[^>]*>\s*(\d{2,3}[,.]\d{1,4})\s*<\/strong>/i,
-    /(?:Ultimo|Last|Prezzo)[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i,
-    /(?<![.\d])((?:8\d|9\d|10\d|11[0-4])[,.]\d{1,4})(?![.\d])/,
-  ];
-  const rxPrev = /(?:Prezzo ufficiale|prevClose|previousClose|Precedente)[^0-9]{0,30}(\d{2,3}[,.]\d{1,4})/i;
-  const rxDate = /data-date="(\d{4}-\d{2}-\d{2})"|(?:Rif\.|Aggiornato)[^0-9]{0,20}(\d{1,2}[./]\d{1,2}[./]\d{2,4})/i;
-
-  for (const url of urls) {
-    try {
-      const { status, raw } = await httpsGet(url, {
-        'Accept': 'text/html,application/xhtml+xml',
-        'Accept-Language': 'it-IT,it;q=0.9',
-        'Referer': 'https://www.borsaitaliana.it/'
-      });
-      if (status !== 200 || !raw || raw.length < 200) continue;
-      const clean = raw.replace(/\s+/g, ' ');
-
-      let price = null, prevClose = null;
-      for (const rx of rxPrice) {
-        const m = clean.match(rx);
-        if (m) {
-          const v = parseFloat(m[1].replace(',', '.'));
-          if (v > 70 && v < 125) { price = v; break; }
+  // Yahoo Finance — formati noti per BTP italiani
+  const syms = [`${isin}.MI`, `${isin}=`, `${isin}`];
+  for (const sym of syms) {
+    for (const base of ['https://query1.finance.yahoo.com','https://query2.finance.yahoo.com']) {
+      try {
+        const url = `${base}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
+        const { status, body } = await httpsGet(url);
+        if (status !== 200) continue;
+        const r = body?.chart?.result?.[0], meta = r?.meta || {};
+        const price = meta.regularMarketPrice || meta.previousClose;
+        const prev  = meta.chartPreviousClose || meta.previousClose;
+        if (price && price > 70 && price < 130) {
+          console.log(`  BTP ${isin}: ${price} prevClose=${prev} [Yahoo/${sym}]`);
+          return { price, prevClose: prev||null,
+            date: meta.regularMarketTime ? new Date(meta.regularMarketTime*1000).toISOString().slice(0,10) : null,
+            source: `Yahoo/${sym}` };
         }
+      } catch(e) {}
+    }
+    await delay(300);
+  }
+  console.log(`  BTP ${isin}: nessuna fonte disponibile`);
+  return null;
+}
       }
       const pm = clean.match(rxPrev);
       if (pm) {
