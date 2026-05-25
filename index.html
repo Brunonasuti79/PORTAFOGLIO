@@ -825,6 +825,44 @@ input[type=number]{-moz-appearance:textfield}
   -webkit-tap-highlight-color: transparent;
 }
 .spark-badge:hover, .spark-badge:focus { transform: scale(1.22); box-shadow: 0 4px 18px var(--bb); }
+
+
+
+/* ──────────────────────── TUTORIAL VISUAL ACADEMY ──────────────────────── */
+.tut-wrap{padding:8px 14px 90px}
+.tut-stage{position:relative;overflow:hidden;border:1px solid rgba(123,167,255,.24);border-radius:24px;background:
+  radial-gradient(circle at 12% 12%,rgba(123,167,255,.28),transparent 34%),
+  radial-gradient(circle at 92% 4%,rgba(31,224,126,.18),transparent 32%),
+  linear-gradient(135deg,rgba(13,19,34,.98),rgba(7,11,20,.94));box-shadow:0 18px 48px rgba(0,0,0,.28);padding:18px;margin-bottom:12px}
+.tut-stage::after{content:'';position:absolute;right:-80px;bottom:-90px;width:240px;height:240px;border-radius:50%;border:1px solid rgba(123,167,255,.16);box-shadow:0 0 80px rgba(123,167,255,.08);pointer-events:none}
+.tut-stage-top{display:flex;align-items:center;justify-content:space-between;gap:12px;position:relative;z-index:1}
+.tut-eyebrow{display:inline-flex;align-items:center;gap:6px;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;color:var(--blue);font-weight:900;background:rgba(123,167,255,.1);border:1px solid rgba(123,167,255,.22);border-radius:999px;padding:5px 9px}
+.tut-stage-title{font-family:'Bebas Neue',sans-serif;font-size:42px;letter-spacing:2px;line-height:.98;color:#fff;margin:12px 0 8px;position:relative;z-index:1;max-width:740px}
+.tut-stage-desc{font-size:13px;color:var(--text2);line-height:1.7;max-width:840px;position:relative;z-index:1}
+.tut-stage-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:14px;position:relative;z-index:1}
+.tut-kpi{background:rgba(7,11,20,.46);border:1px solid rgba(123,167,255,.14);border-radius:15px;padding:10px 11px;min-height:78px}
+.tut-kpi b{display:block;font-family:'JetBrains Mono',monospace;font-size:18px;color:var(--text);margin-bottom:3px}.tut-kpi span{font-size:10.5px;color:var(--text3);line-height:1.35;display:block}
+.tut-primary-btn{border:none;background:linear-gradient(135deg,var(--blue),#9fbaff);color:#071020;border-radius:13px;padding:9px 14px;font-size:12px;font-weight:900;cursor:pointer;box-shadow:0 8px 22px rgba(123,167,255,.22);white-space:nowrap}
+.tut-ghost-btn{border:1px solid rgba(123,167,255,.28);background:rgba(123,167,255,.06);color:var(--blue);border-radius:13px;padding:8px 13px;font-size:12px;font-weight:900;cursor:pointer;white-space:nowrap}
+.tut-academy-grid{display:grid;grid-template-columns:1.1fr .9fr;gap:10px;margin:12px 0}
+.tut-panel{background:var(--bg2);border:1px solid var(--border);border-radius:20px;padding:14px;overflow:hidden;position:relative}
+.tut-panel-title{font-size:14px;color:var(--text);font-weight:900;margin-bottom:4px;display:flex;align-items:center;gap:8px}.tut-panel-sub{font-size:11.5px;color:var(--text3);line-height:1.5;margin-bottom:10px}
+.tut-route-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}.tut-route{border:1px solid rgba(123,167,255,.14);background:rgba(7,11,20,.25);border-radius:16px;padding:12px;cursor:pointer;transition:.16s;text-align:left;color:var(--text);position:relative;overflow:hidden}.tut-route:hover{transform:translateY(-1px);border-color:var(--blue);box-shadow:0 12px 28px rgba(0,0,0,.22)}.tut-route-ico{font-size:28px;margin-bottom:8px}.tut-route b{display:block;font-size:13px;margin-bottom:5px}.tut-route span{display:block;font-size:11px;color:var(--text3);line-height:1.45}.tut-route small{display:inline-block;margin-top:8px;font-size:9px;color:var(--blue);font-weight:900;text-transform:uppercase;letter-spacing:.9px}
+.tut-map{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.tut-map a{text-decoration:none;color:var(--text2);background:rgba(123,167,255,.06);border:1px solid rgba(123,167,255,.13);border-radius:12px;padding:9px 8px;font-size:11px;font-weight:900;line-height:1.2;display:flex;align-items:center;gap:7px}.tut-map a:hover{border-color:var(--blue);color:var(--blue)}
+.tut-section{margin:10px 0 14px;background:var(--bg2);border:1px solid var(--border);border-radius:22px;overflow:hidden;box-shadow:0 10px 28px rgba(0,0,0,.10)}
+.tut-section-head{padding:15px 16px 12px;background:linear-gradient(90deg,rgba(123,167,255,.13),rgba(31,224,126,.05),transparent);border-bottom:1px solid var(--border);display:flex;gap:12px;align-items:flex-start}.tut-num{width:40px;height:40px;border-radius:14px;background:rgba(123,167,255,.12);border:1px solid rgba(123,167,255,.25);display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;color:var(--blue);font-weight:900;flex-shrink:0}.tut-section-title{font-size:18px;font-weight:900;color:var(--text);line-height:1.2}.tut-section-sub{font-size:12px;color:var(--text3);line-height:1.55;margin-top:4px}
+.tut-section-body{padding:14px 16px 16px;color:var(--text2);font-size:13px;line-height:1.68}.tut-section-body p{margin:0 0 10px}.tut-section-body strong{color:var(--text)}
+.tut-visual-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin:12px 0}.tut-card{background:rgba(7,11,20,.28);border:1px solid rgba(123,167,255,.13);border-radius:16px;padding:12px;min-height:112px}.tut-card .ico{font-size:23px;margin-bottom:8px}.tut-card b{display:block;color:var(--text);font-size:13px;margin-bottom:5px}.tut-card span{font-size:11.5px;color:var(--text3);line-height:1.48;display:block}
+.tut-flow{display:grid;grid-template-columns:repeat(5,1fr);gap:7px;margin:12px 0}.tut-step{background:rgba(123,167,255,.055);border:1px solid rgba(123,167,255,.14);border-radius:14px;padding:10px;position:relative}.tut-step:not(:last-child)::after{content:'→';position:absolute;right:-9px;top:50%;transform:translateY(-50%);color:var(--blue);font-weight:900}.tut-step b{display:block;font-family:'JetBrains Mono',monospace;color:var(--blue);font-size:11px;margin-bottom:6px}.tut-step span{font-size:10.5px;color:var(--text2);line-height:1.4;display:block}
+.tut-metric-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:12px 0}.tut-metric{border-radius:15px;padding:11px;background:linear-gradient(135deg,rgba(123,167,255,.10),rgba(7,11,20,.22));border:1px solid rgba(123,167,255,.16)}.tut-metric label{display:block;font-size:9px;color:var(--text3);font-weight:900;text-transform:uppercase;letter-spacing:.9px;margin-bottom:5px}.tut-metric b{font-family:'JetBrains Mono',monospace;color:var(--text);font-size:14px}.tut-metric span{font-size:10.5px;color:var(--text3);display:block;margin-top:4px;line-height:1.35}
+.tut-warn,.tut-good,.tut-deep{border-radius:16px;padding:11px 12px;margin:12px 0;font-size:12.5px;line-height:1.55}.tut-warn{background:rgba(255,184,77,.08);border:1px solid rgba(255,184,77,.25);color:#ffcf80}.tut-good{background:rgba(31,224,126,.08);border:1px solid rgba(31,224,126,.22);color:var(--green)}.tut-deep{background:rgba(123,167,255,.07);border:1px solid rgba(123,167,255,.18);color:var(--text2)}
+.tut-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.tut-action{border:1px solid var(--blue);background:rgba(123,167,255,.08);color:var(--blue);border-radius:12px;padding:8px 13px;font-size:12px;font-weight:900;cursor:pointer}.tut-action.alt{border-color:var(--border2);background:transparent;color:var(--text2)}
+.tut-two{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:12px 0}.tut-mini-list{display:flex;flex-direction:column;gap:7px}.tut-list-item{display:grid;grid-template-columns:34px 1fr;gap:9px;align-items:start;background:rgba(7,11,20,.20);border:1px solid rgba(123,167,255,.10);border-radius:14px;padding:10px}.tut-list-item em{font-style:normal;font-size:20px}.tut-list-item b{display:block;color:var(--text);font-size:12.5px;margin-bottom:3px}.tut-list-item span{font-size:11px;color:var(--text3);line-height:1.45;display:block}
+.tut-gloss{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.tut-term{background:rgba(7,11,20,.24);border:1px solid var(--border);border-radius:14px;padding:11px}.tut-term b{display:block;color:var(--text);font-size:12px;margin-bottom:5px}.tut-term span{font-size:11px;color:var(--text3);line-height:1.45;display:block}
+html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,transparent 38%),radial-gradient(circle at 92% 4%,#dcfce7,transparent 32%),linear-gradient(135deg,#ffffff,#f8fafc);box-shadow:0 16px 42px rgba(15,23,42,.08)}html.light .tut-stage-title{color:var(--text)}html.light .tut-kpi,html.light .tut-route,html.light .tut-card,html.light .tut-step,html.light .tut-list-item,html.light .tut-term{background:#f8fafc}html.light .tut-panel{background:#ffffff}html.light .tut-warn{background:#fff7ed;color:#9a3412;border-color:#fed7aa}html.light .tut-good{background:#f0fdf4;color:#166534;border-color:#bbf7d0}
+@media(max-width:900px){.tut-academy-grid{grid-template-columns:1fr}.tut-stage-kpis,.tut-metric-row{grid-template-columns:repeat(2,1fr)}.tut-flow{grid-template-columns:1fr}.tut-step:not(:last-child)::after{content:'↓';right:50%;top:auto;bottom:-12px;transform:translateX(50%)}}
+@media(max-width:720px){.tut-wrap{padding-left:10px;padding-right:10px}.tut-stage-title{font-size:32px}.tut-route-grid,.tut-visual-grid,.tut-two{grid-template-columns:1fr}.tut-map{grid-template-columns:repeat(2,1fr)}.tut-gloss{grid-template-columns:1fr 1fr}.tut-section-head{padding:13px}.tut-section-body{padding:13px}.tut-stage-top{align-items:flex-start;flex-direction:column}.tut-primary-btn,.tut-ghost-btn{width:100%}}
+@media(max-width:420px){.tut-stage-kpis,.tut-metric-row,.tut-map,.tut-gloss{grid-template-columns:1fr}.tut-stage{padding:15px;border-radius:20px}.tut-section-title{font-size:16px}.tut-section-body{font-size:12.5px}.nbtn span{font-size:8.5px}.nbtn{max-width:none}}
 </style>
 </head>
 <body>
@@ -988,6 +1026,163 @@ input[type=number]{-moz-appearance:textfield}
     <div id="port-tools" class="pf-tools" style="display:none"></div>
     <div id="port-list"></div>
   </div>
+
+
+
+  
+<!-- TUTORIAL PAGE -->
+  <div id="pg-tutorial" class="page">
+    <div class="ph">
+      <div class="ph-left"><div class="pt">TUTORIAL</div><div class="pt-sub">Academy visiva · Guida completa dell’app</div></div>
+      <div class="ph-actions">
+        <button class="hbtn" onclick="openTutorial()" style="font-weight:700">Percorso rapido</button>
+      </div>
+    </div>
+
+    <div class="tut-wrap">
+      <section class="tut-stage">
+        <div class="tut-stage-top">
+          <div class="tut-eyebrow">✦ Portafoglio BIT Academy</div>
+          <button class="tut-primary-btn" onclick="document.getElementById('tut-start').scrollIntoView({behavior:'smooth'})">Inizia il percorso</button>
+        </div>
+        <div class="tut-stage-title">Non solo numeri: impara a governare il portafoglio</div>
+        <div class="tut-stage-desc">Questa sezione è pensata come una piccola academy interna: ti guida nell’uso dell’app, ma soprattutto ti aiuta a capire cosa stai guardando. Ogni blocco combina spiegazione, casi pratici, errori comuni e pulsanti per andare direttamente nella funzione corretta.</div>
+        <div class="tut-stage-kpis">
+          <div class="tut-kpi"><b>12</b><span>aree operative spiegate con esempi pratici</span></div>
+          <div class="tut-kpi"><b>4</b><span>percorsi rapidi in base a cosa vuoi fare</span></div>
+          <div class="tut-kpi"><b>30+</b><span>concetti finanziari tradotti in linguaggio semplice</span></div>
+          <div class="tut-kpi"><b>0</b><span>giri inutili: ogni guida porta alla schermata giusta</span></div>
+        </div>
+      </section>
+
+      <div class="tut-academy-grid">
+        <section class="tut-panel">
+          <div class="tut-panel-title">🎯 Percorsi guidati</div>
+          <div class="tut-panel-sub">Scegli da dove partire. Il tutorial non è un manuale da leggere tutto: è una mappa da usare quando serve.</div>
+          <div class="tut-route-grid">
+            <button class="tut-route" onclick="document.getElementById('tut-start').scrollIntoView({behavior:'smooth'})"><div class="tut-route-ico">🚀</div><b>Parto da zero</b><span>Account, portafoglio, liquidità, prime operazioni e primo aggiornamento prezzi.</span><small>base</small></button>
+            <button class="tut-route" onclick="document.getElementById('tut-numbers').scrollIntoView({behavior:'smooth'})"><div class="tut-route-ico">📊</div><b>Voglio capire i numeri</b><span>Gain/loss, rendimento, oggi %, prezzo medio, valuta e capitale investito.</span><small>lettura</small></button>
+            <button class="tut-route" onclick="document.getElementById('tut-plan').scrollIntoView({behavior:'smooth'})"><div class="tut-route-ico">⚖️</div><b>Voglio pianificare</b><span>Target, ribilanciamento, PAC, simulatore e disciplina operativa.</span><small>metodo</small></button>
+            <button class="tut-route" onclick="document.getElementById('tut-errors').scrollIntoView({behavior:'smooth'})"><div class="tut-route-ico">🛠️</div><b>Qualcosa non torna</b><span>Prezzi mancanti, ticker sbagliati, differenze col broker, cloud e backup.</span><small>supporto</small></button>
+          </div>
+        </section>
+
+        <section class="tut-panel">
+          <div class="tut-panel-title">🧭 Mappa rapida</div>
+          <div class="tut-panel-sub">Vai subito alla parte che ti interessa.</div>
+          <div class="tut-map">
+            <a href="#tut-start">🚀 Primi passi</a><a href="#tut-ops">📋 Operazioni</a><a href="#tut-numbers">📊 Numeri</a>
+            <a href="#tut-prices">⟳ Prezzi</a><a href="#tut-watch">⭐ Watchlist</a><a href="#tut-analysis">📈 Analisi</a>
+            <a href="#tut-plan">⚖️ Pianifica</a><a href="#tut-tax">🧾 Tasse</a><a href="#tut-cloud">☁️ Cloud</a>
+            <a href="#tut-errors">🛠️ Errori</a><a href="#tut-glossary">📚 Glossario</a><a href="#tut-method">🧠 Metodo</a>
+          </div>
+        </section>
+      </div>
+
+      <section class="tut-section" id="tut-start">
+        <div class="tut-section-head"><div class="tut-num">01</div><div><div class="tut-section-title">🚀 Primi passi: costruisci una base pulita</div><div class="tut-section-sub">L’app funziona bene solo se i dati di partenza sono ordinati. Prima il portafoglio, poi le operazioni, poi analisi e pianificazione.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-flow"><div class="tut-step"><b>1 · Account</b><span>Accedi, così i dati possono essere sincronizzati tra dispositivi.</span></div><div class="tut-step"><b>2 · Portafoglio</b><span>Rinomina il portafoglio e separa eventuali strategie diverse.</span></div><div class="tut-step"><b>3 · Liquidità</b><span>Inserisci il capitale non investito: serve per PAC e ribilanciamento.</span></div><div class="tut-step"><b>4 · Operazioni</b><span>Registra acquisti e vendite con ticker, mercato, valuta e commissioni.</span></div><div class="tut-step"><b>5 · Prezzi</b><span>Aggiorna e controlla che ogni titolo abbia il simbolo prezzo corretto.</span></div></div>
+          <div class="tut-good"><strong>Metodo consigliato:</strong> non partire dai grafici. Parti dai dati: operazioni corrette, prezzo medio corretto, valuta corretta. Solo dopo ha senso leggere rendimento, storico e simulazioni.</div>
+          <div class="tut-actions"><button class="tut-action" onclick="showPage('operations')">Vai a Operazioni</button><button class="tut-action alt" onclick="showPage('portfolio')">Torna al Portafoglio</button></div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-ops">
+        <div class="tut-section-head"><div class="tut-num">02</div><div><div class="tut-section-title">📋 Operazioni: il motore di tutti i calcoli</div><div class="tut-section-sub">Acquisti, vendite, import e modifiche alimentano prezzo medio, quantità residua, capitale investito e P&L.</div></div></div>
+        <div class="tut-section-body">
+          <p>Ogni posizione nasce dalle operazioni. Il <strong>prezzo medio di carico</strong> viene calcolato come media ponderata degli acquisti ancora aperti. Quando vendi, l’app riduce la quantità residua ma non riscrive la storia degli acquisti.</p>
+          <div class="tut-visual-grid"><div class="tut-card"><div class="ico">🏷️</div><b>Ticker visibile</b><span>È il nome corto che vuoi vedere: SWDA, ENI, AAPL. Serve alla leggibilità.</span></div><div class="tut-card"><div class="ico">🔎</div><b>Simbolo prezzo</b><span>È il codice tecnico usato per i prezzi: SWDA.MI, XMME.DE, AAPL.</span></div><div class="tut-card"><div class="ico">🌍</div><b>Mercato</b><span>Determina suffisso, borsa di riferimento e orario della seduta.</span></div><div class="tut-card"><div class="ico">💱</div><b>Valuta</b><span>Distingue prezzo del titolo, valuta di acquisto e cambio EUR/USD.</span></div><div class="tut-card"><div class="ico">💸</div><b>Commissioni</b><span>Entrano nel costo complessivo e rendono più realistica la posizione.</span></div><div class="tut-card"><div class="ico">📥</div><b>Import</b><span>Accelera l’inserimento, ma va sempre controllato prima di confermare.</span></div></div>
+          <div class="tut-warn"><strong>Errore tipico:</strong> mettere “SWDA” come simbolo prezzo invece di “SWDA.MI”. Il titolo sembra giusto, ma la fonte dati può non trovarlo o trovare un mercato diverso.</div>
+          <div class="tut-actions"><button class="tut-action" onclick="openModal()">+ Nuova operazione</button><button class="tut-action alt" onclick="showPage('operations')">Archivio operazioni</button></div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-numbers">
+        <div class="tut-section-head"><div class="tut-num">03</div><div><div class="tut-section-title">📊 Leggere il portafoglio senza farsi ingannare</div><div class="tut-section-sub">Non tutti i numeri hanno lo stesso peso. Alcuni servono per la giornata, altri per il percorso.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-metric-row"><div class="tut-metric"><label>Valore attuale</label><b>oggi</b><span>Quanto valgono le posizioni ai prezzi disponibili.</span></div><div class="tut-metric"><label>Capitale investito</label><b>costo</b><span>Quanto hai speso per costruire le posizioni.</span></div><div class="tut-metric"><label>Gain/Loss</label><b>risultato</b><span>Differenza tra valore attuale e capitale investito.</span></div><div class="tut-metric"><label>Oggi %</label><b>seduta</b><span>Movimento del giorno rispetto alla chiusura precedente.</span></div></div>
+          <p><strong>Oggi %</strong> non misura la qualità dell’investimento: misura solo la seduta. Il <strong>rendimento totale</strong> invece racconta il percorso rispetto al tuo prezzo medio e al capitale investito.</p>
+          <div class="tut-deep"><strong>Come leggere bene:</strong> se un titolo fa -2% oggi ma resta +25% dal tuo prezzo medio, non è “andato male”: ha semplicemente avuto una giornata negativa. L’app separa giornata, risultato totale e peso nel portafoglio proprio per evitare letture impulsive.</div>
+          <div class="tut-actions"><button class="tut-action" onclick="showPage('portfolio')">Vai al Portafoglio</button><button class="tut-action alt" onclick="showPage('charts')">Apri Grafici</button></div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-prices">
+        <div class="tut-section-head"><div class="tut-num">04</div><div><div class="tut-section-title">⟳ Prezzi, chiusure e storico: perché servono più fonti</div><div class="tut-section-sub">Una sola fonte gratuita non copre bene tutti i mercati. L’app usa una logica a strati.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-two"><div class="tut-mini-list"><div class="tut-list-item"><em>⚡</em><div><b>Prezzo live</b><span>Utile durante la seduta. Può cambiare continuamente e non sempre coincide col broker.</span></div></div><div class="tut-list-item"><em>🏁</em><div><b>Chiusura ufficiale</b><span>È il dato più importante per storico e confronto tra giornate.</span></div></div><div class="tut-list-item"><em>📌</em><div><b>Previous close</b><span>È la base usata per calcolare il movimento “oggi”.</span></div></div></div><div class="tut-mini-list"><div class="tut-list-item"><em>🇪🇺</em><div><b>Europa</b><span>ETF e titoli europei possono richiedere suffissi .MI, .DE, .PA, .AS.</span></div></div><div class="tut-list-item"><em>🇺🇸</em><div><b>USA</b><span>Spesso i ticker sono senza suffisso: AAPL, MSFT, NVDA.</span></div></div><div class="tut-list-item"><em>🧩</em><div><b>Fallback</b><span>Se una fonte fallisce, l’app prova fonti alternative.</span></div></div></div></div>
+          <div class="tut-warn"><strong>Perché Fineco/Yahoo/app possono differire:</strong> fonte diversa, mercato diverso, ritardo dati, pre-market/post-market, cambio valuta o chiusura precedente non ancora aggiornata.</div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-watch">
+        <div class="tut-section-head"><div class="tut-num">05</div><div><div class="tut-section-title">⭐ Watchlist: osservare senza sporcare il portafoglio</div><div class="tut-section-sub">La watchlist serve per idee, candidati PAC e strumenti da monitorare.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-visual-grid"><div class="tut-card"><div class="ico">👀</div><b>Monitoraggio</b><span>Segui titoli che non possiedi ancora.</span></div><div class="tut-card"><div class="ico">🔔</div><b>Alert</b><span>Imposta soglie sopra o sotto un prezzo.</span></div><div class="tut-card"><div class="ico">🧪</div><b>Confronto</b><span>Valuta ETF simili prima di inserirli nel portafoglio.</span></div></div>
+          <div class="tut-actions"><button class="tut-action" onclick="showPage('watchlist')">Vai alla Watchlist</button><button class="tut-action alt" onclick="openWatchlistModal()">Aggiungi titolo</button></div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-analysis">
+        <div class="tut-section-head"><div class="tut-num">06</div><div><div class="tut-section-title">📈 Analisi: trasformare dati in lettura utile</div><div class="tut-section-sub">Grafici, storico, P&L e proiezioni servono a capire il portafoglio da angolazioni diverse.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-visual-grid"><div class="tut-card"><div class="ico">🥧</div><b>Allocazione</b><span>Dove è concentrato il capitale: categorie, titoli, aree.</span></div><div class="tut-card"><div class="ico">📉</div><b>Storico</b><span>Andamento dei titoli e confronto con prezzo medio.</span></div><div class="tut-card"><div class="ico">🧾</div><b>P&L</b><span>Risultato delle posizioni chiuse e stima fiscale.</span></div><div class="tut-card"><div class="ico">🔮</div><b>Proiezione</b><span>Scenario futuro con rendimento atteso e inflazione.</span></div><div class="tut-card"><div class="ico">🧠</div><b>Lettura</b><span>Aiuta a capire se il portafoglio è equilibrato o sbilanciato.</span></div><div class="tut-card"><div class="ico">⏱️</div><b>Tempo</b><span>Mostra perché il breve periodo non basta per giudicare una strategia.</span></div></div>
+          <div class="tut-actions"><button class="tut-action" onclick="showPage('analisi')">Apri Analisi</button><button class="tut-action alt" onclick="showPage('history')">Vai allo Storico</button></div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-plan">
+        <div class="tut-section-head"><div class="tut-num">07</div><div><div class="tut-section-title">⚖️ Pianifica: ribilanciamento, PAC e simulatore</div><div class="tut-section-sub">Questa è la parte più educativa: ti sposta dal “quanto ho fatto?” al “cosa dovrei fare con metodo?”.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-flow"><div class="tut-step"><b>Target</b><span>Definisci il peso ideale di categorie o titoli.</span></div><div class="tut-step"><b>Scostamento</b><span>Confronta peso reale e peso desiderato.</span></div><div class="tut-step"><b>Priorità</b><span>Capisci cosa è sovrappesato o sottopesato.</span></div><div class="tut-step"><b>PAC</b><span>Usa nuova liquidità per correggere gradualmente.</span></div><div class="tut-step"><b>Simulatore</b><span>Studia tempo, rendimento e interesse composto.</span></div></div>
+          <div class="tut-good"><strong>Buona pratica:</strong> non inseguire sempre ciò che è salito. Il ribilanciamento serve a mantenere il portafoglio coerente col piano, non con l’emozione del momento.</div>
+          <div class="tut-actions"><button class="tut-action" onclick="showPage('rebalance')">Ribilanciamento</button><button class="tut-action alt" onclick="showPage('pac-sim')">Simulatore PAC</button></div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-tax">
+        <div class="tut-section-head"><div class="tut-num">08</div><div><div class="tut-section-title">🧾 P&L e tassazione: utile, ma sempre stimato</div><div class="tut-section-sub">La sezione aiuta a capire plus/minus e aliquote, ma non sostituisce il calcolo fiscale del broker.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-visual-grid"><div class="tut-card"><div class="ico">✅</div><b>Posizioni chiuse</b><span>Mostra il risultato delle operazioni concluse.</span></div><div class="tut-card"><div class="ico">%</div><b>Aliquote</b><span>Default 26%, con casi particolari come BTP/monetari al 12,5%.</span></div><div class="tut-card"><div class="ico">⚠️</div><b>Stima</b><span>Serve per orientarti, non per sostituire la rendicontazione fiscale.</span></div></div>
+          <div class="tut-actions"><button class="tut-action" onclick="showPage('pnl')">Apri P&L</button><button class="tut-action alt" onclick="showPage('tax')">Aliquote</button></div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-cloud">
+        <div class="tut-section-head"><div class="tut-num">09</div><div><div class="tut-section-title">☁️ Cloud, backup e sicurezza</div><div class="tut-section-sub">L’obiettivo è semplice: non perdere dati e non costringerti a procedure manuali.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-two"><div class="tut-card"><div class="ico">🔄</div><b>Sync automatico</b><span>Dopo le modifiche l’app salva in background. L’utente non dovrebbe fare giri tecnici.</span></div><div class="tut-card"><div class="ico">🔐</div><b>Dati sensibili</b><span>Token e API key devono restare sul dispositivo e non finire nel backup.</span></div></div>
+          <div class="tut-deep"><strong>Logica giusta:</strong> per un utente normale il backup deve sembrare “attivo e basta”. Le opzioni avanzate servono solo per recuperi, debug o configurazioni tecniche.</div>
+          <div class="tut-actions"><button class="tut-action" onclick="showPage('backup')">Vai al Backup</button><button class="tut-action alt" onclick="showPage('settings')">Impostazioni</button></div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-errors">
+        <div class="tut-section-head"><div class="tut-num">10</div><div><div class="tut-section-title">🛠️ Errori comuni: diagnosi rapida</div><div class="tut-section-sub">Quando un dato non torna, il problema quasi sempre è uno di questi.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-visual-grid"><div class="tut-card"><div class="ico">❌</div><b>Prezzo non trovato</b><span>Controlla suffisso, mercato e simbolo prezzo.</span></div><div class="tut-card"><div class="ico">🔁</div><b>Oggi % diverso</b><span>Fonte, orario, chiusura precedente o mercato diverso dal broker.</span></div><div class="tut-card"><div class="ico">💱</div><b>Gain strano</b><span>Verifica valuta titolo, valuta acquisto e cambio EUR/USD.</span></div><div class="tut-card"><div class="ico">📦</div><b>Backup vuoto</b><span>Controlla account, sync cloud e ultimo salvataggio.</span></div><div class="tut-card"><div class="ico">📉</div><b>Storico incompleto</b><span>Alcune fonti aggiornano più tardi o non coprono tutti i ticker.</span></div><div class="tut-card"><div class="ico">🧭</div><b>Target incoerenti</b><span>La somma dei target deve avere logica e non superare pesi impossibili.</span></div></div>
+          <div class="tut-good"><strong>Check veloce:</strong> ticker visibile → simbolo prezzo → mercato → valuta → fonte prezzo → ultimo aggiornamento. Segui sempre quest’ordine.</div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-method">
+        <div class="tut-section-head"><div class="tut-num">11</div><div><div class="tut-section-title">🧠 Metodo: cosa deve insegnare l’app</div><div class="tut-section-sub">L’obiettivo non è solo registrare investimenti, ma creare consapevolezza.</div></div></div>
+        <div class="tut-section-body">
+          <div class="tut-visual-grid"><div class="tut-card"><div class="ico">🧱</div><b>Costruire</b><span>Inserire dati corretti e ordinare il patrimonio.</span></div><div class="tut-card"><div class="ico">👁️</div><b>Leggere</b><span>Distinguere breve periodo, rendimento totale e rischio.</span></div><div class="tut-card"><div class="ico">🎯</div><b>Decidere</b><span>Usare target e PAC per agire con disciplina.</span></div></div>
+          <div class="tut-deep"><strong>Idea chiave:</strong> una buona app finanziaria non deve spingere a comprare o vendere. Deve aiutare l’utente a capire dove si trova, quali rischi ha preso e quali scelte sono coerenti con il suo piano.</div>
+        </div>
+      </section>
+
+      <section class="tut-section" id="tut-glossary" style="margin-bottom:6px">
+        <div class="tut-section-head"><div class="tut-num">12</div><div><div class="tut-section-title">📚 Glossario visuale</div><div class="tut-section-sub">Le parole che servono davvero per usare l’app senza perdersi.</div></div></div>
+        <div class="tut-section-body"><div class="tut-gloss">
+          <div class="tut-term"><b>ETF</b><span>Fondo quotato che replica un indice, settore o strategia.</span></div><div class="tut-term"><b>PAC</b><span>Investimenti periodici nel tempo, utili per gradualità e disciplina.</span></div><div class="tut-term"><b>Lump sum</b><span>Investimento unico immediato di una somma disponibile.</span></div><div class="tut-term"><b>PMC</b><span>Prezzo medio di carico delle quote ancora possedute.</span></div><div class="tut-term"><b>Gain/Loss</b><span>Guadagno o perdita rispetto al capitale investito.</span></div><div class="tut-term"><b>Drawdown</b><span>Discesa da un massimo a un minimo.</span></div><div class="tut-term"><b>Volatilità</b><span>Intensità delle oscillazioni di prezzo.</span></div><div class="tut-term"><b>Ribilanciamento</b><span>Riportare il portafoglio verso i pesi target.</span></div><div class="tut-term"><b>Duration</b><span>Sensibilità di un bond ai tassi.</span></div><div class="tut-term"><b>Monetario</b><span>Strumenti legati ai tassi di breve periodo.</span></div><div class="tut-term"><b>Obbligazionario</b><span>Strumenti di debito di Stati, aziende o fondi bond.</span></div><div class="tut-term"><b>Azionario</b><span>Quote di aziende o ETF azionari, più variabili nel breve.</span></div>
+        </div></div>
+      </section>
+    </div>
+  </div>
+
 
   <!-- OPERATIONS PAGE -->
   <div id="pg-operations" class="page">
@@ -1210,7 +1405,7 @@ input[type=number]{-moz-appearance:textfield}
     </div>
   </div>
 
-  <!-- BOTTOM NAV — 5 gruppi -->
+  <!-- BOTTOM NAV — 7 pilastri -->
   <nav id="bnav">
     <button class="nbtn active" id="nav-portfolio" onclick="showPage('portfolio')">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1228,6 +1423,11 @@ input[type=number]{-moz-appearance:textfield}
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
       </svg><span>Watchlist</span>
+    </button>
+    <button class="nbtn" id="nav-tutorial" onclick="showPage('tutorial')">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/>
+      </svg><span>Tutorial</span>
     </button>
     <button class="nbtn" id="nav-analisi" onclick="showPage('analisi')">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -3709,8 +3909,8 @@ function renderPF() {
         const EU_M2=new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS']);
         const mkt2=(h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
         const isEU2=EU_M2.has(mkt2)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
-        if(isEU2&&!isEUMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
-        if(!isEU2&&!isUSMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
+        if(isEU2&&!isEUMarketOpen()) return '<span class="pf-no-price">—</span>';
+        if(!isEU2&&!isUSMarketOpen()) return '<span class="pf-no-price">—</span>';
         return (dayEur>=0?'+':'')+e2(dayEur);
       })()}</td>
       <td class="${dCls}">${(()=>{
@@ -3718,8 +3918,8 @@ function renderPF() {
         const EU_M=new Set(['MI','MOT','DE','PA','L','SW','AS','F','ST','CO','HE','OL','BR','VX','AMS']);
         const mkt=(h.market||marketFromSymbol(h.ticker)||'').toUpperCase();
         const isEU=EU_M.has(mkt)||/\.(MI|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker);
-        if(isEU&&!isEUMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
-        if(!isEU&&!isUSMarketOpen()) return '<span class=\"pf-no-price\">—</span>';
+        if(isEU&&!isEUMarketOpen()) return '<span class="pf-no-price">—</span>';
+        if(!isEU&&!isUSMarketOpen()) return '<span class="pf-no-price">—</span>';
         return (dayPct>=0?'+':'')+dayPct.toFixed(2)+'%';
       })()}</td>
       <td style="color:var(--text)">${priceNative!=null?n3(priceNative)+' '+symNative:'<span class="pf-no-price">—</span>'}</td>
@@ -5953,6 +6153,7 @@ const PAGE_GROUPS = {
   portfolio:  { pages:['portfolio'],                                         single:true },
   operations: { pages:['operations'],                                        single:true },
   watchlist:  { pages:['watchlist'],                                         single:true },
+  tutorial:   { pages:['tutorial'],                                          single:true },
   analisi:    { pages:['charts','proj','pnl','history'], labels:['Grafici','Proiezione','P&L','Storico'] },
   pianifica:  { pages:['rebalance','pac','pac-sim'],         labels:['Ribilanciamento','PAC','Simulatore'] },
   gestione:   { pages:['settings','tax','backup'],          labels:['Impostazioni','Tassazione','Backup'] },
