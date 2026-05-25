@@ -97,25 +97,46 @@ function yahooTickers(ticker) {
   return [...new Set(candidates)];
 }
 
-async function fetchYahooSummary(ticker) {
+// Mappa ISIN → ticker Yahoo più affidabile per dati ETF
+const ISIN_YAHOO_MAP = {
+  'IE00B4L5Y983': ['SWDA.L','IWDA.L','SWDA.DE'],          // iShares MSCI World
+  'IE00BTJRMP35': ['XMME.L','XMME.DE','XMME.MI'],         // Xtrackers MSCI EM
+  'IE00BJZ2DD79': ['XRS2.L','XRS2.MI','XRS2.DE'],          // Xtrackers Russell 2000
+  'IE00BJK55C48': ['EHYA.L','EHYA.MI'],                    // iShares EUR HY ESG
+  'IE00BF11F565': ['IEAA.L','IEAA.MI'],                    // iShares EUR Corp Bond
+  'LU1834983477': ['BNK.PA','C40.PA'],                     // Amundi Europe Banks
+  'LU1681041973': ['EHF1.DE','EHF1.L'],                    // Amundi Eur High Div
+  'LU0290358497': ['XEON.DE','XEON.MI'],                   // Xtrackers EUR Overnight
+  'LU0290355717': ['XGLE.MI','XGLE.DE','XGLE.L'],          // Xtrackers Eurozone Gov
+};
+
+async function fetchYahooSummary(ticker, isin) {
   const modules = 'topHoldings,fundProfile,assetProfile';
-  for (const yt of yahooTickers(ticker)) {
-    for (const base of ['https://query1.finance.yahoo.com', 'https://query2.finance.yahoo.com']) {
+  // Usa mappa ISIN se disponibile, altrimenti genera candidati dal ticker
+  const candidates = isin && ISIN_YAHOO_MAP[isin]
+    ? [...new Set([...ISIN_YAHOO_MAP[isin], ...yahooTickers(ticker)])]
+    : yahooTickers(ticker);
+
+  for (const yt of candidates) {
+    for (const base of ['https://query1.finance.yahoo.com','https://query2.finance.yahoo.com']) {
       try {
         const url = `${base}/v10/finance/quoteSummary/${encodeURIComponent(yt)}?modules=${modules}`;
         const { status, body } = await httpsGet(url);
-        if (status === 200 && body?.quoteSummary?.result?.[0]) {
-          const r = body.quoteSummary.result[0];
-          const data = parseYahooSummary(r);
-          if (data) {
-            console.log(`  ✅ Yahoo (${yt}) — settori: ${Object.keys(data.sectors).length}, holdings: ${data.holdings.length}`);
-            return { ...data, source: `Yahoo/${yt}` };
-          }
+        if (status !== 200) { continue; }
+        const err = body?.quoteSummary?.error;
+        if (err) { continue; }
+        const r = body?.quoteSummary?.result?.[0];
+        if (!r) { continue; }
+        const data = parseYahooSummary(r);
+        if (data && (Object.keys(data.sectors).length > 0 || data.holdings.length > 0)) {
+          console.log(`  ✅ Yahoo (${yt}) — settori: ${Object.keys(data.sectors).length}, holdings: ${data.holdings.length}`);
+          return { ...data, source: `Yahoo/${yt}` };
         }
-        await delay(200);
-      } catch(e) { /* prova prossimo */ }
+        console.log(`  ~ Yahoo (${yt}) — nessun topHoldings (status:${status})`);
+      } catch(e) { console.log(`  ~ Yahoo (${yt}) errore: ${e.message}`); }
+      await delay(200);
     }
-    await delay(300);
+    await delay(400);
   }
   return null;
 }
@@ -211,6 +232,31 @@ const STATIC_GEO = {
   'LU1681041973': { 'United Kingdom':22,'Germany':15,'France':14,'Switzerland':12,'Netherlands':9,'Italy':7,'Spain':6,'Other':15 },
 };
 
+// Dati statici di fallback per ETF azionari (aggiornati manualmente ~trimestrale)
+// Usati SOLO se Yahoo non risponde — riflettono composizione tipica
+const STATIC_SECTORS_EQUITY = {
+  'IE00B4L5Y983': { // SWDA — iShares MSCI World
+    'Information Technology':23,'Financials':16,'Healthcare':13,
+    'Consumer Discretionary':11,'Industrials':10,'Communication Services':8,
+    'Consumer Staples':7,'Energy':5,'Materials':4,'Real Estate':3
+  },
+  'IE00BTJRMP35': { // XMME — Xtrackers MSCI Emerging Markets
+    'Financials':22,'Technology':18,'Consumer Discretionary':13,
+    'Communication Services':10,'Industrials':7,'Materials':6,
+    'Consumer Staples':6,'Energy':5,'Healthcare':4,'Other':9
+  },
+  'IE00BJZ2DD79': { // XRS2 — Xtrackers Russell 2000
+    'Financials':18,'Healthcare':17,'Industrials':16,'Technology':14,
+    'Consumer Discretionary':12,'Energy':5,'Real Estate':5,'Materials':4,'Other':9
+  },
+};
+
+const STATIC_GEO_EQUITY = {
+  'IE00B4L5Y983': { 'United States':70,'Japan':6,'United Kingdom':4,'France':3,'Canada':3,'Germany':3,'Switzerland':3,'Other':8 },
+  'IE00BTJRMP35': { 'China':28,'India':18,'Taiwan':15,'South Korea':10,'Brazil':6,'Saudi Arabia':4,'Other':19 },
+  'IE00BJZ2DD79': { 'United States':100 },
+};
+
 const STATIC_SECTORS = {
   // EUR Overnight Rate Swap — monetario puro
   'LU0290358497': { 'Money Market':100 },
@@ -231,7 +277,7 @@ async function fetchETFComposition(ticker, isin) {
   console.log(`  ISIN: ${isin}`);
 
   // 1. Yahoo Finance quoteSummary (principale — funziona per ETF azionari)
-  let result = await fetchYahooSummary(ticker);
+  let result = await fetchYahooSummary(ticker, isin);
 
   // 2. Integra geo da JustETF se Yahoo non le ha
   if (result && Object.keys(result.geos || {}).length < 3) {
@@ -239,12 +285,13 @@ async function fetchETFComposition(ticker, isin) {
     if (geos) result.geos = geos;
   }
 
-  // 3. Dati statici per ETF obbligazionari/monetari (Yahoo non li ha)
+  // 3. Dati statici — prima bond/monetari, poi equity come fallback
   if (!result || Object.keys(result.sectors || {}).length === 0) {
-    const staticSec = STATIC_SECTORS[isin];
-    const staticGeo = STATIC_GEO[isin];
+    const staticSec = STATIC_SECTORS[isin] || STATIC_SECTORS_EQUITY[isin];
+    const staticGeo = STATIC_GEO[isin]     || STATIC_GEO_EQUITY[isin];
     if (staticSec || staticGeo) {
-      console.log(`  → usando dati statici per ETF obbligazionario/monetario`);
+      const type = STATIC_SECTORS[isin] ? 'obbligazionario/monetario' : 'azionario (fallback statico)';
+      console.log(`  → usando dati statici ${type}`);
       result = {
         sectors:  staticSec || result?.sectors  || {},
         geos:     staticGeo || result?.geos     || {},
