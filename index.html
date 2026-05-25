@@ -1011,8 +1011,22 @@ input[type=number]{-moz-appearance:textfield}
 
   <!-- REBALANCE PAGE -->
   <div id="pg-rebalance" class="page">
-    <div class="ph"><div class="ph-left"><div class="pt">RIBILANCIAMENTO</div><div class="pt-sub">Obiettivi vs attuale</div></div></div>
+    <div class="ph">
+      <div class="ph-left"><div class="pt">RIBILANCIAMENTO</div><div class="pt-sub">Obiettivi vs analisi ETF</div></div>
+    </div>
+    <!-- Tab bar -->
+    <div style="display:flex;gap:0;margin:0 14px 12px;border-bottom:1px solid var(--border)">
+      <button id="reb-tab-reb" onclick="showRebTab('rebalance')"
+        style="background:none;border:none;border-bottom:2px solid var(--blue);padding:8px 18px;font-size:13px;font-weight:700;color:var(--blue);cursor:pointer">
+        ⚖️ Ribilanciamento
+      </button>
+      <button id="reb-tab-etf" onclick="showRebTab('etf')"
+        style="background:none;border:none;border-bottom:2px solid transparent;padding:8px 18px;font-size:13px;font-weight:600;color:var(--text3);cursor:pointer">
+        📊 Analisi ETF
+      </button>
+    </div>
     <div id="rebalance-area"></div>
+    <div id="etf-analysis-area" style="display:none"></div>
   </div>
 
   <!-- PROJECTION PAGE -->
@@ -8495,6 +8509,315 @@ function checkWlAlertsAndNotify() {
       }
     }
   }
+}
+
+// ── ETF ANALYTICS ────────────────────────────────────────────────
+
+let _etfData = null; // cache in memoria
+
+function showRebTab(tab) {
+  const rebArea = document.getElementById('rebalance-area');
+  const etfArea = document.getElementById('etf-analysis-area');
+  const tabReb  = document.getElementById('reb-tab-reb');
+  const tabEtf  = document.getElementById('reb-tab-etf');
+  if (tab === 'rebalance') {
+    rebArea.style.display = '';
+    etfArea.style.display = 'none';
+    tabReb.style.color = 'var(--blue)'; tabReb.style.borderBottomColor = 'var(--blue)';
+    tabEtf.style.color = 'var(--text3)'; tabEtf.style.borderBottomColor = 'transparent';
+  } else {
+    rebArea.style.display = 'none';
+    etfArea.style.display = '';
+    tabReb.style.color = 'var(--text3)'; tabReb.style.borderBottomColor = 'transparent';
+    tabEtf.style.color = 'var(--blue)'; tabEtf.style.borderBottomColor = 'var(--blue)';
+    renderETFAnalytics();
+  }
+}
+
+async function triggerETFCompositionUpdate() {
+  const btn = document.getElementById('etf-update-btn');
+  const statusEl = document.getElementById('etf-update-status');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Avvio workflow...'; }
+  if (statusEl) statusEl.textContent = '';
+
+  const token = ALL.settings?.githubToken;
+  const repoMatch = (ALL.settings?.gistId) ? null : null;
+
+  // Triggera workflow via GitHub API
+  // Cerca il repo dall'utente proprietario del Gist
+  try {
+    const gistId = ALL.settings?.gistId;
+    if (!token) throw new Error('Token GitHub non configurato in Impostazioni');
+
+    // Trova owner del repo da token
+    const meRes = await fetch('https://api.github.com/user', {
+      headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!meRes.ok) throw new Error('Token non valido');
+    const me = await meRes.json();
+    const owner = me.login;
+
+    // Triggera workflow
+    const wfRes = await fetch(
+      `https://api.github.com/repos/${owner}/PORTAFOGLIO/actions/workflows/etf-composition.yml/dispatches`,
+      {
+        method: 'POST',
+        headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json', 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ref: 'main', inputs: { force_all: 'true' } })
+      }
+    );
+    if (wfRes.status === 204) {
+      if (btn) { btn.textContent = '✓ Workflow avviato'; btn.disabled = false; }
+      if (statusEl) statusEl.innerHTML = '<span style="color:var(--green)">✅ Workflow avviato — attendi 1-2 minuti poi premi "Carica dal Gist"</span>';
+      showToast('✅ Aggiornamento ETF avviato su GitHub Actions', 4000);
+    } else {
+      const err = await wfRes.json().catch(()=>({}));
+      throw new Error(err.message || `HTTP ${wfRes.status}`);
+    }
+  } catch(e) {
+    if (btn) { btn.textContent = '↻ Aggiorna composizione'; btn.disabled = false; }
+    if (statusEl) statusEl.innerHTML = `<span style="color:var(--red)">❌ ${e.message}</span>`;
+    showToast('⚠ ' + e.message, 4000);
+  }
+}
+
+async function loadETFDataFromGist() {
+  const btn = document.getElementById('etf-load-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⏳ Caricamento...'; }
+  try {
+    const token  = ALL.settings?.githubToken;
+    const gistId = ALL.settings?.gistId;
+    if (!token || !gistId) throw new Error('Configura token GitHub e Gist in Impostazioni');
+
+    const res = await fetch(`https://api.github.com/gists/${gistId}`, {
+      headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github+json' }
+    });
+    if (!res.ok) throw new Error(`Gist API: HTTP ${res.status}`);
+    const gist = await res.json();
+    const content = gist.files?.['etf-composition.json']?.content;
+    if (!content) throw new Error('etf-composition.json non trovato — avvia prima il workflow');
+
+    _etfData = JSON.parse(content);
+    ALL.etfComposition = _etfData;
+    save();
+    showToast('✅ Dati ETF caricati', 3000);
+    renderETFAnalytics();
+  } catch(e) {
+    showToast('⚠ ' + e.message, 4000);
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '📥 Carica dal Gist'; }
+  }
+}
+
+function getActiveETFs() {
+  const ETF_CATS = ['ETF Azionario','ETF Monetario','ETF Monetario / Fondo Monetario',
+                    'ETF Obbligazionario','ETF Materie Prime','ETF'];
+  const qty = {};
+  (S.ops || []).forEach(op => {
+    if (!ETF_CATS.some(c => (op.category||'').includes(c))) return;
+    const tk = op.quoteTicker || op.ticker;
+    if (!tk || tk === '__CASH__') return;
+    qty[tk] = (qty[tk]||0) + (op.type==='buy'?1:-1)*(op.qty||0);
+  });
+  const hlds = calcPF();
+  return Object.entries(qty)
+    .filter(([,q]) => q > 0.001)
+    .map(([tk]) => {
+      const h = hlds.find(x => x.ticker===tk);
+      return { ticker: tk, valueEUR: h ? (currentValueAllEUR(h)||0) : 0 };
+    })
+    .filter(e => e.valueEUR > 0);
+}
+
+function renderETFAnalytics() {
+  const area = document.getElementById('etf-analysis-area');
+  if (!area) return;
+
+  // Carica da cache locale se disponibile
+  const data = _etfData || ALL.etfComposition;
+  const meta = data?.__meta;
+  const activeETFs = getActiveETFs();
+  const totalValue = activeETFs.reduce((s,e) => s+e.valueEUR, 0);
+
+  // Header con pulsanti
+  const lastUpdate = meta?.updatedAt ? new Date(meta.updatedAt).toLocaleDateString('it-IT') : '—';
+  const updatedList  = (meta?.updated  || []).map(t => `<span style="color:var(--green)">${t}</span>`).join(' ');
+  const failedList   = (meta?.failed   || []).map(t => `<span style="color:var(--red)">${t}</span>`).join(' ');
+
+  let html = `
+  <div style="padding:0 14px">
+    <!-- Toolbar -->
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
+      <button id="etf-update-btn" class="hbtn" onclick="triggerETFCompositionUpdate()" style="font-weight:700;background:var(--blue);color:#fff;border-color:var(--blue)">
+        ↻ Aggiorna composizione
+      </button>
+      <button id="etf-load-btn" class="hbtn" onclick="loadETFDataFromGist()">
+        📥 Carica dal Gist
+      </button>
+      ${meta ? `<span style="font-size:11px;color:var(--text3)">Ultimo aggiornamento: ${lastUpdate}</span>` : ''}
+    </div>
+    <div id="etf-update-status" style="font-size:12px;margin-bottom:10px"></div>`;
+
+  if (!data || !activeETFs.length) {
+    html += `<div class="empty">Premi "Aggiorna composizione" poi "Carica dal Gist"<br>per vedere l'analisi dei tuoi ETF</div>`;
+    html += '</div>';
+    area.innerHTML = html;
+    return;
+  }
+
+  // Riepilogo ETF coperti/mancanti
+  const covered = activeETFs.filter(e => data[e.ticker]);
+  const missing  = activeETFs.filter(e => !data[e.ticker]);
+
+  if (covered.length || missing.length) {
+    html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px">
+      ${covered.length ? `<div style="margin-bottom:4px">✅ <strong>Dati disponibili:</strong> ${covered.map(e=>`<span style="color:var(--green);font-weight:700">${e.ticker}</span>`).join(' ')}</div>` : ''}
+      ${missing.length ? `<div>⚠️ <strong>Dati mancanti:</strong> ${missing.map(e=>`<span style="color:var(--red);font-weight:700">${e.ticker}</span>`).join(' ')} — premi Aggiorna</div>` : ''}
+    </div>`;
+  }
+
+  // Calcola allocazioni aggregate pesate per valore
+  const aggSectors = {}, aggGeos = {}, overlaps = {};
+
+  for (const etf of covered) {
+    const d    = data[etf.ticker];
+    const w    = etf.valueEUR / totalValue; // peso dell'ETF nel portafoglio
+
+    Object.entries(d.sectors || {}).forEach(([s, pct]) => {
+      aggSectors[s] = (aggSectors[s]||0) + w * pct;
+    });
+    Object.entries(d.geos || {}).forEach(([g, pct]) => {
+      aggGeos[g] = (aggGeos[g]||0) + w * pct;
+    });
+    // Raccoglie holdings per sovrapposizioni
+    (d.holdings || []).forEach(h => {
+      if (!overlaps[h.name]) overlaps[h.name] = { total: 0, etfs: [] };
+      overlaps[h.name].total += w * h.weight;
+      overlaps[h.name].etfs.push(etf.ticker);
+    });
+  }
+
+  // ── Settori ──────────────────────────────────────────────────
+  const sortedSectors = Object.entries(aggSectors)
+    .filter(([,v]) => v > 0.1)
+    .sort((a,b) => b[1]-a[1]);
+
+  if (sortedSectors.length) {
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">📊 Allocazione settoriale</div>`;
+
+    const SECTOR_COLORS = {
+      'Technology':'#7ba7ff','Information Technology':'#7ba7ff',
+      'Financials':'#22d47e','Financial Services':'#22d47e',
+      'Healthcare':'#f59e0b','Health Care':'#f59e0b',
+      'Consumer Discretionary':'#8b5cf6','Consumer Cyclical':'#8b5cf6',
+      'Industrials':'#06b6d4','Industrials':'#06b6d4',
+      'Communication Services':'#f97316','Communication':'#f97316',
+      'Energy':'#ef4444',
+      'Materials':'#84cc16',
+      'Real Estate':'#ec4899',
+      'Consumer Staples':'#a78bfa','Defensive':'#a78bfa',
+      'Utilities':'#6ee7b7',
+    };
+    const totalPct = sortedSectors.reduce((s,[,v])=>s+v,0);
+
+    sortedSectors.forEach(([sector, pct]) => {
+      const norm = totalPct > 0 ? pct/totalPct*100 : pct;
+      const col  = SECTOR_COLORS[sector] || '#8899aa';
+      html += `
+      <div style="margin-bottom:7px">
+        <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+          <span style="color:var(--text)">${sector}</span>
+          <span style="font-weight:700;font-family:'JetBrains Mono',monospace;color:${col}">${norm.toFixed(1)}%</span>
+        </div>
+        <div style="background:var(--bg3);border-radius:4px;height:8px;overflow:hidden">
+          <div style="background:${col};width:${Math.min(norm,100)}%;height:100%;border-radius:4px;transition:width .4s"></div>
+        </div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // ── Geografie ─────────────────────────────────────────────────
+  const sortedGeos = Object.entries(aggGeos)
+    .filter(([,v]) => v > 0.5)
+    .sort((a,b) => b[1]-a[1])
+    .slice(0, 15);
+
+  if (sortedGeos.length) {
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">🌍 Aree geografiche</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px">`;
+
+    const geoTotal = sortedGeos.reduce((s,[,v])=>s+v,0);
+    const GEO_FLAGS = {
+      'United States':'🇺🇸','USA':'🇺🇸','US':'🇺🇸',
+      'Japan':'🇯🇵','Giappone':'🇯🇵',
+      'United Kingdom':'🇬🇧','UK':'🇬🇧',
+      'France':'🇫🇷','Francia':'🇫🇷',
+      'Germany':'🇩🇪','Germania':'🇩🇪',
+      'China':'🇨🇳','Cina':'🇨🇳',
+      'Canada':'🇨🇦',
+      'Switzerland':'🇨🇭','Svizzera':'🇨🇭',
+      'Australia':'🇦🇺',
+      'South Korea':'🇰🇷','Korea':'🇰🇷',
+      'Taiwan':'🇹🇼',
+      'India':'🇮🇳',
+      'Netherlands':'🇳🇱','Paesi Bassi':'🇳🇱',
+      'Italy':'🇮🇹','Italia':'🇮🇹',
+      'Denmark':'🇩🇰','Danimarca':'🇩🇰',
+    };
+
+    sortedGeos.forEach(([geo, pct]) => {
+      const norm  = geoTotal > 0 ? pct/geoTotal*100 : pct;
+      const flag  = GEO_FLAGS[geo] || '🌐';
+      html += `
+        <div style="background:var(--bg2);border-radius:8px;padding:7px 10px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span style="font-size:12px">${flag} ${geo}</span>
+            <span style="font-weight:700;font-size:12px;font-family:'JetBrains Mono',monospace">${norm.toFixed(1)}%</span>
+          </div>
+          <div style="background:var(--bg3);border-radius:3px;height:4px;margin-top:5px;overflow:hidden">
+            <div style="background:var(--blue);width:${Math.min(norm,100)}%;height:100%;border-radius:3px"></div>
+          </div>
+        </div>`;
+    });
+    html += '</div></div>';
+  }
+
+  // ── Sovrapposizioni ───────────────────────────────────────────
+  const topOverlaps = Object.entries(overlaps)
+    .filter(([,v]) => v.etfs.length > 1 && v.total > 0.1)
+    .sort((a,b) => b[1].total-a[1].total)
+    .slice(0, 10);
+
+  if (topOverlaps.length) {
+    html += `<div style="margin-bottom:20px">
+      <div style="font-size:12px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:10px">🔄 Sovrapposizioni principali</div>
+      <div style="font-size:11px;color:var(--text3);margin-bottom:8px">Aziende presenti in più ETF del portafoglio</div>`;
+
+    topOverlaps.forEach(([name, v]) => {
+      html += `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;padding:7px 10px;background:var(--bg2);border-radius:8px">
+        <div style="flex:1;font-size:13px;font-weight:600">${name}</div>
+        <div style="font-size:11px;color:var(--text3)">${v.etfs.join(', ')}</div>
+        <div style="font-weight:700;font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--yellow,#f59e0b)">${v.total.toFixed(2)}%</div>
+      </div>`;
+    });
+    html += '</div>';
+  }
+
+  // ── ETF non coperti ───────────────────────────────────────────
+  if (missing.length) {
+    html += `<div style="background:rgba(255,59,59,.06);border:1px solid rgba(255,59,59,.2);border-radius:10px;padding:12px 14px;margin-bottom:14px">
+      <div style="font-size:12px;font-weight:700;color:var(--red);margin-bottom:6px">❌ ETF senza dati di composizione</div>
+      ${missing.map(e=>`<div style="font-size:12px;color:var(--text2);margin-bottom:3px">${e.ticker} — <span style="color:var(--text3)">non trovato automaticamente</span></div>`).join('')}
+      <div style="font-size:11px;color:var(--text3);margin-top:8px">Premi "Aggiorna composizione" per riprovare il download</div>
+    </div>`;
+  }
+
+  html += '</div>';
+  area.innerHTML = html;
 }
 
 function wlSetSort(key) {
