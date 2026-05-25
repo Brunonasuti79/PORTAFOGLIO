@@ -181,22 +181,6 @@ async function fetchBTPDirect(ticker) {
   console.log(`  BTP ${isin}: nessuna fonte disponibile`);
   return null;
 }
-      }
-      const pm = clean.match(rxPrev);
-      if (pm) {
-        const v = parseFloat(pm[1].replace(',', '.'));
-        if (v > 70 && v < 125) prevClose = v;
-      }
-      if (!price && prevClose) price = prevClose;
-      if (price && price > 70 && price < 125) {
-        console.log(`  BTP ${isin}: prezzo=${price}${prevClose?', prevClose='+prevClose:''} [Borsa Italiana]`);
-        return { price, prevClose: prevClose||null, source:'BorsaItaliana' };
-      }
-    } catch(e) { console.log(`  BTP fetch error (${url.slice(0,50)}): ${e.message}`); }
-  }
-  return null;
-}
-
 async function fetchPrice(ticker) {
   // BTP: usa Borsa Italiana direttamente
   const cleanTk = ticker.replace(/\.(MI|MOT)$/i,'');
