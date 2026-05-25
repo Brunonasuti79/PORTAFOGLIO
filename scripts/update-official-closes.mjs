@@ -156,29 +156,74 @@ const BTP_ISIN_RE = /^IT\d{10}$/;
 async function fetchBTPDirect(ticker) {
   const isin = ticker.replace(/\.(MI|MOT)$/i, '').trim();
   if (!BTP_ISIN_RE.test(isin)) return null;
+  const attempts = [];
 
-  // Yahoo Finance — formati noti per BTP italiani
-  const syms = [`${isin}.MI`, `${isin}=`, `${isin}`];
-  for (const sym of syms) {
+  // 1. Stooq — formato italiano per bond governativi
+  const stooqSym = isin.toLowerCase() + '.it';
+  try {
+    const url = `https://stooq.com/q/d/l/?s=${stooqSym}&i=d`;
+    const { status, body } = await httpsGet(url);
+    attempts.push(`Stooq(${stooqSym}):${status}`);
+    if (status === 200 && typeof body === 'string' && !/no data/i.test(body)) {
+      const lines = body.trim().split(/\r?\n/).filter(Boolean);
+      if (lines.length >= 2) {
+        const last = lines[lines.length-1].split(',');
+        const prev = lines.length >= 3 ? lines[lines.length-2].split(',') : null;
+        const price = parseFloat(last[4]);
+        if (price && price > 70 && price < 130) {
+          console.log(`  BTP ${isin}: ${price} [Stooq/${stooqSym}]`);
+          return { price, prevClose: prev ? parseFloat(prev[4]) : null, date: last[0], source: `Stooq/${stooqSym}` };
+        }
+      }
+    }
+  } catch(e) { attempts.push(`Stooq err:${e.message.slice(0,30)}`); }
+  await delay(400);
+
+  // 2. Yahoo Finance — vari formati
+  const yahooSyms = [`${isin}.MI`, `${isin}%3DT`, `${isin}%3D`, isin];
+  for (const sym of yahooSyms) {
     for (const base of ['https://query1.finance.yahoo.com','https://query2.finance.yahoo.com']) {
       try {
-        const url = `${base}/v8/finance/chart/${encodeURIComponent(sym)}?interval=1d&range=5d`;
+        const url = `${base}/v8/finance/chart/${sym}?interval=1d&range=5d`;
         const { status, body } = await httpsGet(url);
+        attempts.push(`Yahoo(${sym}):${status}`);
         if (status !== 200) continue;
         const r = body?.chart?.result?.[0], meta = r?.meta || {};
-        const price = meta.regularMarketPrice || meta.previousClose;
-        const prev  = meta.chartPreviousClose || meta.previousClose;
+        const price = meta.regularMarketPrice;
+        const prev  = meta.chartPreviousClose;
         if (price && price > 70 && price < 130) {
           console.log(`  BTP ${isin}: ${price} prevClose=${prev} [Yahoo/${sym}]`);
-          return { price, prevClose: prev||null,
-            date: meta.regularMarketTime ? new Date(meta.regularMarketTime*1000).toISOString().slice(0,10) : null,
-            source: `Yahoo/${sym}` };
+          return { price, prevClose: prev||null, source: `Yahoo/${sym}` };
         }
       } catch(e) {}
     }
-    await delay(300);
+    await delay(200);
   }
-  console.log(`  BTP ${isin}: nessuna fonte disponibile`);
+
+  // 3. Borsa Italiana JSON endpoint
+  try {
+    const url = `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}.en.html`;
+    const { status, raw } = await httpsGet(url, {
+      'Accept': 'text/html,*/*',
+      'Accept-Language': 'en-US,en;q=0.9',
+      'Referer': 'https://www.google.com/',
+      'Cache-Control': 'no-cache'
+    });
+    attempts.push(`BI:${status}/len:${(raw||'').length}`);
+    if (status === 200 && raw && raw.length > 500) {
+      const m = raw.match(/"last"[^:]*:[^0-9]*([0-9]+[.,][0-9]+)/i)
+               || raw.match(/(?:Ultimo|Last Price)[^0-9]{1,20}([0-9]+[.,][0-9]+)/i);
+      if (m) {
+        const p = parseFloat(m[1].replace(',','.'));
+        if (p > 70 && p < 130) {
+          console.log(`  BTP ${isin}: ${p} [BorsaItaliana]`);
+          return { price: p, prevClose: null, source: 'BorsaItaliana' };
+        }
+      }
+    }
+  } catch(e) { attempts.push(`BI err:${e.message.slice(0,30)}`); }
+
+  console.log(`  BTP ${isin}: nessuna fonte (${attempts.join(', ')})`);
   return null;
 }
 async function fetchPrice(ticker) {
