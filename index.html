@@ -3963,17 +3963,17 @@ function renderPF() {
         <div style="font-size:10px;color:var(--blue);font-weight:800;background:rgba(123,167,255,.08);border:1px solid rgba(123,167,255,.18);border-radius:999px;padding:3px 9px;white-space:nowrap">${filteredHlds.length} titoli</div>
       </div>
       <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px">
-        <div style="background:rgba(7,11,20,.28);border:1px solid rgba(123,167,255,.10);border-radius:11px;padding:8px 10px">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:4px">Totale investito</div>
-          <div class="sum-cv${S.hideValues?' sum-hv':''}" style="font-size:15px">${e2(invested)}</div>
+        <div style="background:rgba(7,11,20,.28);border:1px solid rgba(123,167,255,.10);border-radius:11px;padding:8px 10px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:4px;text-align:center">Totale investito</div>
+          <div class="sum-cv${S.hideValues?' sum-hv':''}" style="font-size:15px;text-align:center">${e2(invested)}</div>
         </div>
-        <div style="background:rgba(7,11,20,.28);border:1px solid rgba(123,167,255,.10);border-radius:11px;padding:8px 10px">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:4px">Valore attuale</div>
-          <div class="sum-cv${S.hideValues?' sum-hv':''}" style="font-size:15px">${current>0?e2(current):'—'}</div>
+        <div style="background:rgba(7,11,20,.28);border:1px solid rgba(123,167,255,.10);border-radius:11px;padding:8px 10px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:4px;text-align:center">Valore attuale</div>
+          <div class="sum-cv${S.hideValues?' sum-hv':''}" style="font-size:15px;text-align:center">${current>0?e2(current):'—'}</div>
         </div>
-        <div style="background:rgba(7,11,20,.28);border:1px solid rgba(123,167,255,.10);border-radius:11px;padding:8px 10px;border-left:3px solid ${gain>=0?'rgba(34,212,126,.55)':'rgba(255,82,82,.55)'}">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:4px">Gain / Loss</div>
-          <div class="sum-cv ${gCls}${S.hideValues?' sum-hv':''}" style="font-size:15px">${current>0?(gain>=0?'+':'')+e2(gain):'—'}</div>
+        <div style="background:${gain>=0?'rgba(34,212,126,.055)':'rgba(255,82,82,.055)'};border:1.5px solid ${gain>=0?'rgba(34,212,126,.55)':'rgba(255,82,82,.60)'};border-radius:11px;padding:8px 10px;text-align:center">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:800;margin-bottom:4px;text-align:center">Gain / Loss</div>
+          <div class="sum-cv${S.hideValues?' sum-hv':''}" style="font-size:15px;text-align:center;color:var(--text)">${current>0?(gain>=0?'+':'')+e2(gain):'—'}</div>
         </div>
       </div>${missingHtml}
     </div>`;
