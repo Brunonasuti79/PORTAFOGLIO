@@ -8634,14 +8634,14 @@ async function loadETFDataFromGist() {
           ${rows}${failRows}
         </div>`;
     }
-    // Deduplica per ISIN prima di contare
-    const seenI = new Set();
-    const uniqueUpdated = allUpdated.filter(tk => {
+    // Conta ETF unici per ISIN (deduplica XMME.DE + XMME.MI ecc.)
+    const seenI2 = new Set();
+    let uniqueCount = 0;
+    Object.keys(_etfData).filter(k=>k!=='__meta').forEach(tk => {
       const isin = _etfData[tk]?.isin||tk;
-      if (seenI.has(isin)) return false;
-      seenI.add(isin); return true;
+      if (!seenI2.has(isin)) { seenI2.add(isin); uniqueCount++; }
     });
-    showToast(`✅ ${uniqueUpdated.length} ETF caricati`, 3000);
+    showToast(`✅ ${uniqueCount} ETF caricati`, 3000);
     // Salva HTML spunte prima che renderETFAnalytics lo sovrascriva
     const savedStatus = statusEl ? statusEl.innerHTML : '';
     renderETFAnalytics();
