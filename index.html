@@ -1838,6 +1838,7 @@ function load() {
         ALL.officialCloses = d.officialCloses || {};
         ALL.officialClosesMeta = d.officialClosesMeta || {};
         ALL.watchlist = d.watchlist || [];
+        ALL.etfComposition = d.etfComposition || null;
       } else {
         // Formato legacy — migrazione automatica
         const pf = newPortfolio(d.settings?.portfolioName || 'Portafoglio principale');
@@ -8646,11 +8647,13 @@ function getActiveETFs() {
 function renderETFAnalytics() {
   const area = document.getElementById('etf-analysis-area');
   if (!area) return;
-
+  try {
   // Carica da cache locale se disponibile
   const data = _etfData || ALL.etfComposition;
   const meta = data?.__meta;
   const activeETFs = getActiveETFs();
+  console.log('[ETF] data keys:', data ? Object.keys(data).filter(k=>k!=='__meta') : 'null');
+  console.log('[ETF] activeETFs:', activeETFs.length);
 
   // Header con pulsanti
   const lastUpdate = meta?.updatedAt ? new Date(meta.updatedAt).toLocaleDateString('it-IT') : '—';
@@ -8841,7 +8844,12 @@ function renderETFAnalytics() {
   }
 
   html += '</div>';
+  console.log('[ETF] html length:', html.length, 'sectors:', sortedSectors?.length, 'geos:', sortedGeos?.length);
   area.innerHTML = html;
+  } catch(e) {
+    console.error('[ETF] renderETFAnalytics error:', e);
+    area.innerHTML = `<div style="padding:20px;color:var(--red)">Errore rendering: ${e.message}</div>`;
+  }
 }
 
 function wlSetSort(key) {
