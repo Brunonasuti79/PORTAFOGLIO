@@ -390,30 +390,54 @@ async function writeGistFile(gistId, filename, content) {
 
 // ── Estrai ETF dal portafoglio ────────────────────────────────────
 function extractETFs(portfolioData) {
-  const ETF_CATEGORIES = ['ETF Azionario', 'ETF Monetario', 'ETF Monetario / Fondo Monetario',
-                          'ETF Obbligazionario', 'ETF Materie Prime', 'ETF'];
+  // Categorie ETF — match parziale case-insensitive
+  const ETF_KW = ['etf', 'ucits', 'fund', 'fondo'];
+  // Ticker che sono chiaramente azioni singole da escludere
+  const STOCK_ONLY = ['SMCI','BURU','KURA','NMRA','ADBE','AIP','META','MSFT','NKE','SLNH','MSTR','OKYO','ADS'];
+  // Pattern ISIN che identificano sicuramente ETF (IE/LU domicilio)
+  const ETF_ISIN = /^(IE|LU)/;
 
-  const etfs = new Map(); // ticker → { ticker, isin, name, category }
+  const etfs = new Map();
+
+  // Debug: mostra categorie trovate
+  const cats = new Set();
+  (portfolioData.portfolios || []).forEach(pf => {
+    (pf.ops || []).forEach(op => { if (op.category) cats.add(op.category); });
+  });
+  console.log('Categorie trovate nel portafoglio:', [...cats].join(', ') || '(nessuna)');
 
   (portfolioData.portfolios || []).forEach(pf => {
     (pf.ops || []).forEach(op => {
-      if (!ETF_CATEGORIES.some(c => (op.category || '').includes(c))) return;
-      if (!op.isin) return; // ISIN obbligatorio per fetch
-
       const ticker = op.quoteTicker || op.ticker;
       if (!ticker || ticker === '__CASH__') return;
 
+      const cat   = (op.category || '').toLowerCase();
+      const isin  = (op.isin || '').trim();
+      const isETF = ETF_KW.some(k => cat.includes(k))          // categoria contiene ETF
+                 || (isin && ETF_ISIN.test(isin))               // ISIN IE/LU = quasi certamente ETF
+                 || (isin && isin.startsWith('FR') && /\.(MI|DE|PA|AS)$/i.test(ticker)); // ETF Amundi FR
+
+      const isStock = STOCK_ONLY.includes(ticker.replace(/\.(MI|DE|PA|AS|L)$/i,'').toUpperCase())
+                   || (!isETF && !isin);
+
+      if (!isETF || isStock) return;
+      if (!isin) {
+        console.log(`  SKIP ${ticker} — nessun ISIN`);
+        return;
+      }
+
       const qty = (op.type === 'buy' ? 1 : -1) * (op.qty || 0);
       if (!etfs.has(ticker)) {
-        etfs.set(ticker, { ticker, isin: op.isin, name: op.name || ticker, qty });
+        etfs.set(ticker, { ticker, isin, name: op.name || ticker, qty });
       } else {
         etfs.get(ticker).qty += qty;
       }
     });
   });
 
-  // Tieni solo ETF con posizione aperta
-  return [...etfs.values()].filter(e => e.qty > 0.001);
+  const result = [...etfs.values()].filter(e => e.qty > 0.001);
+  console.log(`ETF identificati: ${result.length} — ${result.map(e=>e.ticker).join(', ')}`);
+  return result;
 }
 
 // ── Main ──────────────────────────────────────────────────────────
