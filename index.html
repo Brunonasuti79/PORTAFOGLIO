@@ -1096,18 +1096,25 @@ input[type=number]{-moz-appearance:textfield}
       <div id="pf-name-st" style="display:none;color:var(--green);font-size:12px;margin-top:6px">✓ Nome salvato</div>
     </div>
     <div class="ssec">
-      <div class="slbl">🔑 API Key Finnhub <span style="color:var(--green);font-weight:600">(fonte principale)</span></div>
-      <div class="sdesc">Chiamata diretta, senza CORS. Gratuita su <a href="https://finnhub.io" target="_blank" style="color:var(--blue)">finnhub.io</a> → Sign up → Dashboard.</div>
-      <input class="sinput" type="text" id="ak-inp" placeholder="d7t6fhhr01q..." autocomplete="new-password" oninput="onAkChange()" spellcheck="false" autocorrect="off" autocapitalize="off">
-      <div id="ak-st" class="akst ko">Nessuna API key Finnhub</div>
-      <div id="ak-warn" style="display:none;margin-top:4px;font-size:11px;color:var(--red);font-weight:600">⚠ La key sembra non valida — le API key Finnhub hanno ~20 caratteri alfanumerici senza simboli speciali</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div class="slbl" style="margin:0">⚡ Prezzi in tempo reale</div>
+        <div id="ak-st" class="akst ko" style="font-size:11px;padding:2px 10px;border-radius:20px">Non configurato</div>
+      </div>
+      <div class="sdesc">Abilita l'aggiornamento dei prezzi istantaneo durante gli orari di borsa. Gratuito, richiede registrazione su <a href="https://finnhub.io" target="_blank" style="color:var(--blue)">finnhub.io</a>.</div>
+      <details id="finnhub-details">
+        <summary style="font-size:11px;color:var(--blue);cursor:pointer;user-select:none;margin-top:6px">⚙ Configura chiave di accesso</summary>
+        <div style="margin-top:8px">
+          <input class="sinput" type="text" id="ak-inp" placeholder="Incolla qui la tua chiave..." autocomplete="new-password" oninput="onAkChange()" spellcheck="false" autocorrect="off" autocapitalize="off">
+          <div id="ak-warn" style="display:none;margin-top:4px;font-size:11px;color:var(--red);font-weight:600">⚠ Chiave non valida — deve contenere ~20 caratteri alfanumerici</div>
+        </div>
+      </details>
     </div>
 
-    <div class="ssec">
-      <div class="slbl">🤖 API Key Anthropic <span style="color:var(--text3)">(fallback web search)</span></div>
-      <div class="sdesc">Usata solo se tutte le fonti principali falliscono. Gratuita su <a href="https://console.anthropic.com" target="_blank" style="color:var(--blue)">console.anthropic.com</a>.</div>
+    <!-- API Anthropic: nascosta in configurazione avanzata -->
+    <div class="ssec" style="display:none" id="ssec-anthropic">
+      <div class="slbl">🤖 Fallback avanzato</div>
       <input class="sinput" type="password" id="ant-inp" placeholder="sk-ant-api03-..." autocomplete="off" oninput="onAntChange()">
-      <div id="ant-st" class="akst ko">Nessuna API key Anthropic</div>
+      <div id="ant-st" class="akst ko">Non configurato</div>
     </div>
 
     <div class="ssec">
@@ -1131,7 +1138,7 @@ input[type=number]{-moz-appearance:textfield}
 
     <div class="ssec">
       <div class="slbl">ℹ Info</div>
-      <div class="sdesc" style="color:var(--text3)">Portafoglio BIT v9.0 · Multi-portafoglio · Finnhub + Yahoo + Stooq + Anthropic</div>
+      <div class="sdesc" style="color:var(--text3)">Portafoglio BIT v9 · Dati da fonti multiple · Prezzi aggiornati ogni 90 secondi</div>
     </div>
   </div>
 
@@ -1179,20 +1186,27 @@ input[type=number]{-moz-appearance:textfield}
       <input type="file" id="backup-file" accept=".json,application/json" style="display:none" onchange="importBackup(event)">
     </div>
     <div class="ssec">
-      <div class="slbl">☁️ Sync Cloud — GitHub</div>
-      <div class="sdesc">Il backup si sincronizza automaticamente sul tuo spazio cloud già collegato. Devi inserire solo il token GitHub una volta; poi l'app carica da sola dopo ogni modifica.</div>
-      <input class="sinput" type="password" id="github-token-inp"
-        placeholder="Token GitHub: ghp_... oppure github_pat_..." autocomplete="off"
-        oninput="onGithubTokenChange(this.value)">
-      <div id="gist-status" style="margin-top:8px"></div>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button class="bbtn" id="gist-upload-btn" onclick="syncToGist()" style="flex:1">☁ Salva ora</button>
-        <button class="bbtn" id="gist-download-btn" onclick="syncFromGist()" style="flex:1;background:rgba(34,212,126,.08);border-color:rgba(34,212,126,.25);color:#22d47e">⬇ Recupera backup</button>
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+        <div class="slbl" style="margin:0">☁️ Backup automatico</div>
+        <div id="sync-status-badge" style="font-size:11px;font-weight:700;padding:2px 10px;border-radius:20px;background:rgba(34,212,126,.15);color:var(--green);border:1px solid rgba(34,212,126,.3)">● Attivo</div>
       </div>
-    </div>
-    <div class="ssec">
-      <div class="slbl">🔐 Sicurezza</div>
-      <div class="sdesc">Il backup non salva token GitHub né API key. Le credenziali restano solo sul dispositivo.</div>
+      <div class="sdesc">I tuoi dati vengono salvati automaticamente sul cloud dopo ogni modifica. Nessuna azione richiesta.</div>
+      <div id="gist-status" style="margin-top:6px"></div>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="bbtn" id="gist-upload-btn" onclick="syncToGist()" style="flex:1">↑ Salva ora</button>
+        <button class="bbtn" id="gist-download-btn" onclick="syncFromGist()" style="flex:1;background:rgba(34,212,126,.08);border-color:rgba(34,212,126,.25);color:#22d47e">↓ Ripristina backup</button>
+      </div>
+      <!-- Configurazione avanzata — nascosta di default -->
+      <details style="margin-top:12px">
+        <summary style="font-size:11px;color:var(--text3);cursor:pointer;user-select:none">⚙ Configurazione avanzata</summary>
+        <div style="margin-top:8px">
+          <div style="font-size:11px;color:var(--text3);margin-bottom:6px">Chiave di accesso cloud (inserita una volta sola)</div>
+          <input class="sinput" type="password" id="github-token-inp"
+            placeholder="Chiave di accesso..." autocomplete="off"
+            oninput="onGithubTokenChange(this.value)">
+          <div style="font-size:10px;color:var(--text3);margin-top:6px">🔐 La chiave resta solo su questo dispositivo e non viene mai inviata ad altri servizi.</div>
+        </div>
+      </details>
     </div>
   </div>
 
@@ -6356,6 +6370,7 @@ function syncSettingsUI() {
   const ak  = ALL.settings.ak || '';
   const ant = ALL.settings.anthropicKey || '';
   const inpAk  = document.getElementById('ak-inp');  if(inpAk)  inpAk.value = ak;
+  updateSyncBadge();
   const inpAnt = document.getElementById('ant-inp'); if(inpAnt) inpAnt.value = ant;
   const stAk   = document.getElementById('ak-st');
   const stAnt  = document.getElementById('ant-st');
@@ -6571,6 +6586,29 @@ function renderTaxRateSettings() {
       </div>`;
     }).join('')}
   </div>`;
+}
+
+function updateSyncBadge() {
+  const badge = document.getElementById('sync-status-badge');
+  if (!badge) return;
+  const hasToken = !!(ALL.settings?.githubToken?.trim());
+  badge.textContent = hasToken ? '● Attivo' : '● Non configurato';
+  badge.style.background = hasToken ? 'rgba(34,212,126,.15)' : 'rgba(255,59,59,.12)';
+  badge.style.color = hasToken ? 'var(--green)' : 'var(--red)';
+  badge.style.borderColor = hasToken ? 'rgba(34,212,126,.3)' : 'rgba(255,59,59,.3)';
+  // Apri automaticamente la configurazione avanzata se non configurato
+  const details = document.querySelector('#pg-settings details:first-of-type');
+  if (!hasToken && details && !details.open) details.open = true;
+  // Finnhub badge
+  const akSt = document.getElementById('ak-st');
+  const hasAk = !!(ALL.settings?.ak?.trim());
+  if (akSt) {
+    akSt.textContent = hasAk ? '✓ Attivo' : 'Non configurato';
+    akSt.className = hasAk ? 'akst ok' : 'akst ko';
+  }
+  // Apri finnhub details se non configurato
+  const finnhubDet = document.getElementById('finnhub-details');
+  if (!hasAk && finnhubDet && !finnhubDet.open) finnhubDet.open = true;
 }
 
 function renderSettingsUI() {
