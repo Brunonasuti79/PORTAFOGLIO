@@ -8649,35 +8649,37 @@ async function loadETFDataFromGist() {
       if (seenI3.has(isin)) return false;
       seenI3.add(isin); return true;
     });
-    if (statusEl) {
-      const rows = uniqueRows.map(tk => {
-        const name = _etfData[tk]?.name || tk;
-        const src  = _etfData[tk]?.source || '';
-        const srcTag = src === 'static'
-          ? `<span style="font-size:10px;color:var(--text3);background:var(--bg3);border-radius:4px;padding:1px 5px">📋 statico</span>`
-          : `<span style="font-size:10px;color:var(--green);background:rgba(34,212,126,.1);border-radius:4px;padding:1px 5px">🔄 live</span>`;
-        return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-          <span style="color:var(--green);font-size:14px;font-weight:700">✓</span>
-          <span style="font-size:12px;flex:1">${name}</span>${srcTag}</div>`;
-      }).join('');
-      const failRows = failed2.map(tk =>
-        `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
-          <span style="color:var(--red);font-size:14px">✗</span>
-          <span style="font-size:12px;color:var(--text2);flex:1">${_etfData[tk]?.name||tk}</span>
-          <span style="font-size:10px;color:var(--red)">non trovato</span></div>`
-      ).join('');
-      statusEl.innerHTML = `
-        <details style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:0;margin-bottom:12px;overflow:hidden">
-          <summary style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text2);list-style:none;display:flex;align-items:center;gap:8px">
-            <span style="color:var(--green)">✓</span>
-            ${uniqueRows.length} ETF aggiornati
-            ${failed2.length ? `<span style="color:var(--red);margin-left:4px">· ${failed2.length} non trovati</span>` : ''}
-            <span style="margin-left:auto;font-size:10px;color:var(--text3)">▼ dettaglio</span>
-          </summary>
-          <div style="padding:4px 14px 10px">${rows}${failRows}</div>
-        </details>`;
-    }
+    // Costruisci HTML spunte
+    const rows = uniqueRows.map(tk => {
+      const name = _etfData[tk]?.name || tk;
+      const src  = _etfData[tk]?.source || '';
+      const srcTag = src === 'static'
+        ? `<span style="font-size:10px;color:var(--text3);background:var(--bg3);border-radius:4px;padding:1px 5px">📋 statico</span>`
+        : `<span style="font-size:10px;color:var(--green);background:rgba(34,212,126,.1);border-radius:4px;padding:1px 5px">🔄 live</span>`;
+      return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+        <span style="color:var(--green);font-size:14px;font-weight:700">✓</span>
+        <span style="font-size:12px;flex:1">${name}</span>${srcTag}</div>`;
+    }).join('');
+    const failRows = failed2.map(tk =>
+      `<div style="display:flex;align-items:center;gap:8px;padding:4px 0">
+        <span style="color:var(--red);font-size:14px">✗</span>
+        <span style="font-size:12px;color:var(--text2);flex:1">${_etfData[tk]?.name||tk}</span>
+        <span style="font-size:10px;color:var(--red)">non trovato</span></div>`
+    ).join('');
+    const builtStatusHTML = `
+      <details style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin-bottom:12px;overflow:hidden">
+        <summary style="padding:10px 14px;cursor:pointer;font-size:12px;font-weight:700;color:var(--text2);list-style:none;display:flex;align-items:center;gap:8px">
+          <span style="color:var(--green);font-size:16px">✓</span>
+          ${uniqueRows.length} ETF aggiornati
+          ${failed2.length ? `<span style="color:var(--red);margin-left:4px">· ${failed2.length} non trovati</span>` : ''}
+          <span style="margin-left:auto;font-size:11px;color:var(--text3)">tocca per dettaglio ▼</span>
+        </summary>
+        <div style="padding:4px 14px 10px">${rows}${failRows}</div>
+      </details>`;
+    // Render pagina, poi inietta status nel nuovo div (che ora esiste nel DOM)
     renderETFAnalytics();
+    const injectStatus = document.getElementById('etf-update-status');
+    if (injectStatus) injectStatus.innerHTML = builtStatusHTML;
   } catch(e) {
     showToast('⚠ ' + e.message, 4000);
   } finally {
