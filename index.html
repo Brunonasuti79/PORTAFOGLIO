@@ -8600,7 +8600,13 @@ async function loadETFDataFromGist() {
     _etfData = JSON.parse(content);
     ALL.etfComposition = _etfData;
     save();
-    showToast('✅ Dati ETF caricati', 3000);
+    const meta = _etfData.__meta || {};
+    const ok  = (meta.updated || []).length;
+    const nok = (meta.failed  || []).length;
+    const msg = `✅ Caricati ${ok + (meta.staticData?.length||0)} ETF`
+      + (meta.staticData?.length ? ` (${meta.staticData.length} con dati statici)` : '')
+      + (nok ? ` · ⚠ ${nok} non trovati` : '');
+    showToast(msg, 5000);
     renderETFAnalytics();
   } catch(e) {
     showToast('⚠ ' + e.message, 4000);
@@ -8610,13 +8616,20 @@ async function loadETFDataFromGist() {
 }
 
 function getActiveETFs() {
-  const ETF_CATS = ['ETF Azionario','ETF Monetario','ETF Monetario / Fondo Monetario',
-                    'ETF Obbligazionario','ETF Materie Prime','ETF'];
+  // Stessa logica robusta dello script: identifica ETF da ISIN IE/LU/FR
+  const ETF_ISIN = /^(IE|LU|FR)/;
+  const EXCLUDE  = /^IT\d{10}$/; // BTP
+  const STOCKS   = new Set(['SMCI','BURU','KURA','NMRA','ADBE','AIP','META','MSFT',
+                             'NKE','SLNH','MSTR','OKYO','ADS']);
   const qty = {};
   (S.ops || []).forEach(op => {
-    if (!ETF_CATS.some(c => (op.category||'').includes(c))) return;
-    const tk = op.quoteTicker || op.ticker;
+    const tk   = op.quoteTicker || op.ticker;
+    const isin = (op.isin || '').trim();
     if (!tk || tk === '__CASH__') return;
+    if (!isin || EXCLUDE.test(isin)) return;
+    if (!ETF_ISIN.test(isin)) return;
+    const base = tk.replace(/\.(MI|DE|PA|AS|L)$/i,'').toUpperCase();
+    if (STOCKS.has(base)) return;
     qty[tk] = (qty[tk]||0) + (op.type==='buy'?1:-1)*(op.qty||0);
   });
   const hlds = calcPF();
@@ -8624,7 +8637,8 @@ function getActiveETFs() {
     .filter(([,q]) => q > 0.001)
     .map(([tk]) => {
       const h = hlds.find(x => x.ticker===tk);
-      return { ticker: tk, valueEUR: h ? (currentValueAllEUR(h)||0) : 0 };
+      const op = (S.ops||[]).find(o => (o.quoteTicker||o.ticker)===tk);
+      return { ticker: tk, isin: op?.isin||'', valueEUR: h ? (currentValueAllEUR(h)||0) : 0 };
     })
     .filter(e => e.valueEUR > 0);
 }
@@ -8637,7 +8651,6 @@ function renderETFAnalytics() {
   const data = _etfData || ALL.etfComposition;
   const meta = data?.__meta;
   const activeETFs = getActiveETFs();
-  const totalValue = activeETFs.reduce((s,e) => s+e.valueEUR, 0);
 
   // Header con pulsanti
   const lastUpdate = meta?.updatedAt ? new Date(meta.updatedAt).toLocaleDateString('it-IT') : '—';
@@ -8658,16 +8671,27 @@ function renderETFAnalytics() {
     </div>
     <div id="etf-update-status" style="font-size:12px;margin-bottom:10px"></div>`;
 
-  if (!data || !activeETFs.length) {
+  // Se non ci sono ETF attivi identificati, mostra tutti quelli nel JSON
+  // (utile quando le ops non hanno categoria ma i dati sono stati caricati)
+  const etfKeys = data ? Object.keys(data).filter(k => k !== '__meta') : [];
+
+  if (!data || (!activeETFs.length && !etfKeys.length)) {
     html += `<div class="empty">Premi "Aggiorna composizione" poi "Carica dal Gist"<br>per vedere l'analisi dei tuoi ETF</div>`;
     html += '</div>';
     area.innerHTML = html;
     return;
   }
 
+  // Se getActiveETFs non trova nulla ma il JSON ha dati, usa quelli dal JSON con valore 1 (peso uguale)
+  let effectiveETFs = activeETFs;
+  if (!effectiveETFs.length && etfKeys.length) {
+    effectiveETFs = etfKeys.map(tk => ({ ticker: tk, isin: data[tk]?.isin||'', valueEUR: 1 }));
+  }
+  const totalValue = effectiveETFs.reduce((s,e)=>s+e.valueEUR,0) || 1;
+
   // Riepilogo ETF coperti/mancanti
-  const covered = activeETFs.filter(e => data[e.ticker]);
-  const missing  = activeETFs.filter(e => !data[e.ticker]);
+  const covered = effectiveETFs.filter(e => data[e.ticker]);
+  const missing  = effectiveETFs.filter(e => !data[e.ticker]);
 
   if (covered.length || missing.length) {
     html += `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 14px;margin-bottom:14px;font-size:12px">
@@ -8681,7 +8705,7 @@ function renderETFAnalytics() {
 
   for (const etf of covered) {
     const d    = data[etf.ticker];
-    const w    = etf.valueEUR / totalValue; // peso dell'ETF nel portafoglio
+    const w    = etf.valueEUR / totalValue;
 
     Object.entries(d.sectors || {}).forEach(([s, pct]) => {
       aggSectors[s] = (aggSectors[s]||0) + w * pct;
