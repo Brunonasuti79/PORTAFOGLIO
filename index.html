@@ -2355,9 +2355,11 @@ function pfSummary(hlds) {
     }
   }
   const rate = ALL.fxRates?.EURUSD || null;
-  // Liquidità sul conto corrente (sempre EUR, valore = costo)
+
+  // La liquidità NON entra nel capitale investito né nel rendimento.
+  // È capitale disponibile, separato dai prodotti finanziari.
   const cash = S.cashEUR || 0;
-  if (cash > 0) { eurTc += cash; eurTv += cash; eurN++; }
+
   const totalTc = eurTc + (rate ? usdTc/rate : 0);
   const totalTv = eurTv + (rate ? usdTv/rate : 0);
   const totalG  = totalTv - totalTc;
@@ -2365,6 +2367,9 @@ function pfSummary(hlds) {
   return {
     eur: eurN  > 0 ? { tc:eurTc, tv:eurTv, g:eurTv-eurTc } : null,
     usd: usdN  > 0 ? { tc:usdTc, tv:usdTv, g:usdTv-usdTc } : null,
+    cash,
+    totalProductsEUR: totalTv,
+    totalCapitalEUR: totalTv + cash,
     rendimento, hasData: eurN+usdN > 0
   };
 }
@@ -3718,16 +3723,21 @@ function renderPF() {
     const hv = S.hideValues ? ' sum-hv' : '';
     const gc = rGc === 'gain' ? 'gc' : 'lc';
     const barCol = rGc === 'gain' ? '#22d47e' : '#ff5252';
-    // Barra: min(tc,tv)/max(tc,tv) — mostra gap gain o loss
+    // Barra: min(investito prodotti, valore prodotti)/max(...) — mostra gap gain o loss.
+    // La liquidità resta separata e viene mostrata come capitale complessivo.
     const totalTc = (sum.eur?.tc||0) + (sum.usd?.tc||0)/(ALL.fxRates?.EURUSD||1);
     const totalTv = (sum.eur?.tv||0) + (sum.usd?.tv||0)/(ALL.fxRates?.EURUSD||1);
-    const barW = totalTv>0 ? Math.round(Math.min(totalTc,totalTv)/Math.max(totalTc,totalTv)*100) : 0;
+    const totalCapital = totalTv + (sum.cash || 0);
+    const barW = totalTv>0 && totalTc>0 ? Math.round(Math.min(totalTc,totalTv)/Math.max(totalTc,totalTv)*100) : 0;
     const totalG = totalTv - totalTc;
     const eyeOpen = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>`;
     const eyeClose = `<svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>`;
     sa.innerHTML = `<div class="sum-card2">
-      <div style="display:flex;align-items:flex-start;justify-content:space-between">
-        <div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-weight:700">Valore portafoglio</div>
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+        <div style="font-size:10px;color:var(--blue);text-transform:uppercase;letter-spacing:.8px;margin-bottom:4px;font-weight:700;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <span>Valore portafoglio</span>
+          <span class="${hv.trim()}" style="font-size:10px;color:var(--text3);letter-spacing:.3px;text-transform:none;font-weight:600">Capitale complessivo ${e2(totalCapital)}</span>
+        </div>
         <button class="sum-eye" onclick="toggleSumValues()" title="${S.hideValues?'Mostra':'Nascondi'} valori">${S.hideValues?eyeClose:eyeOpen}</button>
       </div>
       <div style="display:flex;align-items:baseline;gap:10px;flex-wrap:wrap">
