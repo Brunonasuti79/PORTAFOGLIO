@@ -31,7 +31,13 @@ function httpsRequest(url, method, payload, headers = {}) {
       }
     }, res => {
       if (res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
-        resolve(httpsRequest(res.headers.location, method, payload, headers)); return;
+        try {
+          const loc = res.headers.location.startsWith('http')
+            ? res.headers.location
+            : new URL(res.headers.location, url).href;
+          resolve(httpsRequest(loc, method, payload, headers));
+        } catch(e) { resolve({ status: res.statusCode, body: null, raw: '' }); }
+        return;
       }
       const chunks = [];
       res.on('data', c => chunks.push(c));
@@ -153,9 +159,10 @@ async function fetchBTPDirect(ticker) {
   if (!BTP_ISIN_RE.test(isin)) return null;
 
   const urls = [
+    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}.en.html`,
     `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}-MOTX.html`,
-    `https://www.borsaitaliana.it/borsa/obbligazioni/mot/btp/scheda/${isin}.html`,
-    `https://live.euronext.com/en/pd/data/product?isin=${isin}&mic=XMOT`,
+    `https://live.euronext.com/api/Product/GetQuote?isin=${isin}&mic=XMOT&type=BOND`,
+    `https://api.live.euronext.com/v1/quotes/${isin}/XMOT`,
   ];
 
   const rxPrice = [
