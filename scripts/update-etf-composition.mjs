@@ -251,6 +251,44 @@ const STATIC_SECTORS_EQUITY = {
   },
 };
 
+const STATIC_HOLDINGS_EQUITY = {
+  'IE00B4L5Y983': [ // SWDA — iShares MSCI World (top 10)
+    {name:'Apple Inc',weight:4.8},{name:'Microsoft Corp',weight:4.1},
+    {name:'NVIDIA Corp',weight:3.9},{name:'Amazon.com Inc',weight:2.4},
+    {name:'Meta Platforms',weight:1.6},{name:'Alphabet A',weight:1.4},
+    {name:'Alphabet C',weight:1.2},{name:'Tesla Inc',weight:1.0},
+    {name:'Broadcom Inc',weight:0.9},{name:'JPMorgan Chase',weight:0.9},
+  ],
+  'IE00BTJRMP35': [ // XMME — Xtrackers MSCI Emerging Markets
+    {name:'Taiwan Semiconductor',weight:9.1},{name:'Samsung Electronics',weight:4.2},
+    {name:'Tencent Holdings',weight:3.8},{name:'Alibaba Group',weight:2.4},
+    {name:'Reliance Industries',weight:1.9},{name:'Meituan',weight:1.4},
+    {name:'ICICI Bank',weight:1.2},{name:'Infosys',weight:1.1},
+    {name:'SK Hynix',weight:1.0},{name:'PDD Holdings',weight:0.9},
+  ],
+  'IE00BJZ2DD79': [ // XRS2 — Xtrackers Russell 2000
+    {name:'Sprouts Farmers Market',weight:0.5},{name:'Ensign Group',weight:0.4},
+    {name:'Installed Building Prod',weight:0.4},{name:'FTAI Aviation',weight:0.4},
+    {name:'Comfort Systems USA',weight:0.4},{name:'Fabrinet',weight:0.4},
+    {name:'Clearfield Inc',weight:0.3},{name:'Abm Industries',weight:0.3},
+    {name:'McGrath RentCorp',weight:0.3},{name:'Tidewater Inc',weight:0.3},
+  ],
+  'LU1681041973': [ // EHF1 — Amundi MSCI Europe High Dividend
+    {name:'Zurich Insurance Group',weight:2.4},{name:'Allianz SE',weight:2.3},
+    {name:'Roche Holding',weight:2.1},{name:'Novartis AG',weight:2.0},
+    {name:'Shell PLC',weight:1.9},{name:'TotalEnergies SE',weight:1.8},
+    {name:'AXA SA',weight:1.7},{name:'Intesa Sanpaolo',weight:1.6},
+    {name:'BNP Paribas',weight:1.5},{name:'Banco Santander',weight:1.4},
+  ],
+  'LU1834983477': [ // BNK — Amundi MSCI Europe Banks
+    {name:'BNP Paribas',weight:9.2},{name:'HSBC Holdings',weight:8.8},
+    {name:'Banco Santander',weight:8.1},{name:'ING Groep',weight:6.4},
+    {name:'Intesa Sanpaolo',weight:6.1},{name:'UniCredit',weight:5.9},
+    {name:'Barclays PLC',weight:5.4},{name:'Deutsche Bank',weight:4.8},
+    {name:'Société Générale',weight:4.3},{name:'Credit Agricole',weight:3.9},
+  ],
+};
+
 const STATIC_GEO_EQUITY = {
   'IE00B4L5Y983': { 'United States':70,'Japan':6,'United Kingdom':4,'France':3,'Canada':3,'Germany':3,'Switzerland':3,'Other':8 },
   'IE00BTJRMP35': { 'China':28,'India':18,'Taiwan':15,'South Korea':10,'Brazil':6,'Saudi Arabia':4,'Other':19 },
@@ -292,10 +330,11 @@ async function fetchETFComposition(ticker, isin) {
     if (staticSec || staticGeo) {
       const type = STATIC_SECTORS[isin] ? 'obbligazionario/monetario' : 'azionario (fallback statico)';
       console.log(`  → usando dati statici ${type}`);
+      const staticHold = STATIC_HOLDINGS_EQUITY[isin] || result?.holdings || [];
       result = {
         sectors:  staticSec || result?.sectors  || {},
         geos:     staticGeo || result?.geos     || {},
-        holdings: result?.holdings || [],
+        holdings: staticHold,
         source:   'static'
       };
     }
