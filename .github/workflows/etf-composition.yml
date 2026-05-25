@@ -1,0 +1,27 @@
+name: Update ETF Composition
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_all:
+        description: 'Forza aggiornamento tutti gli ETF (anche quelli già aggiornati di recente)'
+        required: false
+        default: 'true'
+
+jobs:
+  fetch:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+
+      - name: Fetch ETF Composition
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID:    ${{ secrets.GIST_ID }}
+        run: node scripts/update-etf-composition.mjs
