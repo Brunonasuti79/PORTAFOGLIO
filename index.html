@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
@@ -863,6 +864,11 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
 @media(max-width:900px){.tut-academy-grid{grid-template-columns:1fr}.tut-stage-kpis,.tut-metric-row{grid-template-columns:repeat(2,1fr)}.tut-flow{grid-template-columns:1fr}.tut-step:not(:last-child)::after{content:'↓';right:50%;top:auto;bottom:-12px;transform:translateX(50%)}}
 @media(max-width:720px){.tut-wrap{padding-left:10px;padding-right:10px}.tut-stage-title{font-size:32px}.tut-route-grid,.tut-visual-grid,.tut-two{grid-template-columns:1fr}.tut-map{grid-template-columns:repeat(2,1fr)}.tut-gloss{grid-template-columns:1fr 1fr}.tut-section-head{padding:13px}.tut-section-body{padding:13px}.tut-stage-top{align-items:flex-start;flex-direction:column}.tut-primary-btn,.tut-ghost-btn{width:100%}}
 @media(max-width:420px){.tut-stage-kpis,.tut-metric-row,.tut-map,.tut-gloss{grid-template-columns:1fr}.tut-stage{padding:15px;border-radius:20px}.tut-section-title{font-size:16px}.tut-section-body{font-size:12.5px}.nbtn span{font-size:8.5px}.nbtn{max-width:none}}
+
+@keyframes fadeSlideIn {
+  from { opacity:0; transform:translateY(12px); }
+  to   { opacity:1; transform:translateY(0); }
+}
 </style>
 </head>
 <body>
@@ -953,7 +959,179 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
   <div id="subtabs-bar"></div>
 
   <!-- PORTFOLIO PAGE -->
-  <div id="pg-portfolio" class="page active">
+  <!-- ═══════════════════════════════════════════════════════════
+       WELCOME PAGE — Home educativa con grafico animato
+  ═══════════════════════════════════════════════════════════ -->
+  <div id="pg-welcome" class="page" style="overflow-y:auto;background:var(--bg)">
+    <div id="welcome-inner" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 20px 100px;max-width:520px;margin:0 auto">
+
+      <!-- Logo / Brand -->
+      <div style="width:100%;display:flex;align-items:center;justify-content:space-between;margin-bottom:40px">
+        <div>
+          <div style="font-size:11px;font-weight:800;letter-spacing:3px;text-transform:uppercase;color:var(--blue);opacity:.7">Portafoglio BIT</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:1px">educazione finanziaria personale</div>
+        </div>
+        <button onclick="showPage('portfolio')" style="background:none;border:none;font-size:11px;color:var(--text3);cursor:pointer;padding:4px 8px;border:1px solid var(--border);border-radius:20px">
+          Accedi al portafoglio →
+        </button>
+      </div>
+
+      <!-- Headline -->
+      <div style="text-align:left;width:100%;margin-bottom:28px">
+        <div style="font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--blue);margin-bottom:10px">La realtà che nessuno ti dice</div>
+        <div id="welcome-headline" style="font-size:clamp(24px,6vw,32px);font-weight:900;line-height:1.15;color:var(--text);letter-spacing:-.5px">
+          I tuoi soldi fermi<br>perdono valore.<br>
+          <span style="color:var(--blue)">Ogni. Singolo. Giorno.</span>
+        </div>
+      </div>
+
+      <!-- Grafico animato -->
+      <div style="width:100%;background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.06);border-radius:16px;padding:16px 8px 10px;margin-bottom:16px;position:relative;overflow:hidden">
+
+        <!-- Griglia sfondo sottile -->
+        <svg id="welcome-svg" viewBox="0 0 360 180" style="width:100%;height:auto;display:block;overflow:visible">
+          <defs>
+            <style>
+              @keyframes drawLine {
+                from { stroke-dashoffset: var(--len, 1000); }
+                to   { stroke-dashoffset: 0; }
+              }
+              .wl-line {
+                fill: none;
+                stroke-linecap: round;
+                stroke-linejoin: round;
+              }
+              .wl-animate {
+                animation: drawLine 2.2s cubic-bezier(.4,0,.2,1) forwards;
+              }
+            </style>
+            <!-- Gradiente area invest -->
+            <linearGradient id="wg-blue" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#3b82f6" stop-opacity=".18"/>
+              <stop offset="100%" stop-color="#3b82f6" stop-opacity="0"/>
+            </linearGradient>
+            <linearGradient id="wg-red" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="0%" stop-color="#f87171" stop-opacity=".1"/>
+              <stop offset="100%" stop-color="#f87171" stop-opacity="0"/>
+            </linearGradient>
+          </defs>
+
+          <!-- Grid lines -->
+          <line x1="40" y1="20"  x2="350" y2="20"  stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+          <line x1="40" y1="60"  x2="350" y2="60"  stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+          <line x1="40" y1="100" x2="350" y2="100" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+          <line x1="40" y1="140" x2="350" y2="140" stroke="rgba(255,255,255,.04)" stroke-width="1"/>
+
+          <!-- Asse x -->
+          <line x1="40" y1="155" x2="350" y2="155" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+
+          <!-- Labels asse y (valori placeholder, sostituiti da JS) -->
+          <text id="wl-y4" x="35" y="24"  text-anchor="end" fill="#4b6090" font-size="8" font-family="JetBrains Mono,monospace">—</text>
+          <text id="wl-y3" x="35" y="64"  text-anchor="end" fill="#4b6090" font-size="8" font-family="JetBrains Mono,monospace">—</text>
+          <text id="wl-y2" x="35" y="104" text-anchor="end" fill="#4b6090" font-size="8" font-family="JetBrains Mono,monospace">—</text>
+          <text id="wl-y1" x="35" y="144" text-anchor="end" fill="#4b6090" font-size="8" font-family="JetBrains Mono,monospace">—</text>
+
+          <!-- Labels asse x -->
+          <text x="40"  y="167" text-anchor="middle" fill="#4b6090" font-size="8">Oggi</text>
+          <text x="119" y="167" text-anchor="middle" fill="#4b6090" font-size="8">10 anni</text>
+          <text x="198" y="167" text-anchor="middle" fill="#4b6090" font-size="8">20 anni</text>
+          <text x="277" y="167" text-anchor="middle" fill="#4b6090" font-size="8">30 anni</text>
+          <text x="347" y="167" text-anchor="middle" fill="#4b6090" font-size="8">40 anni</text>
+
+          <!-- Area fill (sotto linea portafoglio) -->
+          <path id="wl-area-invest" fill="url(#wg-blue)" opacity="0"/>
+          <path id="wl-area-erode"  fill="url(#wg-red)"  opacity="0"/>
+
+          <!-- LINEE (animate) -->
+          <!-- 1. Portafoglio investito (blu brillante) -->
+          <polyline id="wl-line-invest" class="wl-line"
+            stroke="#3b82f6" stroke-width="2"
+            style="--len:2000;stroke-dasharray:2000;animation-delay:.2s"/>
+          <!-- 2. Potere acquisto guadagnato (verde) -->
+          <polyline id="wl-line-power"  class="wl-line"
+            stroke="#22d47e" stroke-width="1.5"
+            style="--len:2000;stroke-dasharray:2000;animation-delay:.6s"/>
+          <!-- 3. Inflazione (oro, tratteggio) -->
+          <polyline id="wl-line-infl"   class="wl-line"
+            stroke="#f59e0b" stroke-width="1.2" stroke-dasharray="6,4"
+            style="--len:2000;animation-delay:1s"/>
+          <!-- 4. Senza investimento (rosso, tratteggio) -->
+          <polyline id="wl-line-erode"  class="wl-line"
+            stroke="#f87171" stroke-width="1.2" stroke-dasharray="4,4"
+            style="--len:2000;animation-delay:1.4s"/>
+
+          <!-- Dot finale su linea blu -->
+          <circle id="wl-dot-invest" cx="-10" cy="-10" r="4"
+            fill="#3b82f6" opacity="0"/>
+          <circle id="wl-dot-erode"  cx="-10" cy="-10" r="4"
+            fill="#f87171" opacity="0"/>
+        </svg>
+      </div>
+
+      <!-- Legenda -->
+      <div style="width:100%;display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:20px">
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.15);border-radius:8px">
+          <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="#3b82f6" stroke-width="2"/></svg>
+          <span style="font-size:10px;font-weight:600;color:var(--text2)">Investito al 7%</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(34,212,126,.06);border:1px solid rgba(34,212,126,.15);border-radius:8px">
+          <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="#22d47e" stroke-width="2"/></svg>
+          <span style="font-size:10px;font-weight:600;color:var(--text2)">Guadagno reale</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(245,158,11,.06);border:1px solid rgba(245,158,11,.15);border-radius:8px">
+          <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="#f59e0b" stroke-width="1.5" stroke-dasharray="5,3"/></svg>
+          <span style="font-size:10px;font-weight:600;color:var(--text2)">Inflazione (2.5%)</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;background:rgba(248,113,113,.06);border:1px solid rgba(248,113,113,.15);border-radius:8px">
+          <svg width="20" height="3"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="#f87171" stroke-width="1.5" stroke-dasharray="4,3"/></svg>
+          <span style="font-size:10px;font-weight:600;color:var(--text2)">Senza investire</span>
+        </div>
+      </div>
+
+      <!-- Statement d'impatto (aggiornato da JS) -->
+      <div id="welcome-statement" style="width:100%;text-align:left;margin-bottom:28px">
+        <div style="font-size:13px;line-height:1.7;color:var(--text2)">
+          Stai guardando <strong id="ws-capital" style="color:var(--text)">€30.000</strong>.
+          Tra <strong>40 anni</strong> senza fare nulla varranno
+          <strong id="ws-eroded" style="color:#f87171">€12.800</strong> in potere d'acquisto.
+          Se li investi oggi,
+          <strong id="ws-invested" style="color:#3b82f6">€447.000</strong>.
+        </div>
+        <div style="font-size:11px;color:var(--text3);margin-top:8px;line-height:1.5">
+          Questa è matematica, non una promessa. Il 7% è la media storica del mercato azionario globale. Il 2.5% è l'inflazione media europea.
+        </div>
+      </div>
+
+      <!-- CTA Buttons -->
+      <div style="width:100%;display:flex;flex-direction:column;gap:10px">
+        <button onclick="welcomeChoose('beginner')"
+          style="width:100%;padding:16px 20px;background:var(--blue);border:none;border-radius:14px;color:#fff;font-size:15px;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:space-between;letter-spacing:-.2px">
+          <span>🎓 Sono un principiante</span>
+          <span style="font-size:18px;opacity:.7">→</span>
+        </button>
+        <div style="font-size:10px;color:var(--text3);text-align:center;margin:-2px 0">
+          Ti guido io, passo per passo
+        </div>
+        <button onclick="welcomeChoose('expert')"
+          style="width:100%;padding:16px 20px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.15);border-radius:14px;color:var(--text);font-size:15px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:space-between">
+          <span>📊 Ho già un portafoglio</span>
+          <span style="font-size:18px;opacity:.5">→</span>
+        </button>
+        <div style="font-size:10px;color:var(--text3);text-align:center;margin:-2px 0">
+          Vai direttamente al portafoglio
+        </div>
+      </div>
+
+      <!-- Skip -->
+      <button onclick="showPage('portfolio')"
+        style="margin-top:24px;background:none;border:none;font-size:11px;color:var(--text3);cursor:pointer;text-decoration:underline;text-underline-offset:3px">
+        Salta introduzione
+      </button>
+
+    </div>
+  </div>
+
+    <div id="pg-portfolio" class="page active">
     <div style="margin:5px 14px 3px;background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:7px 14px;position:relative">
       <div id="pf-switcher" style="display:none"></div>
       <!-- Riga principale -->
@@ -1275,6 +1453,21 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
         📊 Analisi ETF
       </button>
     </div>
+    <!-- Profilo investitore -->
+    <div id="ip-intro" style="margin:0 14px 14px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.2);border-radius:14px;padding:14px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <div style="font-size:13px;font-weight:800;color:var(--text)">🧭 Che tipo di investitore sei?</div>
+        <button onclick="document.getElementById('ip-intro').style.display='none'" style="background:none;border:none;color:var(--text3);font-size:16px;cursor:pointer;line-height:1">×</button>
+      </div>
+      <div style="font-size:11px;color:var(--text3);line-height:1.5;margin-bottom:12px">3 domande per scoprire il tuo profilo di rischio e ricevere un'allocazione suggerita personalizzata.</div>
+      <button onclick="document.getElementById('ip-intro').style.display='none';document.getElementById('ip-test-wrap').style.display='';renderInvestorProfile('ip-container')"
+        style="width:100%;padding:10px;background:var(--blue);border:none;border-radius:10px;color:#fff;font-size:13px;font-weight:700;cursor:pointer">
+        Scopri il tuo profilo →
+      </button>
+    </div>
+    <div id="ip-test-wrap" style="display:none;margin:0 14px 14px">
+      <div id="ip-container" style="background:var(--bg2);border:1px solid var(--border);border-radius:14px;padding:16px"></div>
+    </div>
     <div id="rebalance-area"></div>
     <div id="etf-analysis-area" style="display:none"></div>
   </div>
@@ -1490,6 +1683,11 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
         <rect x="3" y="4" width="18" height="18" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/>
         <line x1="9" y1="4" x2="9" y2="9"/><polyline points="7 15 10 18 17 11"/>
       </svg><span>Pianifica</span>
+    </button>
+    <button class="nbtn" id="nav-welcome" onclick="showPage('welcome');setTimeout(initWelcomePage,300)" style="position:relative">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
+      </svg><span>Home</span>
     </button>
     <button class="nbtn" id="nav-tutorial" onclick="showPage('tutorial')">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1791,202 +1989,227 @@ function setPacSim(key, val) {
 function renderPACSim() {
   const area = document.getElementById('pac-sim-area');
   if (!area) return;
-  const sim = ALL.settings.pacSim || {};
-  const pac    = sim.pac  || 0;
-  const rate   = sim.rate ?? 7;
-  const MAXYRS = sim.anni || 20;
-  const inflRate = ALL.settings.projInflation ?? DEFAULT_INFLATION;
-  const YRS = MAXYRS + 1;
-  const sug = getPACSuggestion(rate);
+  const sim     = ALL.settings.pacSim || {};
+  const tab     = sim.tab || 'pac';
+  const pac     = sim.pac  || 0;
+  const capital = sim.capital || 0;
+  const rate    = sim.rate ?? 7;
+  const anni    = sim.anni || 20;
+  const inflR   = (ALL.settings.projInflation ?? 2.5) / 100;
+  const r       = rate / 100;
+  const rm      = r / 12;
+  const YRS     = anni + 1;
+  const fmtE    = v => '€\u202f' + Math.round(v).toLocaleString('it-IT');
+  const fmtK    = v => v>=1e6?(v/1e6).toFixed(2)+'M€':v>=1e3?Math.round(v/1e3)+'k€':Math.round(v)+'€';
+  const gc      = (v,z=0) => v>=z ? 'var(--green)' : 'var(--red)';
 
-  // Preserva focus e cursore prima di aggiornare chart
-  const _focusId = document.activeElement?.id;
-  const _focusVal = document.activeElement?.value;
-  const _focusSel = [document.activeElement?.selectionStart, document.activeElement?.selectionEnd];
+  // ── Calcola dati anno per anno ──────────────────────────────
+  let picData = [], pacData = [];
+  for (let y = 0; y < YRS; y++) {
+    // PIC
+    const cap = capital > 0 ? capital : (pac > 0 ? pac * 12 * anni : 0);
+    const picPortafoglio  = cap * Math.pow(1+r, y);
+    const picInflazione   = cap * Math.pow(1+inflR, y);
+    const picPoterAcq     = picPortafoglio - picInflazione;
+    const picErosione     = cap * Math.pow(1-inflR, y);
+    picData.push({ y, capInv: cap, portafoglio: picPortafoglio,
+                   inflazione: picInflazione, potere: picPoterAcq,
+                   erosione: picErosione });
+    // PAC
+    const pacVersato    = pac * 12 * y;
+    const pacPortafolio = rm>1e-10 ? pac*((Math.pow(1+rm,y*12)-1)/rm) : pac*12*y;
+    // inflazione cumulata sui versamenti PAC
+    let pacInfl = 0;
+    for (let m = 1; m <= y*12; m++) pacInfl += pac * Math.pow(1+inflR/12, m);
+    const pacPoterAcq   = pacPortafolio - pacInfl;
+    const pacErosione   = pac * 12 * y * Math.pow(1-inflR, y); // versamenti erosi
+    pacData.push({ y, versato: pacVersato, portafoglio: pacPortafolio,
+                   inflazione: pacInfl, potere: pacPoterAcq,
+                   erosione: pacErosione });
+  }
 
-  // Input panel
-  const inputHtml = `
-  <div class="proj-section" style="margin-bottom:8px">
-    <div class="slbl" style="margin-bottom:8px">⚙️ Parametri simulazione</div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px">
+  const d    = tab === 'pic' ? picData : pacData;
+  const last = d[anni];
+
+  // ── Linee del grafico ────────────────────────────────────────
+  const LINES = tab === 'pic' ? [
+    { key:'portafoglio', label:'Valore portafoglio',         color:'#3b82f6', dash:'' },
+    { key:'potere',      label:"Potere d'acquisto guadagnato", color:'#22d47e', dash:'' },
+    { key:'inflazione',  label:'Inflazione cumulata',         color:'#f59e0b', dash:'5,4' },
+    { key:'erosione',    label:'Senza investimento',           color:'#f87171', dash:'4,3' },
+  ] : [
+    { key:'portafoglio', label:'Valore portafoglio',          color:'#3b82f6', dash:'' },
+    { key:'versato',     label:'Capitale versato',             color:'#a78bfa', dash:'' },
+    { key:'potere',      label:"Potere d'acquisto guadagnato", color:'#22d47e', dash:'' },
+    { key:'erosione',    label:'Senza investimento',           color:'#f87171', dash:'4,3' },
+  ];
+
+  const allV = d.flatMap(pt => LINES.map(l => pt[l.key]||0));
+  const maxV = Math.max(...allV, 1) * 1.08;
+  const W=720, H=260, pl=62, pr=8, pt_=16, pb=32;
+  const cw=W-pl-pr, ch=H-pt_-pb;
+  const sx = y => pl + (y/anni)*cw;
+  const sy = v => pt_ + ch*(1 - Math.max(0,v)/maxV);
+  const fY = v => v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?Math.round(v/1e3)+'k':''+Math.round(v);
+  const pts = key => d.map((pt,i) => `${sx(i).toFixed(1)},${sy(pt[key]||0).toFixed(1)}`).join(' ');
+  const xTicks = Array.from({length:Math.floor(anni/5)+1},(_,i)=>i*5).filter(y=>y<=anni);
+  const gridY  = Array.from({length:5},(_,i)=>maxV*(i+1)/5);
+
+  // ── HTML ─────────────────────────────────────────────────────
+  const noData = (tab==='pic' && capital<=0 && pac<=0) ||
+                 (tab==='pac' && pac<=0);
+  const capLabel = tab==='pic' ? 'Capitale iniziale (€)' : 'Versamento mensile (€)';
+  const capVal   = tab==='pic' ? (capital||'') : (pac||'');
+  const capKey   = tab==='pic' ? 'capital' : 'pac';
+  const capPlaceholder = tab==='pic' ? 'es. 10000' : 'es. 500';
+
+  area.innerHTML = `
+  <div style="padding:0 14px 80px">
+
+    <!-- Tab PIC / PAC -->
+    <div style="display:flex;gap:0;margin-bottom:16px;border:1px solid var(--border);border-radius:12px;overflow:hidden">
+      <button onclick="setPacSim('tab','pac')" style="flex:1;padding:12px 8px;border:none;background:${tab==='pac'?'var(--blue)':'var(--bg2)'};color:${tab==='pac'?'#fff':'var(--text3)'};cursor:pointer;transition:.2s">
+        <div style="font-size:14px;font-weight:900">PAC</div>
+        <div style="font-size:10px;margin-top:2px;opacity:${tab==='pac'?'.9':'.6'}">Piano di Accumulo del Capitale</div>
+        <div style="font-size:9px;margin-top:1px;opacity:${tab==='pac'?'.75':'.4'}">Versamenti ricorrenti nel tempo</div>
+      </button>
+      <div style="width:1px;background:var(--border)"></div>
+      <button onclick="setPacSim('tab','pic')" style="flex:1;padding:12px 8px;border:none;background:${tab==='pic'?'var(--blue)':'var(--bg2)'};color:${tab==='pic'?'#fff':'var(--text3)'};cursor:pointer;transition:.2s">
+        <div style="font-size:14px;font-weight:900">PIC</div>
+        <div style="font-size:10px;margin-top:2px;opacity:${tab==='pic'?'.9':'.6'}">Piano di Investimento del Capitale</div>
+        <div style="font-size:9px;margin-top:1px;opacity:${tab==='pic'?'.75':'.4'}">Tutto investito subito in una volta</div>
+      </button>
+    </div>
+
+    <!-- Parametri -->
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       <div>
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">PAC mensile (€)</div>
-        <input type="number" class="proj-rate-inp" style="width:100%" value="${pac||''}"
-          min="0" step="100" inputmode="decimal" placeholder="es. 500"
-          oninput="setPacSim('pac',this.value)">
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">${capLabel}</div>
+        <input type="number" class="proj-rate-inp" style="width:100%" value="${capVal}"
+          min="0" step="${tab==='pic'?1000:100}" inputmode="decimal" placeholder="${capPlaceholder}"
+          oninput="setPacSim('${capKey}',this.value)">
       </div>
       <div>
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">Rendimento atteso (%)</div>
+        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;margin-bottom:4px">Rendimento atteso (% annuo)</div>
         <input type="number" class="proj-rate-inp" style="width:100%" value="${rate}"
           min="0" max="25" step="0.5" inputmode="decimal"
           oninput="setPacSim('rate',this.value)">
       </div>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700;white-space:nowrap">Orizzonte:</div>
-      ${[5,10,15,20,25,30].map(y=>`<button onclick="setPacSim('anni',${y})" style="padding:3px 10px;border-radius:20px;border:1px solid ${MAXYRS===y?'var(--blue)':'var(--border2)'};background:${MAXYRS===y?'var(--blue)':'none'};color:${MAXYRS===y?'#fff':'var(--text2)'};font-size:11px;font-weight:700;cursor:pointer">${y}a</button>`).join('')}
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:16px">
+      <span style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:700">Orizzonte:</span>
+      ${[5,10,15,20,25,30].map(y=>`<button onclick="setPacSim('anni',${y})" style="padding:3px 10px;border-radius:20px;border:1px solid ${anni===y?'var(--blue)':'var(--border2)'};background:${anni===y?'var(--blue)':'none'};color:${anni===y?'#fff':'var(--text2)'};font-size:11px;font-weight:700;cursor:pointer">${y} anni</button>`).join('')}
     </div>
+
+    ${noData ? `<div class="empty">Inserisci ${tab==='pic'?'il capitale iniziale':'l\'importo mensile'} per vedere la simulazione.</div>` : `
+
+    <!-- Legenda -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">
+      ${LINES.map(l=>{
+        const v = last[l.key]||0;
+        return `<div style="display:flex;align-items:center;gap:6px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 10px">
+          <svg width="24" height="6"><line x1="0" y1="3" x2="24" y2="3" stroke="${l.color}" stroke-width="2.5" stroke-dasharray="${l.dash||''}"/></svg>
+          <div>
+            <div style="font-size:10px;font-weight:700;color:var(--text)">${l.label}</div>
+            <div style="font-size:12px;font-weight:900;color:${l.color};font-family:'JetBrains Mono',monospace">${fmtK(v)}</div>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>
+
+    <!-- Grafico -->
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:8px 4px 4px;margin-bottom:16px;overflow:hidden">
+      <svg id="pac-sim-svg" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;cursor:crosshair;display:block">
+        ${gridY.map(v=>`<line x1="${pl}" y1="${sy(v).toFixed(1)}" x2="${pl+cw}" y2="${sy(v).toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`).join('')}
+        ${xTicks.map(y=>`<text x="${sx(y).toFixed(1)}" y="${pt_+ch+18}" text-anchor="middle" fill="#4b6090" font-size="10">${y}a</text>`).join('')}
+        ${gridY.map(v=>`<text x="${pl-5}" y="${(sy(v)+4).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="10">${fY(v)}</text>`).join('')}
+        ${LINES.map(l=>`<polyline points="${pts(l.key)}" fill="none" stroke="${l.color}" stroke-width="2.5" stroke-dasharray="${l.dash}" stroke-linejoin="round"/>`).join('')}
+        <line id="pac-xhair" x1="-10" y1="${pt_}" x2="-10" y2="${pt_+ch}" stroke="rgba(255,255,255,.3)" stroke-width="1"/>
+      </svg>
+    </div>
+
+    <!-- KPI finali -->
+    <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px">
+      ${tab==='pic' ? `
+        <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:10px;padding:10px 12px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:4px">Valore finale (anno ${anni})</div>
+          <div style="font-size:18px;font-weight:900;color:#3b82f6;font-family:'JetBrains Mono',monospace">${fmtK(last.portafoglio)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">partendo da ${fmtK(last.capInv)}</div>
+        </div>
+        <div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.25);border-radius:10px;padding:10px 12px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:4px">Vantaggio reale vs inflazione</div>
+          <div style="font-size:18px;font-weight:900;color:#22d47e;font-family:'JetBrains Mono',monospace">${fmtK(last.potere)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">senza investire varrebbe ${fmtK(last.erosione)}</div>
+        </div>
+      ` : `
+        <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);border-radius:10px;padding:10px 12px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:4px">Valore portafoglio finale</div>
+          <div style="font-size:18px;font-weight:900;color:#3b82f6;font-family:'JetBrains Mono',monospace">${fmtK(last.portafoglio)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">versato totale: ${fmtK(last.versato)}</div>
+        </div>
+        <div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.25);border-radius:10px;padding:10px 12px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:4px">Guadagno netto vs inflazione</div>
+          <div style="font-size:18px;font-weight:900;color:${gc(last.potere)};font-family:'JetBrains Mono',monospace">${fmtK(last.potere)}</div>
+          <div style="font-size:10px;color:var(--text3);margin-top:2px">senza investire: ${fmtK(last.erosione)}</div>
+        </div>
+      `}
+    </div>
+
+    <!-- Tabella anno per anno -->
+    <details style="margin-bottom:8px">
+      <summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:8px 0;text-transform:uppercase;letter-spacing:.6px">
+        📋 Tabella anno per anno ▼
+      </summary>
+      <div style="overflow-x:auto;margin-top:8px">
+        <table style="width:100%;border-collapse:collapse;font-size:11px">
+          <thead>
+            <tr style="background:var(--bg3)">
+              <th style="padding:6px 8px;text-align:center;color:var(--text3);font-weight:700">Anno</th>
+              <th style="padding:6px 8px;text-align:right;color:var(--blue);font-weight:700">${tab==='pic'?'Capitale':'Versato totale'}</th>
+              <th style="padding:6px 8px;text-align:right;color:#3b82f6;font-weight:700">Portafoglio</th>
+              <th style="padding:6px 8px;text-align:right;color:#f59e0b;font-weight:700">Inflazione</th>
+              <th style="padding:6px 8px;text-align:right;color:#22d47e;font-weight:700">Potere d'acquisto</th>
+              <th style="padding:6px 8px;text-align:right;color:#f87171;font-weight:700">Senza investim.</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${d.filter((_,i)=>i>0).map((pt,i)=>{
+              const bg = i%2===0 ? 'transparent' : 'rgba(255,255,255,.02)';
+              const v1 = tab==='pic' ? pt.capInv : pt.versato;
+              return `<tr style="background:${bg}">
+                <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--text3)">${pt.y}</td>
+                <td style="padding:5px 8px;text-align:right;font-family:'JetBrains Mono',monospace">${fmtK(v1)}</td>
+                <td style="padding:5px 8px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:#3b82f6">${fmtK(pt.portafoglio)}</td>
+                <td style="padding:5px 8px;text-align:right;font-family:'JetBrains Mono',monospace;color:#f59e0b">${fmtK(pt.inflazione)}</td>
+                <td style="padding:5px 8px;text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:${gc(pt.potere)}">${fmtK(pt.potere)}</td>
+                <td style="padding:5px 8px;text-align:right;font-family:'JetBrains Mono',monospace;color:#f87171">${fmtK(pt.erosione)}</td>
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+    </details>
+
+    `}
   </div>`;
 
-  // Portfolio suggestion box
-  let sugHtml = '';
-  if (sug.warn === 2) {
-    sugHtml = `<div style="margin:0 14px 10px;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:10px 14px">
-      <div style="font-size:12px;font-weight:700;color:#ef4444;margin-bottom:4px">⚠️ Rendimento non realistico (${rate}%)</div>
-      <div style="font-size:11px;color:var(--text2);line-height:1.5">${sug.msg}</div>
-    </div>`;
-  } else if (sug.warn === 1) {
-    sugHtml = `<div style="margin:0 14px 10px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:10px;padding:10px 14px">
-      <div style="font-size:12px;font-weight:700;color:#f59e0b;margin-bottom:4px">⚡ Rendimento elevato (${rate}%)</div>
-      <div style="font-size:11px;color:var(--text2);line-height:1.5">${sug.msg}</div>
-    </div>`;
-  } else {
-    sugHtml = `<div style="margin:0 14px 10px;background:rgba(123,167,255,.07);border:1px solid rgba(123,167,255,.18);border-radius:10px;padding:10px 14px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
-        <span style="font-size:12px;font-weight:700;color:${sug.color}">${sug.label}</span>
-        <span style="font-size:11px;color:var(--text3)">per un rendimento del ${rate}% atteso</span>
-      </div>
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        ${sug.az>0?`<div style="background:rgba(123,167,255,.12);border:1px solid rgba(123,167,255,.25);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#7ba7ff">📈 Azionario ${sug.az}%</div>`:''}
-        ${sug.ob>0?`<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#22d47e">📄 Obbligazionario ${sug.ob}%</div>`:''}
-        ${sug.liq>0?`<div style="background:rgba(148,163,184,.08);border:1px solid rgba(148,163,184,.2);border-radius:6px;padding:4px 10px;font-size:11px;font-weight:700;color:#94a3b8">💶 Liquidità ${sug.liq}%</div>`:''}
-      </div>
-      <div style="font-size:10px;color:var(--text3);margin-top:6px">⚠ Rendimenti storici non garantiscono rendimenti futuri. Solo a scopo illustrativo.</div>
-    </div>`;
-  }
-
-  if (pac <= 0) {
-    area.innerHTML = `<div style="margin:0 14px">${inputHtml}</div>${sugHtml}<div class="empty">Inserisci un importo PAC mensile per vedere la simulazione.</div>`;
-    return;
-  }
-
-  // Computations
-  const totalInvested = pac * 12 * MAXYRS;
-  const r = rate / 100, rm = r / 12;
-  const inflR = inflRate / 100;
-
-  // PAC: FV mensile (da 0 a anno y)
-  const pacArr = Array.from({length:YRS},(_,y)=>{
-    if(y===0)return 0;
-    return rm>1e-10?pac*((Math.pow(1+rm,y*12)-1)/rm):pac*12*y;
+  // Crosshair mousemove
+  const svg = document.getElementById('pac-sim-svg');
+  const xhair = document.getElementById('pac-xhair');
+  if (!svg || !xhair || noData) return;
+  svg.addEventListener('mousemove', e => {
+    const rect = svg.getBoundingClientRect();
+    const scaleX = W / rect.width;
+    const mx = (e.clientX - rect.left) * scaleX;
+    const xClamped = Math.max(pl, Math.min(pl+cw, mx));
+    xhair.setAttribute('x1', xClamped);
+    xhair.setAttribute('x2', xClamped);
   });
-  // Lump sum equiv: stesso totale investito tutto subito a t=0
-  const lumpArr = Array.from({length:YRS},(_,y)=>totalInvested*Math.pow(1+r,y));
-  // Inflaz su totale investito
-  const inflArr = Array.from({length:YRS},(_,y)=>totalInvested*Math.pow(1+inflR,y));
-
-  const finalPAC  = pacArr[MAXYRS];
-  const finalLump = lumpArr[MAXYRS];
-  const finalInfl = inflArr[MAXYRS];
-  const fmtK = v=>v>=1e6?(v/1e6).toFixed(2)+'M€':v>=1e3?Math.round(v/1e3)+'k€':Math.round(v)+'€';
-
-  // SVG
-  const W=720,H=260,pl=64,pr=16,pt=18,pb=36,cw=W-pl-pr,ch=H-pt-pb;
-  const allVals=[...pacArr,...lumpArr,...inflArr];
-  const maxV=Math.max(...allVals)*1.06;
-  const sx=y=>pl+(y/MAXYRS)*cw, sy=v=>pt+ch*(1-v/maxV);
-  const fY=v=>v>=1e6?(v/1e6).toFixed(1)+'M':v>=1e3?Math.round(v/1e3)+'k':''+Math.round(v);
-  const pts=arr=>arr.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
-  const gridY=Array.from({length:5},(_,i)=>maxV*(i+1)/5);
-  const xTicks=Array.from({length:Math.floor(MAXYRS/5)+1},(_,i)=>i*5).filter(y=>y<=MAXYRS);
-
-  const svg=`<svg id="pac-sim-svg" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;cursor:crosshair">
-    ${gridY.map(v=>`<line x1="${pl}" y1="${sy(v).toFixed(1)}" x2="${pl+cw}" y2="${sy(v).toFixed(1)}" stroke="#1a2a4a" stroke-width="1"/>`).join('')}
-    ${xTicks.map(y=>`<line x1="${sx(y).toFixed(1)}" y1="${pt+ch}" x2="${sx(y).toFixed(1)}" y2="${pt+ch+5}" stroke="#1a2a4a" stroke-width="1"/>`).join('')}
-    <polyline points="${pts(inflArr)}" fill="none" stroke="#ff9944" stroke-width="1.5" stroke-dasharray="5,3"/>
-    <polyline points="${pts(lumpArr)}" fill="none" stroke="#38bdf8" stroke-width="2.5"/>
-    <polyline points="${pts(pacArr)}"  fill="none" stroke="#c084fc" stroke-width="2.5"/>
-    ${gridY.map(v=>`<text x="${pl-5}" y="${(sy(v)+4).toFixed(1)}" text-anchor="end" fill="#4b6090" font-size="10">${fY(v)}€</text>`).join('')}
-    ${xTicks.map(y=>`<text x="${sx(y).toFixed(1)}" y="${(pt+ch+20).toFixed(1)}" text-anchor="middle" fill="#4b6090" font-size="10">${y}a</text>`).join('')}
-    <line x1="${pl}" y1="${pt}" x2="${pl}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
-    <line x1="${pl}" y1="${pt+ch}" x2="${pl+cw}" y2="${pt+ch}" stroke="#1a2a4a" stroke-width="1"/>
-    <line id="ps-cv" x1="0" y1="${pt}" x2="0" y2="${pt+ch}" stroke="rgba(255,255,255,.3)" stroke-width="1" stroke-dasharray="3,3" opacity="0"/>
-    <circle id="ps-dp" cx="0" cy="0" r="4" fill="#c084fc" stroke="#0d1322" stroke-width="2" opacity="0"/>
-    <circle id="ps-dl" cx="0" cy="0" r="4" fill="#38bdf8" stroke="#0d1322" stroke-width="2" opacity="0"/>
-    <rect id="ps-box" x="0" y="0" width="160" height="68" rx="6" fill="#0d1322" stroke="rgba(123,167,255,.5)" stroke-width="1" opacity="0"/>
-    <text id="ps-t0" x="0" y="0" font-size="9"  fill="rgba(255,255,255,.5)" font-family="monospace" text-anchor="middle" opacity="0"></text>
-    <text id="ps-t1" x="0" y="0" font-size="10" fill="#c084fc" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
-    <text id="ps-t2" x="0" y="0" font-size="10" fill="#38bdf8" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
-    <text id="ps-t3" x="0" y="0" font-size="10" fill="#ff9944" font-family="monospace" font-weight="700" text-anchor="middle" opacity="0"></text>
-  </svg>`;
-
-  const diffFinal = finalLump - finalPAC;
-  const diffPct   = finalPAC > 0 ? diffFinal/finalPAC*100 : 0;
-
-  area.innerHTML = `<div style="margin:0 14px">${inputHtml}</div>${sugHtml}
-  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:0 14px 10px">
-    <div style="background:rgba(148,163,184,.07);border:1px solid rgba(148,163,184,.2);border-radius:6px;padding:4px 8px;text-align:center">
-      <div style="font-size:7px;color:#94a3b8;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:2px">Totale versato</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#94a3b8">${fmtK(totalInvested)}</div>
-    </div>
-    <div style="background:rgba(192,132,252,.07);border:1px solid rgba(192,132,252,.2);border-radius:6px;padding:4px 8px;text-align:center">
-      <div style="font-size:7px;color:#c084fc;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:2px">PAC finale</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#c084fc">${fmtK(finalPAC)}</div>
-    </div>
-    <div style="background:rgba(56,189,248,.07);border:1px solid rgba(56,189,248,.2);border-radius:6px;padding:4px 8px;text-align:center">
-      <div style="font-size:7px;color:#38bdf8;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:2px">Lump sum finale</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#38bdf8">${fmtK(finalLump)}</div>
-    </div>
-    <div style="background:rgba(239,68,68,.07);border:1px solid rgba(239,68,68,.2);border-radius:6px;padding:4px 8px;text-align:center">
-      <div style="font-size:7px;color:#f87171;text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:2px">Lump batte PAC di</div>
-      <div style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:700;color:#f87171">+${fmtK(diffFinal)}</div>
-    </div>
-  </div>
-  <div class="proj-chart-wrap" style="margin:0 14px 8px">
-    <div style="display:flex;gap:14px;justify-content:center;flex-wrap:wrap;margin:4px 0 10px;font-size:11px">
-      <span><span class="proj-leg-dot" style="background:#c084fc"></span>PAC mensile</span>
-      <span><span class="proj-leg-dot" style="background:#38bdf8"></span>Lump sum equiv.</span>
-      <span><span class="proj-leg-dot" style="background:#ff9944"></span>Inflazione</span>
-    </div>
-    ${svg}
-  </div>
-  <div style="margin:4px 14px 80px;background:rgba(123,167,255,.05);border:1px solid rgba(123,167,255,.15);border-radius:10px;padding:10px 14px;font-size:11px;color:var(--text2);line-height:1.6">
-    📊 <strong style="color:var(--text)">Lump sum vs PAC:</strong> Investire ${fmtK(totalInvested)} tutto subito genera
-    <strong style="color:#38bdf8">${fmtK(finalLump)}</strong> in ${MAXYRS} anni, vs
-    <strong style="color:#c084fc">${fmtK(finalPAC)}</strong> con PAC da ${fmtK(pac)}/mese.
-    Il lump sum rende di più perché tutto il capitale lavora dal giorno 1.
-    Il PAC è però accessibile a chi non dispone del capitale iniziale completo.
-  </div>`;
-
-  // Ripristina focus sull'input dopo re-render
-  if (_focusId) {
-    const el = document.getElementById(_focusId);
-    if (el) {
-      el.focus();
-      try { el.setSelectionRange(_focusSel[0], _focusSel[1]); } catch(e) {}
-    }
-  }
-
-  // Crosshair
-  requestAnimationFrame(()=>{
-    const svgEl=document.getElementById('pac-sim-svg');
-    if(!svgEl)return;
-    const bw=160, setA=(id,a)=>{const el=svgEl.querySelector('#'+id);if(el)Object.entries(a).forEach(([k,v])=>el.setAttribute(k,v));};
-    svgEl.addEventListener('mousemove',function(e){
-      const rect=svgEl.getBoundingClientRect();
-      const svgX=(e.clientX-rect.left)/rect.width*W;
-      const yr=Math.max(0,Math.min(MAXYRS,Math.round((svgX-pl)/cw*MAXYRS)));
-      const px=sx(yr);
-      const pyP=sy(pacArr[yr]), pyL=sy(lumpArr[yr]);
-      const bx=px+bw+12>pl+cw?px-bw-8:px+8;
-      const by=Math.max(pt+2, Math.min(pt+ch-72,pyP-34));
-      setA('ps-cv',{x1:px,x2:px,opacity:1});
-      setA('ps-dp',{cx:px,cy:pyP,opacity:1});
-      setA('ps-dl',{cx:px,cy:pyL,opacity:1});
-      setA('ps-box',{x:bx,y:by,opacity:1});
-      let ly=by+13;
-      setA('ps-t0',{x:bx+bw/2,y:ly,opacity:1});svgEl.querySelector('#ps-t0').textContent='Anno '+yr;ly+=15;
-      setA('ps-t1',{x:bx+bw/2,y:ly,opacity:1});svgEl.querySelector('#ps-t1').textContent='PAC: '+fmtK(pacArr[yr]);ly+=14;
-      setA('ps-t2',{x:bx+bw/2,y:ly,opacity:1});svgEl.querySelector('#ps-t2').textContent='Lump: '+fmtK(lumpArr[yr]);ly+=14;
-      setA('ps-t3',{x:bx+bw/2,y:ly,opacity:1});svgEl.querySelector('#ps-t3').textContent='Infl.: '+fmtK(inflArr[yr]);
-    });
-    svgEl.addEventListener('mouseleave',function(){
-      ['ps-cv','ps-dp','ps-dl','ps-box','ps-t0','ps-t1','ps-t2','ps-t3'].forEach(id=>{
-        const el=svgEl.querySelector('#'+id);if(el)el.setAttribute('opacity','0');
-      });
-    });
+  svg.addEventListener('mouseleave', () => {
+    xhair.setAttribute('x1', -10); xhair.setAttribute('x2', -10);
   });
 }
+
 
 
 'use strict';
@@ -3866,6 +4089,10 @@ function renderPF() {
       <div id="cash-hv" class="sum-cv" style="transition:filter .2s${S.hideValues?' filter:blur(7px);user-select:none':''}">${cash>0?e2(cash):'—'}</div>
       <button onclick="openCashModal()" style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;cursor:pointer;font-family:'Outfit',sans-serif">DEPOSITO / PRELIEVO</button>
       <div style="flex:1"></div>
+      <button onclick="exportPortfolioExcel()" style="flex-shrink:0;background:rgba(34,197,94,.10);border:1px solid rgba(34,197,94,.3);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:#16a34a;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap;cursor:pointer;display:flex;align-items:center;gap:4px">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+        Excel
+      </button>
       <div style="flex-shrink:0;background:rgba(var(--blue-rgb,37,99,235),.12);border:1px solid rgba(var(--blue-rgb,37,99,235),.25);border-radius:8px;padding:4px 10px;font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.5px;white-space:nowrap">${countLbl}</div>
     </div>
 `;
@@ -6314,6 +6541,7 @@ function showPage(pg) {
   if (pg==='rebalance') renderRebalance();
   if (pg==='proj')      renderProjection();
   if (pg==='pac-sim')   renderPACSim();
+  if (pg==='welcome')    setTimeout(initWelcomePage, 300);
   if (pg==='pac')       renderPAC();
   if (pg==='pnl')       renderPnL();
   if (pg==='history')   renderHistory();
@@ -9393,6 +9621,487 @@ function renderETFAnalytics() {
 }
 
 
+
+// ════════════════════════════════════════════════════════════════
+// EXCEL EXPORT
+// ════════════════════════════════════════════════════════════════
+function exportPortfolioExcel() {
+  if (typeof XLSX === 'undefined') {
+    showToast('⚠ Libreria Excel non caricata — ricarica la pagina', 4000);
+    return;
+  }
+  showToast('⏳ Generazione Excel in corso...', 2000);
+  setTimeout(() => {
+    try {
+      const wb = XLSX.utils.book_new();
+      const hlds = calcPF();
+      const ops  = S.ops || [];
+      const rate = ALL.fxRates?.EURUSD || 1.088;
+      const now  = new Date().toLocaleDateString('it-IT');
+
+      // ── helpers ──
+      const toEUR = (h) => {
+        const r = (h.titleCcy||'EUR') === 'USD' ? rate : 1;
+        return r;
+      };
+      const costEUR  = h => (h.avgPriceBuyCcy * h.qty) / toEUR(h);
+      const valEUR   = h => { const p = currentValueAllEUR(h); return p ?? 0; };
+      const gainEUR  = h => valEUR(h) - costEUR(h);
+      const gainPct  = h => costEUR(h) > 0 ? gainEUR(h)/costEUR(h)*100 : 0;
+      const dailyPct = h => (S.dailyChanges?.[h.ticker]?.pct) ?? 0;
+      const fmt2     = v => typeof v==='number' ? +v.toFixed(2) : v;
+
+      // ── Foglio 1: Portafoglio ──────────────────────────────────
+      const pfRows = [
+        ['PORTAFOGLIO BIT — Report di Portafoglio'],
+        [`Portafoglio: ${S.name || 'Portafoglio'} · Generato il ${now}`],
+        [],
+        ['Ticker','Nome','ISIN','Categoria','Mercato','Valuta',
+         'Quantità','P.M.C.','Prezzo att.','Investito €',
+         'Valore att. €','Gain/Loss €','Gain %','Oggi %'],
+      ];
+      let totCost=0, totVal=0;
+      hlds.forEach(h => {
+        if (h.ticker === '__CASH__') return;
+        const op = (ops||[]).find(o=>(o.quoteTicker||o.ticker)===h.ticker);
+        const c2 = fmt2(costEUR(h));
+        const v2 = fmt2(valEUR(h));
+        const g2 = fmt2(gainEUR(h));
+        const p2 = fmt2(gainPct(h));
+        const d2 = fmt2(dailyPct(h));
+        totCost += c2; totVal += v2;
+        pfRows.push([
+          h.displayTicker || h.ticker,
+          h.name || '',
+          h.isin || op?.isin || '',
+          h.assetClass || '',
+          h.market || op?.market || '',
+          h.titleCcy || 'EUR',
+          fmt2(h.qty),
+          fmt2(h.avgPrice),
+          fmt2(S.prices?.[h.ticker] || h.avgPrice),
+          c2, v2, g2, p2/100, d2/100
+        ]);
+      });
+      // Riga liquidità
+      if ((S.cashEUR||0) > 0) {
+        pfRows.push(['CASH','Liquidità','—','Liquidità','—','EUR',
+          1, fmt2(S.cashEUR), fmt2(S.cashEUR),
+          fmt2(S.cashEUR), fmt2(S.cashEUR), 0, 0, 0]);
+      }
+      // Totale
+      pfRows.push([]);
+      pfRows.push(['TOTALE','','','','','','','','',
+        fmt2(totCost), fmt2(totVal), fmt2(totVal-totCost),
+        totCost>0 ? fmt2((totVal-totCost)/totCost) : 0, '']);
+
+      const wsPF = XLSX.utils.aoa_to_sheet(pfRows);
+
+      // Stili colonne
+      wsPF['!cols'] = [
+        {wch:12},{wch:30},{wch:16},{wch:20},{wch:10},{wch:8},
+        {wch:9},{wch:10},{wch:10},{wch:13},{wch:13},{wch:13},{wch:9},{wch:9}
+      ];
+      // Formati numerici per celle dati
+      const startRow = 5; // 1-indexed, riga 5 = prima riga dati
+      for (let r = startRow; r < startRow + hlds.length + 3; r++) {
+        const fmts = [null,null,null,null,null,null,
+          '#,##0.00', '#,##0.00', '#,##0.00',
+          '€ #,##0.00', '€ #,##0.00', '+€ #,##0.00;-€ #,##0.00',
+          '+0.00%;-0.00%', '+0.00%;-0.00%'];
+        fmts.forEach((fmt, ci) => {
+          if (!fmt) return;
+          const addr = XLSX.utils.encode_cell({r: r-1, c: ci});
+          if (wsPF[addr]) wsPF[addr].z = fmt;
+        });
+      }
+
+      XLSX.utils.book_append_sheet(wb, wsPF, '📊 Portafoglio');
+
+      // ── Foglio 2: Operazioni ───────────────────────────────────
+      const opsRows = [
+        ['STORICO OPERAZIONI'],
+        [`Portafoglio: ${S.name||'Portafoglio'} · ${ops.length} operazioni · ${now}`],
+        [],
+        ['Data','Tipo','Nome','Ticker','ISIN','Categoria',
+         'Mercato','Valuta','Quantità','Prezzo','Commissioni','Totale','Note'],
+      ];
+      let totComm = 0;
+      ops.filter(o=>o.type!=='cash').forEach(op => {
+        const tot = (op.qty||0)*(op.price||0) + (op.commission||0);
+        totComm += op.commission||0;
+        opsRows.push([
+          op.date || '',
+          (op.type||'BUY').toUpperCase(),
+          op.name || '',
+          op.quoteTicker || op.ticker || '',
+          op.isin || '',
+          op.category || op.assetClass || '',
+          op.market || '',
+          op.currency || 'EUR',
+          fmt2(op.qty),
+          fmt2(op.price),
+          fmt2(op.commission||0),
+          fmt2(tot),
+          op.note || op.notes || ''
+        ]);
+      });
+      opsRows.push([]);
+      opsRows.push(['','','','','','','','','','','TOTALE COMM.',fmt2(totComm),'']);
+
+      const wsOps = XLSX.utils.aoa_to_sheet(opsRows);
+      wsOps['!cols'] = [
+        {wch:11},{wch:7},{wch:28},{wch:12},{wch:16},{wch:18},
+        {wch:10},{wch:8},{wch:9},{wch:10},{wch:12},{wch:12},{wch:24}
+      ];
+      for (let r = 5; r < 5 + ops.length; r++) {
+        ['I','J','K','L'].forEach((col, i) => {
+          const addr = col + r;
+          if (wsOps[addr]) wsOps[addr].z = i < 3 ? '#,##0.00' : '€ #,##0.00';
+        });
+      }
+      XLSX.utils.book_append_sheet(wb, wsOps, '📋 Operazioni');
+
+      // ── Foglio 3: Performance 20 anni ─────────────────────────
+      const RATE = 0.07, INF = 0.025;
+      const CAP  = totCost > 0 ? totCost : 10000;
+      const perfRows = [
+        ['ANALISI PERFORMANCE & PROIEZIONE'],
+        [`Capitale base: € ${fmt2(CAP)} · Rendimento: 7% annuo · Inflazione: 2.5%`],
+        [],
+        ['Anno','Capitale investito','Valore portafoglio',
+         'Inflazione cumulata',"Potere d'acquisto guadagnato",
+         'Senza investimento','Gain vs inflazione','Rendimento %'],
+      ];
+      for (let yr = 1; yr <= 20; yr++) {
+        const vp = CAP*Math.pow(1+RATE,yr);
+        const vi = CAP*Math.pow(1+INF,yr);
+        const vr = vp - vi;
+        const vn = CAP*Math.pow(1-INF,yr);
+        perfRows.push([
+          yr, fmt2(CAP), fmt2(vp), fmt2(vi),
+          fmt2(vr), fmt2(vn), fmt2(vp-CAP), fmt2((vp-CAP)/CAP)
+        ]);
+      }
+      const wsPerf = XLSX.utils.aoa_to_sheet(perfRows);
+      wsPerf['!cols'] = [
+        {wch:6},{wch:18},{wch:18},{wch:18},{wch:22},{wch:18},{wch:18},{wch:12}
+      ];
+      for (let r = 5; r <= 24; r++) {
+        ['B','C','D','E','F','G'].forEach(col => {
+          const addr = col + r;
+          if (wsPerf[addr]) wsPerf[addr].z = '€ #,##0';
+        });
+        const hAddr = 'H' + r;
+        if (wsPerf[hAddr]) wsPerf[hAddr].z = '+0.0%;-0.0%';
+      }
+      XLSX.utils.book_append_sheet(wb, wsPerf, '📈 Performance');
+
+      // ── Download ───────────────────────────────────────────────
+      const filename = `Portafoglio_${(S.name||'BIT').replace(/\s/g,'_')}_${now.replace(/\//g,'-')}.xlsx`;
+      XLSX.writeFile(wb, filename);
+      showToast(`✅ ${filename} scaricato`, 4000);
+    } catch(e) {
+      console.error('Excel export error:', e);
+      showToast('⚠ Errore export: ' + e.message, 5000);
+    }
+  }, 100);
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  WELCOME PAGE
+// ════════════════════════════════════════════════════════════════
+function initWelcomePage() {
+  const RATE = 0.07, INF = 0.025, YEARS = 40;
+  const STEPS = 41; // 0..40
+
+  // Capitale: usa portafoglio + liquidità se disponibile, altrimenti 30k
+  const hlds  = calcPF ? calcPF() : [];
+  const pfVal = hlds.reduce((s,h) => s + (currentValueAllEUR ? (currentValueAllEUR(h)||0) : 0), 0);
+  const cash  = (S && S.cashEUR) || 0;
+  const cap   = pfVal + cash > 100 ? Math.round((pfVal + cash) / 1000) * 1000 : 30000;
+
+  // Calcola serie
+  const invest = [], power = [], infl = [], erode = [];
+  for (let y = 0; y <= YEARS; y++) {
+    invest.push(cap * Math.pow(1+RATE, y));
+    infl.push(  cap * Math.pow(1+INF,  y));
+    power.push( cap * Math.pow(1+RATE, y) - cap * Math.pow(1+INF, y));
+    erode.push( cap * Math.pow(1-INF,  y));
+  }
+
+  const maxV = Math.max(...invest) * 1.08;
+  const W=310, H=135; // coordinate SVG (viewBox 40..350, 20..155)
+  const x0=40, x1=350, y0=20, y1=155;
+  const cw=x1-x0, ch=y1-y0;
+  const sx = i => x0 + (i/YEARS)*cw;
+  const sy = v => y0 + ch*(1 - Math.max(0,v)/maxV);
+  const pts = arr => arr.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+
+  // Imposta linee SVG
+  const setLine = (id, arr) => {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const p = pts(arr);
+    el.setAttribute('points', p);
+    // calcola lunghezza approssimativa per stroke-dashoffset
+    const len = arr.reduce((s,v,i)=>{
+      if(i===0) return 0;
+      const dx=sx(i)-sx(i-1), dy=sy(v)-sy(arr[i-1]);
+      return s+Math.sqrt(dx*dx+dy*dy);
+    },0);
+    el.style.setProperty('--len', len+10);
+    el.style.strokeDasharray = (len+10) + '';
+    el.style.strokeDashoffset = (len+10) + '';
+    el.classList.add('wl-animate');
+  };
+
+  setLine('wl-line-invest', invest);
+  setLine('wl-line-power',  power);
+  setLine('wl-line-infl',   infl);
+  setLine('wl-line-erode',  erode);
+
+  // Dot finali
+  setTimeout(() => {
+    const di = document.getElementById('wl-dot-invest');
+    const de = document.getElementById('wl-dot-erode');
+    if (di) { di.setAttribute('cx', sx(YEARS)); di.setAttribute('cy', sy(invest[YEARS])); di.setAttribute('opacity','1'); }
+    if (de) { de.setAttribute('cx', sx(YEARS)); de.setAttribute('cy', sy(erode[YEARS]));  de.setAttribute('opacity','1'); }
+  }, 2400);
+
+  // Area fill
+  setTimeout(() => {
+    const areaI = document.getElementById('wl-area-invest');
+    if (areaI) {
+      const p = invest.map((v,i)=>`${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ');
+      areaI.setAttribute('d', `M${sx(0)},${sy(0)} ${invest.map((v,i)=>`L${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ')} L${sx(YEARS)},${sy(0)} Z`);
+      areaI.setAttribute('opacity', '.6');
+    }
+    const areaE = document.getElementById('wl-area-erode');
+    if (areaE) {
+      areaE.setAttribute('d', `M${sx(0)},${sy(0)} ${erode.map((v,i)=>`L${sx(i).toFixed(1)},${sy(v).toFixed(1)}`).join(' ')} L${sx(YEARS)},${sy(0)} Z`);
+      areaE.setAttribute('opacity', '.5');
+    }
+  }, 300);
+
+  // Labels Y
+  const fmtK = v => v>=1e6?(v/1e6).toFixed(1)+'M€':v>=1e3?Math.round(v/1e3)+'k€':Math.round(v)+'€';
+  ['wl-y1','wl-y2','wl-y3','wl-y4'].forEach((id,i) => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = fmtK(maxV*(i+1)/4);
+  });
+
+  // Statement aggiornato
+  const fmt2 = v => '€ ' + Math.round(v).toLocaleString('it-IT');
+  const capEl  = document.getElementById('ws-capital');
+  const eroEl  = document.getElementById('ws-eroded');
+  const invEl  = document.getElementById('ws-invested');
+  if (capEl)  capEl.textContent  = fmt2(cap);
+  if (eroEl)  eroEl.textContent  = fmt2(erode[YEARS]);
+  if (invEl)  invEl.textContent  = fmt2(invest[YEARS]);
+
+  // Headline personalizzata
+  const hl = document.getElementById('welcome-headline');
+  if (hl && cap !== 30000) {
+    hl.innerHTML = `Hai ${fmt2(cap)} nel<br>tuo portafoglio.<br><span style="color:var(--blue)">Ecco la realtà.</span>`;
+  }
+}
+
+function welcomeChoose(type) {
+  if (type === 'beginner') {
+    showPage('tutorial');
+  } else {
+    showPage('portfolio');
+  }
+  // Salva scelta per non mostrare di nuovo all'avvio
+  try { localStorage.setItem('pf_welcomed', '1'); } catch(e) {}
+}
+
+function shouldShowWelcome() {
+  try { return !localStorage.getItem('pf_welcomed'); } catch(e) { return false; }
+}
+
+// ════════════════════════════════════════════════════════════════
+//  PROFILO INVESTITORE — mini-test nel ribilanciamento
+// ════════════════════════════════════════════════════════════════
+const INVESTOR_QUESTIONS = [
+  {
+    q: 'Tra quanto hai bisogno di questi soldi?',
+    sub: 'Il tuo orizzonte temporale determina quanta volatilità puoi reggere.',
+    opts: [
+      { t: 'Meno di 3 anni',   v: 1, sub: 'Hai poco tempo per recuperare eventuali perdite' },
+      { t: '3–10 anni',        v: 2, sub: 'Orizzonte medio, puoi permetterti qualche rischio' },
+      { t: '10–20 anni',       v: 3, sub: 'Lungo periodo, il mercato si riprende sempre' },
+      { t: 'Oltre 20 anni',    v: 4, sub: 'Massima tolleranza, il tempo è il tuo alleato' },
+    ]
+  },
+  {
+    q: 'Il tuo portafoglio perde il 25% in un mese. Cosa fai?',
+    sub: 'La reazione emotiva al rischio è più importante della teoria.',
+    opts: [
+      { t: 'Vendo tutto subito',            v: 1, sub: 'Protezione massima, rischio minimo accettato' },
+      { t: 'Aspetto ma sono preoccupato',   v: 2, sub: 'Profilo conservativo, preferisci stabilità' },
+      { t: 'Aspetto tranquillo',            v: 3, sub: 'Buona tolleranza, sai che è temporaneo' },
+      { t: 'Compro di più, è un\'opportunità', v: 4, sub: 'Alta tolleranza, pensi a lungo termine' },
+    ]
+  },
+  {
+    q: 'Qual è il tuo obiettivo principale?',
+    sub: 'Diversi obiettivi richiedono strategie molto diverse.',
+    opts: [
+      { t: 'Proteggere il capitale',        v: 1, sub: 'Non perdere è più importante di guadagnare' },
+      { t: 'Battere l\'inflazione',         v: 2, sub: 'Vuoi mantenere il potere d\'acquisto' },
+      { t: 'Crescita equilibrata',          v: 3, sub: 'Rendimento buono con rischio moderato' },
+      { t: 'Massimizzare il rendimento',    v: 4, sub: 'Accetti alta volatilità per alti ritorni' },
+    ]
+  },
+];
+
+const INVESTOR_PROFILES = [
+  { name: 'Prudente',      color:'#60a5fa', icon:'🛡️',
+    desc: 'Priorità assoluta alla protezione del capitale. Preferisci dormire sereno anche se guadagni poco.',
+    alloc: { az:15, ob:65, mon:20 } },
+  { name: 'Conservativo',  color:'#34d399', icon:'⚖️',
+    desc: 'Accetti piccole oscillazioni pur di avere rendimenti superiori all\'inflazione. Equilibrio e sicurezza.',
+    alloc: { az:35, ob:55, mon:10 } },
+  { name: 'Equilibrato',   color:'#a78bfa', icon:'📊',
+    desc: 'Il classico 60/40. Crescita nel lungo periodo con una componente difensiva che ammortizza le crisi.',
+    alloc: { az:60, ob:35, mon:5  } },
+  { name: 'Dinamico',      color:'#fb923c', icon:'🚀',
+    desc: 'Croissance orientée. Tolleri la volatilità e investi con orizzonte lungo. Poche obbligazioni come ancora.',
+    alloc: { az:80, ob:18, mon:2  } },
+  { name: 'Aggressivo',    color:'#f87171', icon:'⚡',
+    desc: 'Massimo rischio, massimo potenziale. Orizzonte molto lungo, alta tolleranza alle perdite temporanee.',
+    alloc: { az:95, ob:5,  mon:0  } },
+];
+
+let _ipAnswers = [];
+let _ipStep    = 0;
+
+function renderInvestorProfile(containerId) {
+  const el = document.getElementById(containerId);
+  if (!el) return;
+  _ipAnswers = [];
+  _ipStep    = 0;
+  el.innerHTML = buildIPQuestion(0);
+}
+
+function buildIPQuestion(step) {
+  const q = INVESTOR_QUESTIONS[step];
+  const prog = step + 1;
+  return `
+  <div id="ip-question" style="animation:fadeSlideIn .35s ease both">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+      ${[1,2,3].map(i=>`<div style="flex:1;height:3px;border-radius:3px;background:${i<=prog?'var(--blue)':'rgba(255,255,255,.1)'}"></div>`).join('')}
+    </div>
+    <div style="font-size:10px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px">Domanda ${prog} di 3</div>
+    <div style="font-size:17px;font-weight:800;color:var(--text);line-height:1.3;margin-bottom:6px">${q.q}</div>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:18px;line-height:1.5">${q.sub}</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      ${q.opts.map((opt,i)=>`
+        <button onclick="ipAnswer(${step},${opt.v})"
+          style="width:100%;text-align:left;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.10);border-radius:12px;padding:12px 14px;cursor:pointer;transition:all .2s"
+          onmouseover="this.style.background='rgba(59,130,246,.12)';this.style.borderColor='rgba(59,130,246,.4)'"
+          onmouseout="this.style.background='rgba(255,255,255,.04)';this.style.borderColor='rgba(255,255,255,.10)'">
+          <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:2px">${opt.t}</div>
+          <div style="font-size:11px;color:var(--text3)">${opt.sub}</div>
+        </button>`).join('')}
+    </div>
+  </div>`;
+}
+
+function ipAnswer(step, val) {
+  _ipAnswers.push(val);
+  _ipStep = step + 1;
+  const el = document.getElementById('ip-container');
+  if (!el) return;
+  if (_ipStep >= INVESTOR_QUESTIONS.length) {
+    // Calcola profilo
+    const score = _ipAnswers.reduce((s,v)=>s+v,0);
+    const idx   = Math.min(Math.floor((score-3)/0.7), 4); // 3-12 → 0-4
+    const clamped = Math.max(0,Math.min(4,idx));
+    const prof  = INVESTOR_PROFILES[clamped];
+    // Fade out → show result
+    el.style.opacity='0';
+    el.style.transition='opacity .3s';
+    setTimeout(()=>{
+      el.innerHTML = buildIPResult(prof);
+      el.style.opacity='1';
+    }, 320);
+  } else {
+    el.style.opacity='0';
+    el.style.transition='opacity .25s';
+    setTimeout(()=>{
+      el.innerHTML = buildIPQuestion(_ipStep);
+      el.style.opacity='1';
+    }, 280);
+  }
+}
+
+function buildIPResult(prof) {
+  const barStyle = (pct, col) =>
+    `<div style="background:var(--bg3);border-radius:6px;height:10px;overflow:hidden;margin-top:4px">
+      <div style="background:${col};width:${pct}%;height:100%;border-radius:6px;transition:width .8s ease .2s"></div>
+    </div>`;
+  return `
+  <div id="ip-result" style="animation:fadeSlideIn .35s ease both">
+    <div style="display:flex;gap:0;margin-bottom:6px">
+      ${[1,2,3].map(_=>`<div style="flex:1;height:3px;border-radius:3px;background:${prof.color};margin-right:4px"></div>`).join('')}
+    </div>
+    <div style="font-size:11px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.8px;margin-bottom:10px">Il tuo profilo</div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px">
+      <div style="font-size:36px">${prof.icon}</div>
+      <div>
+        <div style="font-size:22px;font-weight:900;color:${prof.color}">${prof.name}</div>
+        <div style="font-size:12px;color:var(--text2);line-height:1.5;margin-top:2px">${prof.desc}</div>
+      </div>
+    </div>
+
+    <!-- Allocazione suggerita -->
+    <div style="background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);border-radius:12px;padding:14px;margin-bottom:14px">
+      <div style="font-size:10px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:12px">Allocazione suggerita</div>
+      ${[
+        ['📈 Azionario',     prof.alloc.az,  '#3b82f6'],
+        ['📋 Obbligazionario',prof.alloc.ob,  '#f59e0b'],
+        ['💵 Monetario',     prof.alloc.mon, '#22d47e'],
+      ].map(([lbl,pct,col])=>`
+        <div style="margin-bottom:10px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
+            <span style="color:var(--text2);font-weight:600">${lbl}</span>
+            <span style="font-weight:800;color:${col};font-family:'JetBrains Mono',monospace">${pct}%</span>
+          </div>
+          ${barStyle(pct, col)}
+        </div>`).join('')}
+    </div>
+
+    <div style="font-size:11px;color:var(--text3);line-height:1.6;margin-bottom:16px">
+      💡 Questa allocazione è un punto di partenza. Modificala liberamente nel ribilanciamento in base alla tua situazione reale.
+    </div>
+    <div style="display:flex;gap:8px">
+      <button onclick="applyIPProfile(${JSON.stringify(prof.alloc).replace(/"/g,"'")})"
+        style="flex:1;padding:12px;background:var(--blue);border:none;border-radius:12px;color:#fff;font-size:13px;font-weight:700;cursor:pointer">
+        Applica al ribilanciamento →
+      </button>
+      <button onclick="renderInvestorProfile('ip-container')"
+        style="padding:12px 14px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;color:var(--text3);font-size:12px;cursor:pointer">
+        Riprova
+      </button>
+    </div>
+  </div>`;
+}
+
+function applyIPProfile(alloc) {
+  // Salva profilo e vai al ribilanciamento
+  if (!S.rebalanceTargets) S.rebalanceTargets = {};
+  S.rebalanceTargets['ETF Azionario']      = alloc.az;
+  S.rebalanceTargets['ETF Obbligazionario']= alloc.ob;
+  S.rebalanceTargets['ETF Monetario']      = alloc.mon;
+  save();
+  showToast('✅ Profilo applicato al ribilanciamento', 3000);
+  showPage('rebalance');
+}
+
 function wlSetSort(key) {
   if ((window._wlSort || 'name') === key) {
     window._wlSortDir = (window._wlSortDir || 1) * -1; // inverti direzione
@@ -10261,7 +10970,14 @@ async function sbInit() {
       _cachedSession = session;
       await sbOnLogin(session);
     } else {
-      renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
+      renderAll();
+      if (shouldShowWelcome && shouldShowWelcome()) {
+        showPage('welcome');
+        setTimeout(initWelcomePage, 400);
+      } else {
+        showPage('portfolio');
+      }
+      startAutoRefresh(); loadSparklines();
     }
   } catch(e) {
     renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
