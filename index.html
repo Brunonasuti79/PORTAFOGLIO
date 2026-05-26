@@ -3655,7 +3655,8 @@ async function fetchPrices() {
     for (const { h, q } of rows) {
       let price = num(q?.price);
       // Fallback: se fetch live fallisce, usa ultimo officialClose dal Gist
-      if (!isReasonablePrice(price, h)) {
+      // Fallback Gist: se live fetch fallisce, usa ultimo officialClose
+      if (!isReasonablePrice(price, h) || !q) {
         const oc = ALL.officialCloses?.[h.ticker];
         if (oc) {
           const dates = Object.keys(oc).sort().reverse();
@@ -3663,10 +3664,10 @@ async function fetchPrices() {
             const v = oc[dt]?.close ?? oc[dt];
             if (isReasonablePrice(v, h)) {
               price = v;
-              if (!errors.includes(h.displayTicker || h.ticker)) {
+              // Crea q sintetico per evitare null-access nel codice sotto
+              if (!q) q = { price: v, prevClose: null, source: 'GistClose', stale: true };
+              if (!errors.includes(h.displayTicker || h.ticker))
                 errors.push(h.displayTicker || h.ticker);
-              }
-              // Segna come prezzo stale (no aggiornamento today)
               S.prices[h.ticker] = price;
               break;
             }
@@ -3682,7 +3683,7 @@ async function fetchPrices() {
         } else if (price > S.peakPrices[h.ticker]) {
           S.peakPrices[h.ticker] = price;
         }
-        sources[h.ticker] = q.source || 'Fonte prezzi';
+        sources[h.ticker] = q?.source || 'Fonte prezzi';
 
         // ── Chiusura precedente locale della sessione ─────────────
         // La prima volta che il mercato ha aperto oggi, salva q.prevClose
@@ -3703,8 +3704,8 @@ async function fetchPrices() {
 
         S.dailyChanges[h.ticker] = {
           pct: finalPct, value: finalVal,
-          source: q.source||'', price,
-          prePct: q.prePct??null, postPct: q.postPct??null,
+          source: q?.source||'', price,
+          prePct: q?.prePct??null, postPct: q?.postPct??null,
           prevClose: prevSession.prevClose || null,
           prevCloseDate: prevSession.sessionDate || null,
           prevCloseSource: prevSession.source || null,
