@@ -2310,11 +2310,13 @@ const MARKETS = [
 const FH_EXCH = {MI:'MIL',DE:'XETRA',PA:'EPA',L:'LSE',SW:'SWX',AS:'AMS',F:'FWB'};
 // CORS proxies
 const PROXIES = [
-  url => url,
-  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,
-  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,
-  url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,
-  url => `https://thingproxy.freeboard.io/fetch/${encodeURIComponent(url)}`,
+  url => url,                                                                    // 0: diretto
+  url => `https://api.allorigins.win/raw?url=${encodeURIComponent(url)}`,      // 1: allorigins
+  url => `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,      // 2: allorigins v2
+  url => `https://api.codetabs.com/v1/proxy/?quest=${encodeURIComponent(url)}`,// 3: codetabs
+  url => `https://corsproxy.io/?${encodeURIComponent(url)}`,                   // 4: corsproxy (lento)
+  url => `https://api.cors.lol/?url=${encodeURIComponent(url)}`,               // 5: cors.lol
+  url => `https://corsproxy.org/?${encodeURIComponent(url)}`,                  // 6: corsproxy.org
 ];
 
 // Cache per singolo ciclo di aggiornamento: evita doppie chiamate Stooq
@@ -2849,66 +2851,71 @@ async function fetchWithTimeout(url, ms=5000, asText=false) {
 // Per URL Yahoo Finance skippa il diretto e tenta tutti i proxy in PARALLELO.
 // Il primo che risponde vince — drasticamente più veloce della catena sequenziale.
 async function fetchJsonWithProxies(url) {
-  const isYahoo = url.includes('yahoo.com') || url.includes('finance.yahoo');
-  // Diretto: funziona per Finnhub/API CORS-friendly, non per Yahoo
+  const isYahoo = url.includes('yahoo.com') || url.includes('finance.yahoo')
+                || url.includes('stooq.com') || url.includes('borsaitaliana');
+  // Diretto per API CORS-friendly (Finnhub ecc.)
   if (!isYahoo) {
     try {
       const r = await fetchWithTimeout(url, 4000);
-      bestProxy = 0;
-      return r;
+      bestProxy = 0; return r;
     } catch(e) {}
   }
-  // Proxy in parallelo — salta PROXIES[0] (diretto, già fallito o skippato)
+  // Proxy in parallelo — salta PROXIES[0] (diretto)
   const proxyIdxs = PROXIES.map((_,i)=>i).filter(i=>i>0);
-  // Metti il bestProxy per primo se non è 0
   const order = bestProxy > 0
     ? [bestProxy, ...proxyIdxs.filter(i=>i!==bestProxy)]
     : proxyIdxs;
-  // Tenta i primi 2 in parallelo con timeout 4s, poi gli altri
-  const fast = order.slice(0, 2);
-  const slow = order.slice(2);
-  const tryProxy = (i) => fetchWithTimeout(PROXIES[i](url), 4000)
-    .then(r => { bestProxy = i; return r; });
+  const tryProxy = async (i) => {
+    const proxyUrl = PROXIES[i](url);
+    const r = await fetchWithTimeout(proxyUrl, 4500);
+    // allorigins v2 (/get) restituisce {status:{http_code}, contents: "..."}
+    if (i === 2 && r && typeof r === 'object' && r.contents) {
+      try { return JSON.parse(r.contents); } catch(e) { return null; }
+    }
+    if (!r) throw new Error('null');
+    bestProxy = i; return r;
+  };
+  // Prova i primi 3 in parallelo
+  const fast = order.slice(0, 3);
+  const slow = order.slice(3);
   try {
-    const r = await Promise.any(fast.map(tryProxy));
+    const r = await Promise.any(fast.map(i => tryProxy(i).catch(()=>{throw new Error('fail');})));
     if (r) return r;
   } catch(e) {}
-  // Fallback: prova i restanti
   for (const i of slow) {
-    try {
-      const r = await fetchWithTimeout(PROXIES[i](url), 4000);
-      if (r) { bestProxy = i; return r; }
-    } catch(e) {}
+    try { const r = await tryProxy(i); if (r) return r; } catch(e) {}
   }
   throw new Error('All proxies failed for ' + url.slice(0,60));
 }
 
 async function fetchTextWithProxies(url) {
-  const isYahoo = url.includes('yahoo.com') || url.includes('stooq.com');
-  if (!isYahoo) {
+  const isCross = url.includes('yahoo.com') || url.includes('stooq.com')
+               || url.includes('borsaitaliana') || url.includes('euronext');
+  if (!isCross) {
     try {
       const r = await fetchWithTimeout(url, 4000, true);
-      bestProxy = 0;
-      return r;
+      bestProxy = 0; return r;
     } catch(e) {}
   }
   const proxyIdxs = PROXIES.map((_,i)=>i).filter(i=>i>0);
   const order = bestProxy > 0
     ? [bestProxy, ...proxyIdxs.filter(i=>i!==bestProxy)]
     : proxyIdxs;
-  const fast = order.slice(0, 2);
-  const slow = order.slice(2);
-  const tryProxy = (i) => fetchWithTimeout(PROXIES[i](url), 4000, true)
-    .then(r => { bestProxy = i; return r; });
+  const tryProxy = async (i) => {
+    const r = await fetchWithTimeout(PROXIES[i](url), 4500, true);
+    // allorigins v2 restituisce oggetto — prendi .contents
+    if (i === 2 && r && typeof r === 'object') return r.contents || null;
+    if (!r || typeof r !== 'string') throw new Error('empty');
+    bestProxy = i; return r;
+  };
+  const fast = order.slice(0, 3);
+  const slow = order.slice(3);
   try {
-    const r = await Promise.any(fast.map(tryProxy));
+    const r = await Promise.any(fast.map(i => tryProxy(i).catch(()=>{throw new Error('fail');})));
     if (r) return r;
   } catch(e) {}
   for (const i of slow) {
-    try {
-      const r = await fetchWithTimeout(PROXIES[i](url), 4000, true);
-      if (r) { bestProxy = i; return r; }
-    } catch(e) {}
+    try { const r = await tryProxy(i); if (r) return r; } catch(e) {}
   }
   throw new Error('All proxies failed for text ' + url.slice(0,60));
 }
@@ -3717,7 +3724,7 @@ async function fetchPrices() {
     console.log(`[fetch] Totale: ${Date.now()-t0}ms per ${total} titoli`);
 
     const updated=[], errors=[], rejected=[], sources={};
-    for (const { h, q } of rows) {
+    for (const { h, q: _q } of rows) { let q = _q;
       let price = num(q?.price);
       // Fallback: se fetch live fallisce, usa ultimo officialClose dal Gist
       // Fallback Gist: se live fetch fallisce, usa ultimo officialClose
