@@ -2845,31 +2845,72 @@ async function fetchWithTimeout(url, ms=5000, asText=false) {
   }
 }
 
+// Prova prima la chiamata diretta (Finnhub, API con CORS aperto).
+// Per URL Yahoo Finance skippa il diretto e tenta tutti i proxy in PARALLELO.
+// Il primo che risponde vince — drasticamente più veloce della catena sequenziale.
 async function fetchJsonWithProxies(url) {
-  // Try best known proxy first, then others
-  const order = [bestProxy, ...PROXIES.map((_,i)=>i).filter(i=>i!==bestProxy)];
-  let last = null;
-  for (const i of order) {
+  const isYahoo = url.includes('yahoo.com') || url.includes('finance.yahoo');
+  // Diretto: funziona per Finnhub/API CORS-friendly, non per Yahoo
+  if (!isYahoo) {
     try {
-      const r = await fetchWithTimeout(PROXIES[i](url));
-      if (i !== bestProxy) bestProxy = i;
+      const r = await fetchWithTimeout(url, 4000);
+      bestProxy = 0;
       return r;
-    } catch(e) { last = e; }
+    } catch(e) {}
   }
-  throw last || new Error('All proxies failed');
+  // Proxy in parallelo — salta PROXIES[0] (diretto, già fallito o skippato)
+  const proxyIdxs = PROXIES.map((_,i)=>i).filter(i=>i>0);
+  // Metti il bestProxy per primo se non è 0
+  const order = bestProxy > 0
+    ? [bestProxy, ...proxyIdxs.filter(i=>i!==bestProxy)]
+    : proxyIdxs;
+  // Tenta i primi 2 in parallelo con timeout 4s, poi gli altri
+  const fast = order.slice(0, 2);
+  const slow = order.slice(2);
+  const tryProxy = (i) => fetchWithTimeout(PROXIES[i](url), 4000)
+    .then(r => { bestProxy = i; return r; });
+  try {
+    const r = await Promise.any(fast.map(tryProxy));
+    if (r) return r;
+  } catch(e) {}
+  // Fallback: prova i restanti
+  for (const i of slow) {
+    try {
+      const r = await fetchWithTimeout(PROXIES[i](url), 4000);
+      if (r) { bestProxy = i; return r; }
+    } catch(e) {}
+  }
+  throw new Error('All proxies failed for ' + url.slice(0,60));
 }
 
 async function fetchTextWithProxies(url) {
-  const order = [bestProxy, ...PROXIES.map((_,i)=>i).filter(i=>i!==bestProxy)];
-  let last = null;
-  for (const i of order) {
+  const isYahoo = url.includes('yahoo.com') || url.includes('stooq.com');
+  if (!isYahoo) {
     try {
-      const r = await fetchWithTimeout(PROXIES[i](url), 5000, true);
-      if (i !== bestProxy) bestProxy = i;
+      const r = await fetchWithTimeout(url, 4000, true);
+      bestProxy = 0;
       return r;
-    } catch(e) { last = e; }
+    } catch(e) {}
   }
-  throw last || new Error('All proxies failed');
+  const proxyIdxs = PROXIES.map((_,i)=>i).filter(i=>i>0);
+  const order = bestProxy > 0
+    ? [bestProxy, ...proxyIdxs.filter(i=>i!==bestProxy)]
+    : proxyIdxs;
+  const fast = order.slice(0, 2);
+  const slow = order.slice(2);
+  const tryProxy = (i) => fetchWithTimeout(PROXIES[i](url), 4000, true)
+    .then(r => { bestProxy = i; return r; });
+  try {
+    const r = await Promise.any(fast.map(tryProxy));
+    if (r) return r;
+  } catch(e) {}
+  for (const i of slow) {
+    try {
+      const r = await fetchWithTimeout(PROXIES[i](url), 4000, true);
+      if (r) { bestProxy = i; return r; }
+    } catch(e) {}
+  }
+  throw new Error('All proxies failed for text ' + url.slice(0,60));
 }
 
 function makeQuote(price, prevClose, source) {
