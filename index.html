@@ -963,13 +963,7 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
        WELCOME PAGE — Home educativa con grafico animato
   ═══════════════════════════════════════════════════════════ -->
   <div id="pg-welcome" class="page" style="overflow-y:auto;background:var(--bg);position:relative">
-    <!-- Sfondo decorativo -->
-    <div style="position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:0;overflow:hidden">
-      <div style="position:absolute;top:-20%;left:-10%;width:60%;height:60%;background:radial-gradient(ellipse,rgba(37,99,235,.15) 0%,transparent 70%);border-radius:50%"></div>
-      <div style="position:absolute;bottom:-10%;right:-10%;width:50%;height:50%;background:radial-gradient(ellipse,rgba(34,197,94,.08) 0%,transparent 70%);border-radius:50%"></div>
-      <div style="position:absolute;top:30%;right:5%;width:30%;height:30%;background:radial-gradient(ellipse,rgba(248,113,113,.06) 0%,transparent 70%);border-radius:50%"></div>
-    </div>
-    <div id="welcome-inner" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 20px 100px;max-width:520px;margin:0 auto;position:relative;z-index:1">
+    <div id="welcome-inner" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 20px 100px;max-width:520px;margin:0 auto">
 
       <!-- Logo / Brand -->
       <div style="width:100%;display:flex;align-items:center;justify-content:space-between;margin-bottom:40px">
@@ -2008,319 +2002,213 @@ function setPacSim(key, val) {
 function renderPACSim() {
   const area = document.getElementById('pac-sim-area');
   if (!area) return;
-  const sim   = ALL.settings.pacSim || {};
-  const tab   = sim.tab || 'pac';
-  const pac   = sim.pac   || 0;
-  const cap   = sim.capital || 0;
-  const rate  = sim.rate  ?? 7;
-  const anni  = sim.anni  || 20;
-  const inflR = (ALL.settings?.projInflation ?? 2.5) / 100;
-  const r     = rate / 100;
-  const rm    = r / 12;
-
-  // Formatta come € 47.350 (non "47k")
-  const fmtEUR = v => '€\u202f' + Math.round(v).toLocaleString('it-IT');
-  const fmtAx  = v => {
-    if (v >= 1e6) return (v/1e6).toFixed(1).replace('.',',')+'M';
-    if (v >= 1e3) return (v/1e3).toFixed(0)+'k';
-    return Math.round(v)+'';
-  };
-
-  // Calcola serie anno per anno
-  const d = [];
-  for (let y = 0; y <= anni; y++) {
-    if (tab === 'pic') {
-      const C = cap > 0 ? cap : 0;
-      const vp = C * Math.pow(1+r, y);
-      const vi = C * Math.pow(1+inflR, y);
-      const ve = C * Math.pow(1-inflR, y);
-      d.push({ y,
-        capInv:     C,
-        portafoglio: vp,
-        inflazione:  vi,
-        potere:      vp - vi,   // gain REALE sopra l'inflazione
-        erosione:    ve,
-      });
-    } else {
-      const P = pac > 0 ? pac : 0;
-      const versato   = P * 12 * y;
-      const portaf    = rm > 1e-10 ? P * ((Math.pow(1+rm, y*12) - 1) / rm) : versato;
-      // inflazione cumulata sui versamenti mensili
-      let inflVers = 0;
-      for (let m = 1; m <= y*12; m++) inflVers += P * Math.pow(1+inflR/12, m);
-      const potere  = portaf - inflVers;
-      const erosione = versato * Math.pow(1-inflR, y);
-      d.push({ y, versato, portafoglio: portaf, inflazione: inflVers, potere, erosione });
-    }
-  }
-  const last = d[anni];
-
-  // Definisce le 4 linee
-  const LINES = tab === 'pic' ? [
-    { key:'portafoglio', label:'Valore portafoglio',          color:'#3b82f6', w:2.5, dash:'' },
-    { key:'inflazione',  label:'Inflazione cumulata',         color:'#f59e0b', w:1.5, dash:'6,4' },
-    { key:'potere',      label:'Guadagno reale vs inflazione',color:'#22d47e', w:1.5, dash:'' },
-    { key:'erosione',    label:'Senza investire',             color:'#f87171', w:1.5, dash:'4,3' },
-  ] : [
-    { key:'portafoglio', label:'Valore portafoglio',          color:'#3b82f6', w:2.5, dash:'' },
-    { key:'versato',     label:'Capitale versato totale',     color:'#a78bfa', w:1.5, dash:'' },
-    { key:'potere',      label:'Guadagno reale vs inflazione',color:'#22d47e', w:1.5, dash:'' },
-    { key:'erosione',    label:'Senza investire',             color:'#f87171', w:1.5, dash:'4,3' },
-  ];
-
+  const sim  = ALL.settings.pacSim || {};
+  const tab  = sim.tab || 'pac';
+  const pac  = +(sim.pac || 0);
+  const cap  = +(sim.capital || 0);
+  const rate = +(sim.rate ?? 7);
+  const anni = +(sim.anni || 20);
+  const inf  = +(ALL.settings && ALL.settings.projInflation ? ALL.settings.projInflation : 2.5) / 100;
+  const r    = rate / 100;
+  const rm   = r / 12;
+  const fmt  = function(v) { return '\u20ac ' + Math.round(Math.max(0,v)).toLocaleString('it-IT'); };
   const noData = (tab==='pic' && cap<=0) || (tab==='pac' && pac<=0);
 
-  // ── SVG grafico ─────────────────────────────────────────────
-  const W=360,H=200,PL=44,PR=8,PT=10,PB=28;
-  const cw=W-PL-PR, ch=H-PT-PB;
+  var d = [];
+  for (var y=0; y<=anni; y++) {
+    if (tab==='pic') {
+      var C=cap, vp=C*Math.pow(1+r,y), vi=C*Math.pow(1+inf,y);
+      d.push({y:y, base:C, portafoglio:vp, inflazione:vi, potere:vp-vi, erosione:C*Math.pow(1-inf,y)});
+    } else {
+      var P=pac, versato=P*12*y;
+      var portaf = rm>1e-10 ? P*((Math.pow(1+rm,y*12)-1)/rm) : versato;
+      var inflV=0;
+      for(var m=1;m<=y*12;m++) inflV+=P*Math.pow(1+inf/12,m);
+      d.push({y:y, base:versato, portafoglio:portaf, inflazione:inflV, potere:portaf-inflV, erosione:versato*Math.pow(1-inf,y)});
+    }
+  }
+  var last = d[anni];
 
-  // Calcola range Y includendo tutti i valori non-negativi
-  const allV = d.flatMap(pt => LINES.map(l => Math.max(0, pt[l.key]||0)));
-  const maxV = (Math.max(...allV)||1) * 1.1;
+  var LINES = tab==='pic' ? [
+    {key:'portafoglio', nome:'Portafoglio investito', col:'#3b82f6', w:2.5, dash:''},
+    {key:'inflazione',  nome:'Costo inflazione',      col:'#f59e0b', w:1.5, dash:'5,4'},
+    {key:'potere',      nome:'Guadagno reale netto',  col:'#22d47e', w:1.5, dash:''},
+    {key:'erosione',    nome:'Senza investire',        col:'#f87171', w:1.5, dash:'4,3'},
+  ] : [
+    {key:'portafoglio', nome:'Portafoglio accumulato', col:'#3b82f6', w:2.5, dash:''},
+    {key:'base',        nome:'Capitale versato',       col:'#a78bfa', w:1.5, dash:''},
+    {key:'potere',      nome:'Guadagno reale netto',   col:'#22d47e', w:1.5, dash:''},
+    {key:'erosione',    nome:'Senza investire',         col:'#f87171', w:1.5, dash:'4,3'},
+  ];
 
-  const sx = i  => PL + (i/anni)*cw;
-  const sy = v  => PT + ch*(1 - Math.max(0,v)/maxV);
-  const pts = key => d.map((pt,i) =>
-    `${sx(i).toFixed(1)},${sy(Math.max(0,pt[key]||0)).toFixed(1)}`
-  ).join(' ');
-  const fY = v => fmtAx(v);
-  const xTicks = [0,...[5,10,15,20,25,30].filter(y=>y<=anni&&y>0)];
-  const yGridN = 4;
+  // SVG
+  var W=320, H=145, PL=44, PR=6, PT=8, PB=20;
+  var cw=W-PL-PR, ch=H-PT-PB;
+  var allV = [];
+  for(var i=0;i<d.length;i++) for(var j=0;j<LINES.length;j++) allV.push(Math.max(0, d[i][LINES[j].key]||0));
+  var maxV = Math.max.apply(null, allV.concat([1])) * 1.08;
+  var sx = function(i){ return PL+(i/anni)*cw; };
+  var sy = function(v){ return PT+ch*(1-Math.max(0,v)/maxV); };
 
-  const svgHTML = `<svg id="pac-sim-svg" viewBox="0 0 ${W} ${H}"
-    style="width:100%;height:auto;display:block;cursor:crosshair;overflow:visible">
-    <!-- Grid -->
-    ${Array.from({length:yGridN},(_,i)=>{
-      const v=maxV*(i+1)/yGridN;
-      return `<line x1="${PL}" y1="${sy(v).toFixed(1)}" x2="${PL+cw}" y2="${sy(v).toFixed(1)}"
-        stroke="rgba(255,255,255,.07)" stroke-width="1"/>
-        <text x="${PL-4}" y="${(sy(v)+3.5).toFixed(1)}" text-anchor="end"
-          fill="#4b6090" font-size="9" font-family="monospace">${fY(v)}</text>`;
-    }).join('')}
-    <!-- Asse X -->
-    <line x1="${PL}" y1="${PT+ch}" x2="${PL+cw}" y2="${PT+ch}" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
-    ${xTicks.map(y=>`<text x="${sx(y).toFixed(1)}" y="${PT+ch+14}"
-      text-anchor="middle" fill="#4b6090" font-size="9">${y}a</text>`).join('')}
-    <!-- Asse Y -->
-    <line x1="${PL}" y1="${PT}" x2="${PL}" y2="${PT+ch}" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
-    <!-- Linee -->
-    ${noData ? '' : LINES.map(l=>`<polyline
-      points="${pts(l.key)}"
-      fill="none" stroke="${l.color}" stroke-width="${l.w}"
-      stroke-dasharray="${l.dash}" stroke-linecap="round" stroke-linejoin="round"/>`).join('')}
-    <!-- Dot finali -->
-    ${noData ? '' : LINES.map(l=>{
-      const pt=d[anni]; const v=Math.max(0,pt[l.key]||0);
-      return `<circle cx="${sx(anni).toFixed(1)}" cy="${sy(v).toFixed(1)}" r="3"
-        fill="${l.color}" stroke="var(--bg)" stroke-width="1.5"/>`;
-    }).join('')}
-    <!-- Crosshair -->
-    <line id="pac-xhair-v" x1="-999" y1="${PT}" x2="-999" y2="${PT+ch}"
-      stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="3,2"/>
-    <!-- Tooltip bg -->
-    <rect id="pac-tt-bg" x="-999" y="0" width="0" height="0"
-      fill="rgba(15,23,42,.92)" rx="6" stroke="rgba(255,255,255,.1)" stroke-width="1"/>
-  </svg>`;
+  function ptsFor(key) {
+    var r2=[];
+    for(var i=0;i<=anni;i++) r2.push(sx(i).toFixed(1)+','+sy(d[i][key]||0).toFixed(1));
+    return r2.join(' ');
+  }
+  function fmtAx(v) {
+    if(v>=1e6) return (v/1e6).toFixed(1)+'M';
+    if(v>=1e3) return Math.round(v/1000)+'k';
+    return Math.round(v)+'';
+  }
 
-  // ── Render HTML ──────────────────────────────────────────────
-  area.innerHTML = `<div style="padding:0 14px 80px">
+  // Griglia Y (4 livelli)
+  var yGrid='';
+  for(var i=1;i<=4;i++){
+    var v=maxV*i/4;
+    var ys=sy(v).toFixed(1);
+    yGrid += '<line x1="'+PL+'" y1="'+ys+'" x2="'+(PL+cw)+'" y2="'+ys+'" stroke="rgba(255,255,255,.06)" stroke-width="1"/>';
+    yGrid += '<text x="'+(PL-4)+'" y="'+(+ys+3.5)+'" text-anchor="end" fill="#4b6090" font-size="9.5" font-family="monospace">'+fmtAx(v)+'</text>';
+  }
 
-    <!-- Tab PIC / PAC — compatti e leggibili -->
-    <div style="display:flex;gap:6px;margin-bottom:16px">
-      <button onclick="setPacSim('tab','pac')"
-        style="flex:1;padding:10px 8px;border:2px solid ${tab==='pac'?'var(--blue)':'rgba(255,255,255,.1)'};
-               border-radius:10px;background:${tab==='pac'?'rgba(37,99,235,.15)':'rgba(255,255,255,.03)'};
-               color:${tab==='pac'?'var(--blue)':'var(--text3)'};cursor:pointer;text-align:left">
-        <div style="font-size:15px;font-weight:900;letter-spacing:-.3px">PAC</div>
-        <div style="font-size:10px;font-weight:600;margin-top:1px;opacity:.85">Accumulo mensile</div>
-        <div style="font-size:9px;margin-top:1px;opacity:.55">Versi ogni mese una cifra fissa</div>
-      </button>
-      <button onclick="setPacSim('tab','pic')"
-        style="flex:1;padding:10px 8px;border:2px solid ${tab==='pic'?'var(--blue)':'rgba(255,255,255,.1)'};
-               border-radius:10px;background:${tab==='pic'?'rgba(37,99,235,.15)':'rgba(255,255,255,.03)'};
-               color:${tab==='pic'?'var(--blue)':'var(--text3)'};cursor:pointer;text-align:left">
-        <div style="font-size:15px;font-weight:900;letter-spacing:-.3px">PIC</div>
-        <div style="font-size:10px;font-weight:600;margin-top:1px;opacity:.85">Investimento unico</div>
-        <div style="font-size:9px;margin-top:1px;opacity:.55">Metti tutto subito in una volta</div>
-      </button>
-    </div>
+  // Labels X
+  var xTicks=[0];
+  var xStep = anni<=10?2:anni<=20?5:10;
+  for(var i=xStep;i<anni;i+=xStep) xTicks.push(i);
+  xTicks.push(anni);
+  var xLab='';
+  for(var i=0;i<xTicks.length;i++){
+    var y2=xTicks[i];
+    var s2 = y2===0?'Oggi': y2===anni?y2+'a': String(y2);
+    xLab += '<text x="'+sx(y2).toFixed(1)+'" y="'+(H-3)+'" text-anchor="middle" fill="#4b6090" font-size="9.5">'+s2+'</text>';
+  }
 
-    <!-- Parametri -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
-      <div>
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:4px">
-          ${tab==='pic'?'Capitale iniziale':'Versamento mensile'}
-        </div>
-        <input type="number" class="proj-rate-inp" style="width:100%"
-          value="${tab==='pic'?cap||'':pac||''}"
-          placeholder="${tab==='pic'?'es. 10000':'es. 500'}"
-          min="0" step="${tab==='pic'?500:50}" inputmode="decimal"
-          oninput="setPacSim('${tab==='pic'?'capital':'pac'}',this.value)">
-      </div>
-      <div>
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:4px">Rendimento atteso % annuo</div>
-        <input type="number" class="proj-rate-inp" style="width:100%"
-          value="${rate}" min="0" max="25" step="0.5" inputmode="decimal"
-          oninput="setPacSim('rate',this.value)">
-      </div>
-    </div>
-    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
-      <span style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.7px">Orizzonte:</span>
-      ${[5,10,15,20,25,30].map(y=>`
-        <button onclick="setPacSim('anni',${y})"
-          style="padding:4px 12px;border-radius:20px;border:1px solid ${anni===y?'var(--blue)':'rgba(255,255,255,.12)'};
-                 background:${anni===y?'var(--blue)':'transparent'};color:${anni===y?'#fff':'var(--text3)'};
-                 font-size:11px;font-weight:700;cursor:pointer">${y} anni</button>`).join('')}
-    </div>
+  // Linee grafico
+  var svgLines='';
+  for(var i=0;i<LINES.length;i++){
+    var l=LINES[i];
+    svgLines += '<polyline points="'+ptsFor(l.key)+'" fill="none" stroke="'+l.col+'" stroke-width="'+l.w+'" stroke-dasharray="'+l.dash+'" stroke-linecap="round" stroke-linejoin="round"/>';
+  }
 
-    ${noData ? `
-    <div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:12px;
-      padding:20px;text-align:center;color:var(--text3);font-size:13px">
-      Inserisci ${tab==='pic'?'il capitale iniziale':'il versamento mensile'} per vedere la simulazione
-    </div>` : `
+  // Legenda
+  var legendHTML='';
+  for(var i=0;i<LINES.length;i++){
+    var l=LINES[i];
+    legendHTML += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-left:3px solid '+l.col+';border-radius:0 8px 8px 0">'
+      +'<svg width="20" height="3" style="flex-shrink:0"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="'+l.col+'" stroke-width="'+l.w+'" stroke-dasharray="'+l.dash+'"/></svg>'
+      +'<span style="flex:1;font-size:12px;font-weight:600;color:var(--text2)">'+l.nome+'</span>'
+      +'<span style="font-size:13px;font-weight:900;color:'+l.col+';font-family:monospace">'+fmt(last[l.key]||0)+'</span>'
+      +'</div>';
+  }
 
-    <!-- Legenda leggibile -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:12px">
-      ${LINES.map(l=>`
-        <div style="display:flex;align-items:center;gap:8px;padding:8px 10px;
-          background:var(--bg2);border:1px solid var(--border);border-radius:10px">
-          <svg width="20" height="3" style="flex-shrink:0">
-            <line x1="0" y1="1.5" x2="20" y2="1.5"
-              stroke="${l.color}" stroke-width="${l.w}" stroke-dasharray="${l.dash}"/>
-          </svg>
-          <div style="min-width:0">
-            <div style="font-size:11px;font-weight:700;color:var(--text);line-height:1.2">${l.label}</div>
-            <div style="font-size:13px;font-weight:900;color:${l.color};
-              font-family:'JetBrains Mono',monospace;margin-top:1px">
-              ${fmtEUR(Math.max(0,last[l.key]||0))}
-            </div>
-          </div>
-        </div>`).join('')}
-    </div>
+  // Tabella
+  var tabRows='';
+  for(var i=1;i<=anni;i++){
+    var pt=d[i];
+    var bg2=i%2===0?'transparent':'rgba(255,255,255,.02)';
+    tabRows += '<tr style="background:'+bg2+'">'
+      +'<td style="padding:4px 6px;text-align:center;color:var(--text3);font-weight:700">'+pt.y+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;font-family:monospace">'+fmt(pt.base||0)+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#3b82f6">'+fmt(pt.portafoglio)+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#f59e0b">'+fmt(pt.inflazione)+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#22d47e">'+fmt(Math.max(0,pt.potere))+'</td>'
+      +'<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#f87171">'+fmt(pt.erosione)+'</td>'
+      +'</tr>';
+  }
 
-    <!-- Grafico -->
-    <div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);
-      border-radius:12px;padding:10px 6px 6px;margin-bottom:14px;position:relative">
-      <div id="pac-tooltip" style="display:none;position:absolute;z-index:10;pointer-events:none;
-        background:rgba(15,23,42,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;
-        padding:8px 10px;min-width:160px;max-width:180px;font-size:11px;
-        backdrop-filter:blur(8px)"></div>
-      ${svgHTML}
-    </div>
+  // Tab buttons
+  var isPac = tab==='pac';
+  var tabBtns =
+    '<button onclick="setPacSim(\"tab\",\"pac\")" style="flex:1;padding:9px 8px;'
+    +'border:2px solid '+(isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
+    +'border-radius:10px;background:'+(isPac?'rgba(37,99,235,.15)':'transparent')+';'
+    +'color:'+(isPac?'var(--blue)':'var(--text3)')+';cursor:pointer;text-align:left">'
+    +'<div style="font-size:16px;font-weight:900">PAC</div>'
+    +'<div style="font-size:10px;font-weight:600;margin-top:2px">Accumulo mensile</div></button>'
+    +'<button onclick="setPacSim(\"tab\",\"pic\")" style="flex:1;padding:9px 8px;'
+    +'border:2px solid '+(!isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
+    +'border-radius:10px;background:'+(!isPac?'rgba(37,99,235,.15)':'transparent')+';'
+    +'color:'+(!isPac?'var(--blue)':'var(--text3)')+';cursor:pointer;text-align:left">'
+    +'<div style="font-size:16px;font-weight:900">PIC</div>'
+    +'<div style="font-size:10px;font-weight:600;margin-top:2px">Investimento unico</div></button>';
 
-    <!-- KPI -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">
-      <div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.25);
-        border-radius:10px;padding:10px 12px">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">
-          Valore finale anno ${anni}
-        </div>
-        <div style="font-size:18px;font-weight:900;color:#3b82f6;
-          font-family:'JetBrains Mono',monospace">${fmtEUR(last.portafoglio)}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">
-          ${tab==='pic'
-            ? `partendo da ${fmtEUR(last.capInv)}`
-            : `versato: ${fmtEUR(last.versato)}`}
-        </div>
-      </div>
-      <div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.25);
-        border-radius:10px;padding:10px 12px">
-        <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">
-          Guadagno reale vs inflazione
-        </div>
-        <div style="font-size:18px;font-weight:900;color:#22d47e;
-          font-family:'JetBrains Mono',monospace">${fmtEUR(Math.max(0,last.potere))}</div>
-        <div style="font-size:10px;color:var(--text3);margin-top:2px">
-          senza investire: ${fmtEUR(last.erosione)}
-        </div>
-      </div>
-    </div>
+  var inpLabel = tab==='pic' ? 'Capitale iniziale (\u20ac)' : 'Versamento mensile (\u20ac)';
+  var inpKey   = tab==='pic' ? 'capital' : 'pac';
+  var inpVal   = tab==='pic' ? (cap||'') : (pac||'');
+  var inpStep  = tab==='pic' ? 1000 : 100;
 
-    <!-- Tabella anno per anno -->
-    <details>
-      <summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;
-        padding:8px 0;text-transform:uppercase;letter-spacing:.6px">
-        📋 Dettaglio anno per anno
-      </summary>
-      <div style="overflow-x:auto;margin-top:8px">
-        <table style="width:100%;border-collapse:collapse;font-size:11px;min-width:380px">
-          <thead><tr style="background:rgba(255,255,255,.05)">
-            <th style="padding:6px 8px;color:var(--text3);text-align:center">Anno</th>
-            <th style="padding:6px 8px;color:#a78bfa;text-align:right">
-              ${tab==='pic'?'Capitale':'Versato'}</th>
-            <th style="padding:6px 8px;color:#3b82f6;text-align:right">Portafoglio</th>
-            <th style="padding:6px 8px;color:#f59e0b;text-align:right">Inflazione</th>
-            <th style="padding:6px 8px;color:#22d47e;text-align:right">Guadagno reale</th>
-            <th style="padding:6px 8px;color:#f87171;text-align:right">Senza invest.</th>
-          </tr></thead>
-          <tbody>
-            ${d.filter((_,i)=>i>0).map((pt,i)=>`
-              <tr style="background:${i%2?'transparent':'rgba(255,255,255,.02)'}">
-                <td style="padding:5px 8px;text-align:center;font-weight:700;color:var(--text3)">${pt.y}</td>
-                <td style="padding:5px 8px;text-align:right;font-family:monospace">
-                  ${fmtEUR(tab==='pic'?pt.capInv:pt.versato)}</td>
-                <td style="padding:5px 8px;text-align:right;font-family:monospace;
-                  font-weight:700;color:#3b82f6">${fmtEUR(pt.portafoglio)}</td>
-                <td style="padding:5px 8px;text-align:right;font-family:monospace;color:#f59e0b">
-                  ${fmtEUR(pt.inflazione)}</td>
-                <td style="padding:5px 8px;text-align:right;font-family:monospace;
-                  font-weight:700;color:#22d47e">${fmtEUR(Math.max(0,pt.potere))}</td>
-                <td style="padding:5px 8px;text-align:right;font-family:monospace;color:#f87171">
-                  ${fmtEUR(pt.erosione)}</td>
-              </tr>`).join('')}
-          </tbody>
-        </table>
-      </div>
-    </details>
-    `}
-  </div>`;
+  var anniBtns='';
+  var ay=[5,10,15,20,25,30];
+  for(var i=0;i<ay.length;i++){
+    var y3=ay[i], act=anni===y3;
+    anniBtns += '<button onclick="setPacSim(\"anni\",'+y3+')" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;'
+      +'border:1px solid '+(act?'var(--blue)':'rgba(255,255,255,.12)')+';'
+      +'background:'+(act?'var(--blue)':'transparent')+';'
+      +'color:'+(act?'#fff':'var(--text3)')+'">'+y3+'</button>';
+  }
 
-  // Crosshair con tooltip
-  const svg    = document.getElementById('pac-sim-svg');
-  const xhairV = document.getElementById('pac-xhair-v');
-  const tooltip= document.getElementById('pac-tooltip');
-  if (!svg || !xhairV || noData) return;
+  var graphHTML='';
+  if(!noData){
+    graphHTML =
+      '<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:8px 6px 2px;margin-bottom:12px">'
+      +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;overflow:hidden">'
+      +yGrid+xLab
+      +'<line x1="'+PL+'" y1="'+(PT+ch)+'" x2="'+(PL+cw)+'" y2="'+(PT+ch)+'" stroke="rgba(255,255,255,.15)" stroke-width="1"/>'
+      +'<line x1="'+PL+'" y1="'+PT+'" x2="'+PL+'" y2="'+(PT+ch)+'" stroke="rgba(255,255,255,.1)" stroke-width="1"/>'
+      +svgLines
+      +'</svg></div>'
+      +'<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">'+legendHTML+'</div>'
+      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
+        +'<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:10px 12px">'
+          +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Anno '+anni+'</div>'
+          +'<div style="font-size:18px;font-weight:900;color:#3b82f6;font-family:monospace">'+fmt(last.portafoglio)+'</div>'
+          +'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(tab==='pic'?'partendo da '+fmt(cap):'versato '+fmt(last.base))+'</div>'
+        +'</div>'
+        +'<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:10px;padding:10px 12px">'
+          +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Guadagno reale netto</div>'
+          +'<div style="font-size:18px;font-weight:900;color:#22d47e;font-family:monospace">'+fmt(last.potere)+'</div>'
+          +'<div style="font-size:10px;color:var(--text3);margin-top:2px">senza invest.: '+fmt(last.erosione)+'</div>'
+        +'</div>'
+      +'</div>'
+      +'<details>'
+        +'<summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:6px 0;text-transform:uppercase;letter-spacing:.6px">Tabella anno per anno</summary>'
+        +'<div style="overflow-x:auto;margin-top:6px;font-size:11px">'
+          +'<table style="width:100%;border-collapse:collapse;min-width:340px">'
+            +'<thead><tr style="background:rgba(255,255,255,.05)">'
+              +'<th style="padding:5px 6px;color:var(--text3);text-align:center">Anno</th>'
+              +'<th style="padding:5px 6px;color:#a78bfa;text-align:right">'+(tab==='pic'?'Capitale':'Versato')+'</th>'
+              +'<th style="padding:5px 6px;color:#3b82f6;text-align:right">Portafoglio</th>'
+              +'<th style="padding:5px 6px;color:#f59e0b;text-align:right">Inflazione</th>'
+              +'<th style="padding:5px 6px;color:#22d47e;text-align:right">Guadagno</th>'
+              +'<th style="padding:5px 6px;color:#f87171;text-align:right">Senza inv.</th>'
+            +'</tr></thead>'
+            +'<tbody>'+tabRows+'</tbody>'
+          +'</table>'
+        +'</div>'
+      +'</details>';
+  } else {
+    graphHTML = '<div style="border:1px dashed rgba(255,255,255,.1);border-radius:12px;padding:24px;text-align:center;color:var(--text3);font-size:13px">'
+      +'Inserisci '+(tab==='pic'?'il capitale iniziale':'il versamento mensile')+' per vedere la simulazione</div>';
+  }
 
-  svg.addEventListener('mousemove', e => {
-    const rect  = svg.getBoundingClientRect();
-    const scaleX= W / rect.width;
-    const mx    = (e.clientX - rect.left) * scaleX;
-    const xCl   = Math.max(PL, Math.min(PL+cw, mx));
-    xhairV.setAttribute('x1', xCl); xhairV.setAttribute('x2', xCl);
-    const yr    = Math.round(((xCl-PL)/cw)*anni);
-    const pt    = d[Math.max(0,Math.min(anni,yr))];
-    if (!pt || !tooltip) return;
-    // Tooltip fuori dal SVG — posizionato relativamente al container
-    tooltip.style.display = 'block';
-    const pctX  = (xCl-PL)/cw;
-    tooltip.style.left  = pctX > 0.6 ? 'auto' : (e.clientX-rect.left+8)+'px';
-    tooltip.style.right = pctX > 0.6 ? (rect.right-e.clientX+8)+'px' : 'auto';
-    tooltip.style.top   = '8px';
-    tooltip.innerHTML = `
-      <div style="font-weight:800;color:var(--text);margin-bottom:6px;
-        font-size:12px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:4px">
-        Anno ${pt.y}
-      </div>
-      ${LINES.map(l=>`
-        <div style="display:flex;justify-content:space-between;align-items:center;
-          gap:8px;margin-bottom:3px">
-          <div style="display:flex;align-items:center;gap:5px">
-            <svg width="14" height="2">
-              <line x1="0" y1="1" x2="14" y2="1" stroke="${l.color}"
-                stroke-width="${l.w}" stroke-dasharray="${l.dash}"/>
-            </svg>
-            <span style="font-size:10px;color:var(--text2)">${l.label.split(' ')[0]}</span>
-          </div>
-          <span style="font-size:11px;font-weight:700;color:${l.color};
-            font-family:monospace;white-space:nowrap">
-            ${fmtEUR(Math.max(0,pt[l.key]||0))}
-          </span>
-        </div>`).join('')}`;
-  });
-  svg.addEventListener('mouseleave', () => {
-    xhairV.setAttribute('x1','-999'); xhairV.setAttribute('x2','-999');
-    if (tooltip) tooltip.style.display='none';
-  });
+  area.innerHTML =
+    '<div style="padding:0 12px 80px">'
+    +'<div style="display:flex;gap:6px;margin-bottom:14px">'+tabBtns+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+      +'<div>'
+        +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">'+inpLabel+'</div>'
+        +'<input type="number" class="proj-rate-inp" style="width:100%" value="'+inpVal+'" min="0" step="'+inpStep+'" inputmode="decimal" oninput="setPacSim(\"'+(tab==='pic'?'capital':'pac')+'\",this.value)">'
+      +'</div>'
+      +'<div>'
+        +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">Rendimento % annuo</div>'
+        +'<input type="number" class="proj-rate-inp" style="width:100%" value="'+rate+'" min="0" max="25" step="0.5" inputmode="decimal" oninput="setPacSim(\"rate\",this.value)">'
+      +'</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;align-items:center">'
+      +'<span style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.7px">Anni:</span>'
+      +anniBtns
+    +'</div>'
+    +graphHTML
+    +'</div>';
 }
 
 
