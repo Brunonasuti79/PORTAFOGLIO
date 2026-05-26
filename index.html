@@ -2864,7 +2864,7 @@ async function fetchTextWithProxies(url) {
   let last = null;
   for (const i of order) {
     try {
-      const r = await fetchWithTimeout(PROXIES[i](url), 8000, true);
+      const r = await fetchWithTimeout(PROXIES[i](url), 5000, true);
       if (i !== bestProxy) bestProxy = i;
       return r;
     } catch(e) { last = e; }
@@ -3533,47 +3533,77 @@ async function ensureEUSessionPrevClose(h, q) {
   return { sessionDate, prevClose:null, cached:false, marketReady:true, source:null, prevCloseSourceDate:null, refreshed:false, reason:'no_prevclose' };
 }
 
+// Helper: corre gara tra promesse, restituisce la prima non-null entro timeout
+async function raceFirst(promises, timeoutMs) {
+  return new Promise(resolve => {
+    let settled = false;
+    let pending = promises.length;
+    const done = (v) => { if (!settled && v) { settled = true; resolve(v); } };
+    const decr = () => { if (--pending === 0 && !settled) resolve(null); };
+    const timer = setTimeout(() => { if (!settled) { settled = true; resolve(null); } }, timeoutMs);
+    promises.forEach(p =>
+      Promise.resolve(p).then(v => { done(v); decr(); }).catch(() => decr())
+    );
+    // Annulla timer se risolto prima
+    Promise.resolve().then(() => {
+      if (settled) clearTimeout(timer);
+    });
+  });
+}
+
 async function fetchPriceForHolding(h) {
   const ak  = ALL.settings.ak || '';
   const ant = ALL.settings.anthropicKey || '';
 
-  // BTP / Italian government bonds (ISIN.MI pattern)
+  // BTP / Italian government bonds
   const btpIsin = isinFromTicker(h.ticker);
   if (btpIsin) {
     const q = await fetchBTPMOT(btpIsin);
     if (q) return q;
-    return null; // Don't try Yahoo for MOT instruments
+    return null;
   }
 
-  const candidates = candidatesForHolding(h);
-  const isEU = /\.(MI|MOT|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(h.ticker) ||
+  const allCandidates = candidatesForHolding(h);
+  // Limita a max 3 candidati per evitare esplosione di tentativi
+  const candidates = allCandidates.slice(0, 3);
+  const isEU = /\.(MI|MOT|DE|PA|L|SW|AS|F|ST|CO|HE|OL|BR|VX)$/i.test(candidates[0]||h.ticker) ||
                ['MI','MOT','DE','PA','L','SW','AS','F'].includes(h.market||'');
 
-  for (const sym of candidates) {
-    if (isEU) {
-      // EU: se il mercato ha aperto, evita di fermarti su Stooq se non ha previous close
-      // perché spesso è solo una chiusura storica non intraday.
-      const sq = await fetchStooq(sym, h.market);
-      if (sq && (!hasMarketOpenedForSession('EU') || sq.prevClose != null)) return sq;
-      const fh = await fetchFinnhub(sym, ak);
-      if (fh) return fh;
-      const yc = await fetchYahooChart(sym);
-      if (yc) return yc;
-      if (sq) return sq;
-    } else {
-      // USA: Finnhub diretto → Yahoo Quote → Yahoo Chart.
-      // Yahoo Quote espone regularMarketPreviousClose ed evita il problema closes[-2].
-      const fh = await fetchFinnhub(sym, ak);
-      if (fh) return fh;
-      const yq = await fetchYahooQuote(sym);
-      if (yq) return yq;
-      const yc = await fetchYahooChart(sym);
-      if (yc) return yc;
+  // ── Round 1: gara parallela tra fonti principali (6 secondi) ────
+  const round1 = [];
+  if (isEU) {
+    // EU: Yahoo Chart + Stooq in parallelo sui primi 2 candidati
+    for (const sym of candidates.slice(0, 2)) {
+      round1.push(fetchYahooChart(sym));
+      round1.push(fetchStooq(sym, h.market));
+    }
+    if (ak) round1.push(fetchFinnhub(candidates[0], ak));
+  } else {
+    // USA: Finnhub + Yahoo Quote + Yahoo Chart in parallelo
+    if (ak) round1.push(fetchFinnhub(candidates[0], ak));
+    round1.push(fetchYahooQuote(candidates[0]));
+    round1.push(fetchYahooChart(candidates[0]));
+    if (candidates[1]) {
+      round1.push(fetchYahooQuote(candidates[1]));
+      round1.push(fetchYahooChart(candidates[1]));
     }
   }
 
-  // Anthropic as absolute last resort
-  return await fetchAnthropic(candidates[0] || h.ticker, ant);
+  const r1 = await raceFirst(round1, 7000);
+  if (r1) return r1;
+
+  // ── Round 2: terzo candidato se disponibile (4 secondi) ─────────
+  if (candidates[2]) {
+    const r2 = await raceFirst([
+      fetchYahooChart(candidates[2]),
+      isEU ? fetchStooq(candidates[2], h.market) : fetchYahooQuote(candidates[2])
+    ], 4000);
+    if (r2) return r2;
+  }
+
+  // ── Anthropic come ultima risorsa ────────────────────────────────
+  if (ant) return await fetchAnthropic(candidates[0] || h.ticker, ant);
+  return null;
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -3763,7 +3793,7 @@ async function runDiagnostic() {
     for (let i=0; i<PROXIES.length; i++) {
       try {
         const ctrl = new AbortController();
-        const t = setTimeout(()=>ctrl.abort(), 8000);
+        const t = setTimeout(()=>ctrl.abort(), 5000);
         const res = await fetch(PROXIES[i](url), {signal:ctrl.signal,cache:'no-store'});
         clearTimeout(t);
         if (!res.ok) { log.textContent += `  [${proxyNames[i]}] HTTP ${res.status}\n`; continue; }
@@ -3782,7 +3812,7 @@ async function runDiagnostic() {
     for (let i=0; i<PROXIES.length; i++) {
       try {
         const ctrl = new AbortController();
-        const t = setTimeout(()=>ctrl.abort(), 8000);
+        const t = setTimeout(()=>ctrl.abort(), 5000);
         const res = await fetch(PROXIES[i](url), {signal:ctrl.signal,cache:'no-store'});
         clearTimeout(t);
         if (!res.ok) { log.textContent += `  [${proxyNames[i]}] HTTP ${res.status}\n`; continue; }
@@ -3810,7 +3840,7 @@ async function runDiagnostic() {
     for (let i=0; i<PROXIES.length; i++) {
       try {
         const ctrl = new AbortController();
-        const t = setTimeout(()=>ctrl.abort(), 8000);
+        const t = setTimeout(()=>ctrl.abort(), 5000);
         const res = await fetch(PROXIES[i](url), {signal:ctrl.signal,cache:'no-store'});
         clearTimeout(t);
         if (!res.ok) { log.textContent += `  [${proxyNames[i]}] HTTP ${res.status}\n`; continue; }
@@ -3854,7 +3884,7 @@ async function runDiagnostic() {
       for (let pi=1; pi<PROXIES.length; pi++) {
         const pname = ['allorigins','corsproxy','codetabs','thingproxy'][pi-1]||`proxy${pi}`;
         try {
-          const r = await fetchWithTimeout(PROXIES[pi](burl), 8000, true);
+          const r = await fetchWithTimeout(PROXIES[pi](burl), 5000, true);
           const clean2=r.replace(/<[^>]+>/g,' ').replace(/\s+/g,' ').trim();
           const m2=clean2.match(/((?:8\d|9\d|10\d|11[0-4])[,.]\d{1,4})/);
           const price2=m2?parseFloat(m2[1].replace(',','.')):null;
@@ -3875,7 +3905,7 @@ async function runDiagnostic() {
       try {
         const url = base+'.finance.yahoo.com/v8/finance/chart/'+encodeURIComponent(ticker)+
           '?interval=1m&range=1d&prePost=true&includePrePost=true';
-        const data = await fetchWithTimeout(PROXIES[pi](url), 8000);
+        const data = await fetchWithTimeout(PROXIES[pi](url), 5000);
         const meta = data?.chart?.result?.[0]?.meta;
         const pre  = meta?.preMarketPrice;
         const post = meta?.postMarketPrice;
