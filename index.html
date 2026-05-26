@@ -3640,16 +3640,40 @@ async function fetchPrices() {
       _fxPromise = fetchEURUSD().then(r => { _fxResult = r; }).catch(() => {});
     }
 
-    // Limita a 5 fetch paralleli per evitare rate limiting Yahoo/Stooq
+    // Fetch tutti in parallelo con aggiornamento streaming
+    // Ogni ticker aggiorna la UI appena ottiene il prezzo
     const rows = [];
-    for (let i = 0; i < hlds.length; i += 5) {
-      const batch = hlds.slice(i, i + 5);
-      const batchResults = await Promise.all(batch.map(async h => {
-        try { return { h, q: await fetchPriceForHolding(h) }; }
-        catch(e) { return { h, q: null }; }
-      }));
-      rows.push(...batchResults);
+    let done = 0, total = hlds.length;
+    const t0 = Date.now();
+
+    const allFetches = hlds.map(async h => {
+      const tStart = Date.now();
+      try {
+        const q = await fetchPriceForHolding(h);
+        const ms = Date.now() - tStart;
+        done++;
+        // Aggiorna il bottone con progresso in tempo reale
+        const pct = Math.round(done/total*100);
+        btn.innerHTML = `<span class="spinner"></span> ${done}/${total} (${pct}%)`;
+        console.log(`[fetch] ${(h.displayTicker||h.ticker).padEnd(12)} → ${q ? q.price?.toFixed(2)+' ['+q.source+']' : 'null'} (${ms}ms)`);
+        return { h, q };
+      } catch(e) {
+        done++;
+        btn.innerHTML = `<span class="spinner"></span> ${done}/${total}`;
+        console.warn(`[fetch] ${h.ticker} ERRORE: ${e.message}`);
+        return { h, q: null };
+      }
+    });
+
+    // Processa ogni risultato appena arriva (streaming)
+    for (const promise of allFetches) {
+      const result = await Promise.resolve(promise);
+      rows.push(result);
     }
+
+    // Attendi che tutti abbiano finito
+    await Promise.allSettled(allFetches);
+    console.log(`[fetch] Totale: ${Date.now()-t0}ms per ${total} titoli`);
 
     const updated=[], errors=[], rejected=[], sources={};
     for (const { h, q } of rows) {
