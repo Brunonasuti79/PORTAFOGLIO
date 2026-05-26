@@ -962,8 +962,14 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
   <!-- ═══════════════════════════════════════════════════════════
        WELCOME PAGE — Home educativa con grafico animato
   ═══════════════════════════════════════════════════════════ -->
-  <div id="pg-welcome" class="page" style="overflow-y:auto;background:var(--bg)">
-    <div id="welcome-inner" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 20px 100px;max-width:520px;margin:0 auto">
+  <div id="pg-welcome" class="page" style="overflow-y:auto;background:var(--bg);position:relative">
+    <!-- Sfondo decorativo -->
+    <div style="position:fixed;top:0;left:0;right:0;bottom:0;pointer-events:none;z-index:0;overflow:hidden">
+      <div style="position:absolute;top:-20%;left:-10%;width:60%;height:60%;background:radial-gradient(ellipse,rgba(37,99,235,.15) 0%,transparent 70%);border-radius:50%"></div>
+      <div style="position:absolute;bottom:-10%;right:-10%;width:50%;height:50%;background:radial-gradient(ellipse,rgba(34,197,94,.08) 0%,transparent 70%);border-radius:50%"></div>
+      <div style="position:absolute;top:30%;right:5%;width:30%;height:30%;background:radial-gradient(ellipse,rgba(248,113,113,.06) 0%,transparent 70%);border-radius:50%"></div>
+    </div>
+    <div id="welcome-inner" style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:flex-start;padding:32px 20px 100px;max-width:520px;margin:0 auto;position:relative;z-index:1">
 
       <!-- Logo / Brand -->
       <div style="width:100%;display:flex;align-items:center;justify-content:space-between;margin-bottom:40px">
@@ -1684,11 +1690,6 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
         <line x1="9" y1="4" x2="9" y2="9"/><polyline points="7 15 10 18 17 11"/>
       </svg><span>Pianifica</span>
     </button>
-    <button class="nbtn" id="nav-welcome" onclick="showPage('welcome');setTimeout(initWelcomePage,300)" style="position:relative">
-      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round">
-        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/>
-      </svg><span>Home</span>
-    </button>
     <button class="nbtn" id="nav-tutorial" onclick="showPage('tutorial')">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/>
@@ -1981,9 +1982,20 @@ function getPACSuggestion(rate) {
 
 function setPacSim(key, val) {
   if (!ALL.settings.pacSim) ALL.settings.pacSim={};
-  const n = parseFloat(val);
-  ALL.settings.pacSim[key] = isNaN(n) ? 0 : n;
-  save(); debouncedPACSim();
+  // tab è una stringa, non numero
+  if (key === 'tab') {
+    ALL.settings.pacSim[key] = val;
+  } else {
+    const n = parseFloat(val);
+    ALL.settings.pacSim[key] = isNaN(n) ? 0 : n;
+  }
+  save();
+  // Render immediato per tab switch, debounced per input numerici
+  if (key === 'tab' || key === 'anni') {
+    renderPACSim();
+  } else {
+    debouncedPACSim();
+  }
 }
 
 function renderPACSim() {
@@ -2118,7 +2130,8 @@ function renderPACSim() {
     </div>
 
     <!-- Grafico -->
-    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:8px 4px 4px;margin-bottom:16px;overflow:hidden">
+    <div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:8px 4px 4px;margin-bottom:16px;overflow:hidden;position:relative">
+      <div id="pac-tooltip" style="display:none;position:absolute;background:rgba(15,23,42,.95);border:1px solid rgba(255,255,255,.12);border-radius:8px;padding:8px 10px;pointer-events:none;z-index:10;min-width:140px;backdrop-filter:blur(8px)"></div>
       <svg id="pac-sim-svg" viewBox="0 0 ${W} ${H}" style="width:100%;height:auto;cursor:crosshair;display:block">
         ${gridY.map(v=>`<line x1="${pl}" y1="${sy(v).toFixed(1)}" x2="${pl+cw}" y2="${sy(v).toFixed(1)}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`).join('')}
         ${xTicks.map(y=>`<text x="${sx(y).toFixed(1)}" y="${pt_+ch+18}" text-anchor="middle" fill="#4b6090" font-size="10">${y}a</text>`).join('')}
@@ -2193,20 +2206,42 @@ function renderPACSim() {
     `}
   </div>`;
 
-  // Crosshair mousemove
+  // Crosshair con tooltip
   const svg = document.getElementById('pac-sim-svg');
   const xhair = document.getElementById('pac-xhair');
+  const tooltip = document.getElementById('pac-tooltip');
   if (!svg || !xhair || noData) return;
+
   svg.addEventListener('mousemove', e => {
     const rect = svg.getBoundingClientRect();
     const scaleX = W / rect.width;
     const mx = (e.clientX - rect.left) * scaleX;
     const xClamped = Math.max(pl, Math.min(pl+cw, mx));
-    xhair.setAttribute('x1', xClamped);
-    xhair.setAttribute('x2', xClamped);
+    xhair.setAttribute('x1', xClamped); xhair.setAttribute('x2', xClamped);
+
+    // Calcola anno corrispondente
+    const yr = Math.round(((xClamped - pl) / cw) * anni);
+    const pt = d[Math.max(0, Math.min(anni, yr))];
+    if (!pt || !tooltip) return;
+
+    tooltip.style.display = 'block';
+    tooltip.style.left = (e.clientX - rect.left + rect.left - svg.getBoundingClientRect().left + 10) + 'px';
+    tooltip.style.top  = (e.clientY - svg.getBoundingClientRect().top - 60) + 'px';
+
+    const v1 = tab === 'pic' ? pt.capInv : pt.versato;
+    const lbl1 = tab === 'pic' ? 'Capitale' : 'Versato';
+    tooltip.innerHTML = `
+      <div style="font-size:10px;font-weight:800;color:var(--text);margin-bottom:5px;border-bottom:1px solid rgba(255,255,255,.1);padding-bottom:4px">Anno ${pt.y}</div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        ${LINES.map(l => `<div style="display:flex;justify-content:space-between;gap:10px;align-items:center">
+          <span style="font-size:10px;color:${l.color}">${l.label.split(' ')[0]}</span>
+          <span style="font-size:10px;font-weight:700;color:${l.color};font-family:'JetBrains Mono',monospace">${fmtK(pt[l.key]||0)}</span>
+        </div>`).join('')}
+      </div>`;
   });
   svg.addEventListener('mouseleave', () => {
     xhair.setAttribute('x1', -10); xhair.setAttribute('x2', -10);
+    if (tooltip) tooltip.style.display = 'none';
   });
 }
 
@@ -3498,7 +3533,9 @@ async function fetchPrices() {
     if (S.hideValues===undefined) S.hideValues=false;
     if (!S.sumCcy) S.sumCcy='EUR';
     if (!S.dailyChanges) S.dailyChanges = {};
-    hlds.forEach(h => delete S.dailyChanges[h.ticker]);
+    // NON cancellare dailyChanges — mantieni i vecchi valori durante il fetch
+    // così la UI mostra sempre l'ultimo dato disponibile, non zero/vuoto
+    // I valori vengono aggiornati ticker per ticker man mano che arrivano
 
     // Lancia fetch EUR/USD in parallelo se serve
     let _fxPromise = null, _fxResult = null;
