@@ -4322,7 +4322,23 @@ function renderPF() {
           <div class="sum-cv ${gc}">${pct(sum.rendimento)}</div>
         </div>
       </div>
-    </div>`;
+    </div>
+    ${(()=>{
+      if (typeof calcolaRedditoAnnuo==='function') {
+        try {
+          const rd = calcolaRedditoAnnuo();
+          const totN = rd.bondResults.reduce((s,b)=>s+b.cedolaAnnuaNetta,0)
+                     + Object.values(rd.divCedByTicker).reduce((s,v)=>s+v.netto,0);
+          if (totN > 0) return `<div style="margin:0 12px;padding:7px 10px;background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.2);border-radius:8px;display:flex;align-items:center;gap:8px;cursor:pointer" onclick="showPage('reddito')">
+            <span style="font-size:14px">💰</span>
+            <span style="flex:1;font-size:12px;font-weight:600;color:var(--text2)">Reddito passivo annuo</span>
+            <span style="font-size:14px;font-weight:900;color:#f59e0b;font-family:monospace">${e2(totN)}</span>
+            <span style="font-size:10px;color:var(--text3);white-space:nowrap">netti →</span>
+          </div>`;
+        } catch(e) {}
+      }
+      return '';
+    })()}`;
   } else {
     sa.innerHTML = `<div class="sum-card"><div class="sum-lbl">Valore Portafoglio</div>
       <div class="sum-tot" style="color:var(--text3);font-size:18px">
@@ -4443,6 +4459,26 @@ function renderPF() {
         <div><div class="pf-dl">Ticker</div><div class="pf-dv" style="font-size:10px">${esc(h.ticker)}</div></div>
         ${h.isin?`<div><div class="pf-dl">ISIN</div><div class="pf-dv" style="font-size:10px">${esc(h.isin)}</div></div>`:''}
         <div><div class="pf-dl">Mercato</div><div class="pf-dv" style="font-size:10px">${esc(h.market||'—')}</div></div>
+        ${(()=>{
+          const btpInfo = h.isin && typeof BTP_DB!=='undefined' ? BTP_DB[h.isin] : null;
+          if (!btpInfo || !btpInfo.tasso) return '';
+          const rateoInfo = calcolaRateo(h.isin, h.qty);
+          const cedLorda  = e2(h.qty * btpInfo.tasso / 100);
+          const cedNetta  = e2(h.qty * btpInfo.tasso / 100 * 0.875);
+          const rateoStr  = rateoInfo ? e2(rateoInfo.rateo) : '—';
+          const nextStr   = rateoInfo ? rateoInfo.nextStaccoFmt : '—';
+          const giorniStr = rateoInfo ? `${rateoInfo.giorniPassati}/${rateoInfo.giorniPeriodo} gg` : '';
+          return `
+            <div style="grid-column:1/-1;background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:8px 10px;margin-top:4px">
+              <div style="font-size:9px;font-weight:700;color:#f59e0b;text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">📋 Cedola BTP ${btpInfo.tasso}%</div>
+              <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px">
+                <div><div class="pf-dl">Cedola lorda/anno</div><div class="pf-dv" style="color:#f59e0b">${cedLorda}</div></div>
+                <div><div class="pf-dl">Cedola netta/anno</div><div class="pf-dv" style="color:#22d47e">${cedNetta}</div></div>
+                <div><div class="pf-dl">Rateo maturato</div><div class="pf-dv" style="color:#a78bfa">${rateoStr} <span style="font-size:9px;color:var(--text3)">${giorniStr}</span></div></div>
+                <div style="grid-column:1/-1"><div class="pf-dl">Prossimo stacco</div><div class="pf-dv">${nextStr}</div></div>
+              </div>
+            </div>`;
+        })()}
       </div></td>
     </tr>` : '';
 
