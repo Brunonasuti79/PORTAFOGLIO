@@ -2018,77 +2018,109 @@ function renderPACSim() {
   var noData = isPac ? pac<=0 : cap<=0;
 
   var fmtEur = function(v) {
-    return '€ ' + Math.round(Math.max(0,v)).toLocaleString('it-IT');
+    return '\u20ac\u202f' + Math.round(Math.max(0,v)).toLocaleString('it-IT');
   };
   var fmtAx = function(v) {
-    if (v===0) return '0';
-    if (v >= 1000000) return (v/1000000).toFixed(1).replace('.',',') + 'M';
-    if (v >= 1000)    return Math.round(v/1000).toLocaleString('it-IT') + '.000';
+    if (v === 0) return '0';
+    if (v >= 1000000) return (v/1000000).toFixed(1).replace('.', ',') + 'M';
+    if (v >= 1000) return Math.round(v/1000).toLocaleString('it-IT') + '.000';
     return Math.round(v).toString();
   };
 
-  // Calcola punti
-  var labels=[], portaf=[], base=[], infl=[], potere=[], erode=[];
+  // ── Calcolo serie ──────────────────────────────────────────
+  var labels=[], portaf=[], base=[], linea3=[], linea4=[];
+
   for (var y=0; y<=anni; y++) {
-    labels.push(y===0?'Oggi': y===anni? y+' anni': String(y));
+    labels.push(y===0 ? 'Oggi' : y===anni ? y+' anni' : String(y));
+
     if (isPac) {
-      var V=pac*12*y;
-      var P=rm>1e-10 ? pac*((Math.pow(1+rm,y*12)-1)/rm) : V;
-      var iV=0; for(var m=1;m<=y*12;m++) iV+=pac*Math.pow(1+inf/12,m);
-      portaf.push(Math.round(P)); base.push(Math.round(V));
-      infl.push(Math.round(iV)); potere.push(Math.round(Math.max(0,P-iV)));
-      erode.push(Math.round(V*Math.pow(1-inf,y)));
+      // PAC: accumulo mensile
+      // Linea 1: portafoglio — FV dei versamenti mensili al tasso r
+      var V = pac * 12 * y;
+      var P = rm > 1e-10 ? pac * ((Math.pow(1+rm, y*12) - 1) / rm) : V;
+      // Linea 2: capitale versato (lineare)
+      // Linea 3: guadagno netto = portafoglio - versato (mai negativo)
+      // Linea 4: senza investire = versato eroso dall'inflazione (tiene i soldi fermi)
+      var erode = V * Math.pow(1 - inf, y);
+      portaf.push(Math.round(P));
+      base.push(Math.round(V));
+      linea3.push(Math.round(Math.max(0, P - V)));
+      linea4.push(Math.round(erode));
     } else {
-      var vp=cap*Math.pow(1+r,y), vi=cap*Math.pow(1+inf,y);
-      portaf.push(Math.round(vp)); base.push(Math.round(cap));
-      infl.push(Math.round(vi)); potere.push(Math.round(Math.max(0,vp-vi)));
-      erode.push(Math.round(cap*Math.pow(1-inf,y)));
+      // PIC: investimento unico
+      // Linea 1: portafoglio — C×(1+r)^y
+      var vp = cap * Math.pow(1+r, y);
+      // Linea 2: inflazione cumulata — C×(1+inf)^y (quanto serve per mantenere potere d'acquisto)
+      var vi = cap * Math.pow(1+inf, y);
+      // Linea 3: guadagno reale = portafoglio - inflazione (parte da 0)
+      var guad = vp - vi;
+      // Linea 4: senza investire — C×(1-inf)^y (erosione se fermo nel conto)
+      var erode2 = cap * Math.pow(1-inf, y);
+      portaf.push(Math.round(vp));
+      base.push(Math.round(vi));
+      linea3.push(Math.round(Math.max(0, guad)));
+      linea4.push(Math.round(erode2));
     }
   }
-  var pts = {portaf:portaf, base:base, infl:infl, potere:potere, erode:erode};
+
   var LINES = isPac ? [
-    {key:'portaf',nome:'Portafoglio accumulato',col:'#3b82f6',dash:[]},
-    {key:'base',  nome:'Capitale versato',      col:'#a78bfa',dash:[6,3]},
-    {key:'potere',nome:'Guadagno reale netto',  col:'#22d47e',dash:[]},
-    {key:'erode', nome:'Senza investire',        col:'#f87171',dash:[4,3]},
+    {key:'portaf', data:portaf, nome:'Portafoglio accumulato', col:'#3b82f6', dash:[]},
+    {key:'base',   data:base,   nome:'Capitale versato',       col:'#a78bfa', dash:[6,3]},
+    {key:'l3',     data:linea3, nome:'Guadagno netto',         col:'#22d47e', dash:[]},
+    {key:'l4',     data:linea4, nome:'Senza investire (cassa)',col:'#f87171', dash:[4,3]},
   ] : [
-    {key:'portaf',nome:'Portafoglio investito', col:'#3b82f6',dash:[]},
-    {key:'infl',  nome:'Costo inflazione',      col:'#f59e0b',dash:[6,3]},
-    {key:'potere',nome:'Guadagno reale netto',  col:'#22d47e',dash:[]},
-    {key:'erode', nome:'Senza investire',        col:'#f87171',dash:[4,3]},
+    {key:'portaf', data:portaf, nome:'Portafoglio investito',  col:'#3b82f6', dash:[]},
+    {key:'base',   data:base,   nome:'Inflazione cumulata',    col:'#f59e0b', dash:[6,3]},
+    {key:'l3',     data:linea3, nome:'Guadagno reale netto',   col:'#22d47e', dash:[]},
+    {key:'l4',     data:linea4, nome:'Senza investire (cassa)',col:'#f87171', dash:[4,3]},
   ];
 
-  // HTML blocchi
+  // ── HTML ───────────────────────────────────────────────────
+  window._ps = function(k,v){ setPacSim(k,v); };
   var H = '';
 
-  // Tab buttons — usa window._ps come bridge per evitare problemi di escaping
-  window._ps = function(k,v){ setPacSim(k,v); };
+  // Tab
   H += '<div style="display:flex;gap:6px;margin-bottom:14px">';
-  H += '<button onclick="window._ps(\'tab\',\'pac\')" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;border:2px solid '+(isPac?'var(--blue)':'rgba(255,255,255,.12)')+';background:'+(isPac?'rgba(37,99,235,.15)':'transparent')+';color:'+(isPac?'var(--blue)':'var(--text2)')+'">';
-  H += '<div style="font-size:16px;font-weight:800">PAC</div><div style="font-size:10px;margin-top:2px">Versamenti mensili ricorrenti</div></button>';
-  H += '<button onclick="window._ps(\'tab\',\'pic\')" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;border:2px solid '+(!isPac?'var(--blue)':'rgba(255,255,255,.12)')+';background:'+(!isPac?'rgba(37,99,235,.15)':'transparent')+';color:'+(!isPac?'var(--blue)':'var(--text2)')+'">';
-  H += '<div style="font-size:16px;font-weight:800">PIC</div><div style="font-size:10px;margin-top:2px">Investimento unico iniziale</div></button>';
+  H += '<button onclick="window._ps(\'tab\',\'pac\')" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;'
+    +'border:2px solid '+(isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
+    +'background:'+(isPac?'rgba(37,99,235,.15)':'transparent')+';'
+    +'color:'+(isPac?'var(--blue)':'var(--text2)')+';">'
+    +'<div style="font-size:16px;font-weight:800">PAC</div>'
+    +'<div style="font-size:10px;margin-top:2px">Versamenti mensili ricorrenti</div></button>';
+  H += '<button onclick="window._ps(\'tab\',\'pic\')" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;'
+    +'border:2px solid '+(!isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
+    +'background:'+(!isPac?'rgba(37,99,235,.15)':'transparent')+';'
+    +'color:'+(!isPac?'var(--blue)':'var(--text2)')+';">'
+    +'<div style="font-size:16px;font-weight:800">PIC</div>'
+    +'<div style="font-size:10px;margin-top:2px">Investimento unico iniziale</div></button>';
   H += '</div>';
 
   // Inputs
   H += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">';
-  H += '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">'+(isPac?'Versamento mensile (€)':'Capitale iniziale (€)')+'</div>';
-  H += '<input type="number" class="proj-rate-inp" style="width:100%" value="'+(isPac?pac||'':cap||'')+'" min="0" step="'+(isPac?100:1000)+'" inputmode="decimal" oninput="window._ps(\''+( isPac?'pac':'capital')+'\'  ,this.value)"></div>';
+  H += '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">'
+    +(isPac?'Versamento mensile (\u20ac)':'Capitale iniziale (\u20ac)')+'</div>';
+  H += '<input type="number" class="proj-rate-inp" style="width:100%" value="'+(isPac?pac||'':cap||'')+'" '
+    +'min="0" step="'+(isPac?100:1000)+'" inputmode="decimal" '
+    +'oninput="window._ps(\''+(isPac?'pac':'capital')+'\',this.value)"></div>';
   H += '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">Rendimento % annuo</div>';
   H += '<input type="number" class="proj-rate-inp" style="width:100%" value="'+rate+'" min="0" max="25" step="0.5" inputmode="decimal" oninput="window._ps(\'rate\',this.value)"></div>';
   H += '</div>';
 
-  // Anni buttons
+  // Anni
   H += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px;align-items:center">';
   H += '<span style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.7px">Anni:</span>';
   [5,10,15,20,25,30].forEach(function(y){
-    var a=anni===y;
-    H += '<button onclick="window._ps(\'anni\','+y+')" style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid '+(a?'var(--blue)':'rgba(255,255,255,.12)')+';background:'+(a?'var(--blue)':'transparent')+';color:'+(a?'#fff':'var(--text3)')+'">'+y+'</button>';
+    var a = anni===y;
+    H += '<button onclick="window._ps(\'anni\','+y+')" style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;'
+      +'border:1px solid '+(a?'var(--blue)':'rgba(255,255,255,.12)')+';'
+      +'background:'+(a?'var(--blue)':'transparent')+';'
+      +'color:'+(a?'#fff':'var(--text3)')+'">'+y+'</button>';
   });
   H += '</div>';
 
   if (noData) {
-    H += '<div style="border:1px dashed rgba(255,255,255,.12);border-radius:12px;padding:28px;text-align:center;color:var(--text3);font-size:13px">Inserisci '+(isPac?'il versamento mensile':'il capitale iniziale')+' per vedere la simulazione</div>';
+    H += '<div style="border:1px dashed rgba(255,255,255,.12);border-radius:12px;padding:28px;text-align:center;color:var(--text3);font-size:13px">'
+      +'Inserisci '+(isPac?'il versamento mensile':'il capitale iniziale')+' per vedere la simulazione</div>';
     area.innerHTML = '<div style="padding:0 12px 80px">' + H + '</div>';
     return;
   }
@@ -2099,84 +2131,83 @@ function renderPACSim() {
     H += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-left:3px solid '+l.col+';background:var(--bg2);border-radius:0 8px 8px 0">';
     H += '<svg width="20" height="3" style="flex-shrink:0"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="'+l.col+'" stroke-width="2.5" stroke-dasharray="'+l.dash.join(',')+'"/></svg>';
     H += '<span style="flex:1;font-size:12px;font-weight:600;color:var(--text2)">'+l.nome+'</span>';
-    H += '<span style="font-size:13px;font-weight:900;color:'+l.col+';font-family:monospace">'+fmtEur(pts[l.key][anni])+'</span></div>';
+    H += '<span style="font-size:13px;font-weight:900;color:'+l.col+';font-family:monospace">'+fmtEur(l.data[anni])+'</span></div>';
   });
   H += '</div>';
 
-  // KPI cards
+  // KPI
   H += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
   H += '<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:10px 12px">';
-  H += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Valore anno '+anni+'</div>';
+  H += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Anno '+anni+'</div>';
   H += '<div style="font-size:18px;font-weight:900;color:#3b82f6;font-family:monospace">'+fmtEur(portaf[anni])+'</div>';
   H += '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(isPac?'versato: '+fmtEur(base[anni]):'da: '+fmtEur(cap))+'</div></div>';
   H += '<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:10px;padding:10px 12px">';
-  H += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Guadagno reale netto</div>';
-  H += '<div style="font-size:18px;font-weight:900;color:#22d47e;font-family:monospace">'+fmtEur(potere[anni])+'</div>';
-  H += '<div style="font-size:10px;color:var(--text3);margin-top:2px">senza invest.: '+fmtEur(erode[anni])+'</div></div>';
+  H += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">'+(isPac?'Guadagno netto':'Guadagno reale netto')+'</div>';
+  H += '<div style="font-size:18px;font-weight:900;color:#22d47e;font-family:monospace">'+fmtEur(linea3[anni])+'</div>';
+  H += '<div style="font-size:10px;color:var(--text3);margin-top:2px">senza invest.: '+fmtEur(linea4[anni])+'</div></div>';
   H += '</div>';
 
-  // Canvas grafico — 260px di altezza
+  // Canvas
   H += '<div style="position:relative;width:100%;height:320px;margin-bottom:16px"><canvas id="pac-chartjs-canvas"></canvas></div>';
 
-  // Tabella annuale
-  H += '<details><summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:8px 0;text-transform:uppercase;letter-spacing:.6px">Tabella anno per anno ▾</summary>';
+  // Tabella
+  H += '<details><summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:8px 0;text-transform:uppercase;letter-spacing:.6px">Tabella anno per anno \u25be</summary>';
   H += '<div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:340px">';
   H += '<thead><tr style="background:rgba(255,255,255,.05)">';
   H += '<th style="padding:5px 6px;color:var(--text3);text-align:center">Anno</th>';
-  H += '<th style="padding:5px 6px;color:#a78bfa;text-align:right">'+(isPac?'Versato':'Capitale')+'</th>';
   H += '<th style="padding:5px 6px;color:#3b82f6;text-align:right">Portafoglio</th>';
-  H += '<th style="padding:5px 6px;color:#f59e0b;text-align:right">Inflazione</th>';
+  H += '<th style="padding:5px 6px;color:#a78bfa;text-align:right">'+(isPac?'Versato':'Inflaz.')+'</th>';
   H += '<th style="padding:5px 6px;color:#22d47e;text-align:right">Guadagno</th>';
   H += '<th style="padding:5px 6px;color:#f87171;text-align:right">Senza inv.</th>';
   H += '</tr></thead><tbody>';
-  for (var y=1; y<=anni; y++) {
-    var bg = y%2===0?'transparent':'rgba(255,255,255,.02)';
+  for (var yi=1; yi<=anni; yi++) {
+    var bg = yi%2===0?'transparent':'rgba(255,255,255,.02)';
     H += '<tr style="background:'+bg+'">';
-    H += '<td style="padding:4px 6px;text-align:center;font-weight:700;color:var(--text3)">'+y+'</td>';
-    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace">'+fmtEur(base[y])+'</td>';
-    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#3b82f6">'+fmtEur(portaf[y])+'</td>';
-    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#f59e0b">'+fmtEur(infl[y])+'</td>';
-    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#22d47e">'+fmtEur(Math.max(0,potere[y]))+'</td>';
-    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#f87171">'+fmtEur(erode[y])+'</td>';
+    H += '<td style="padding:4px 6px;text-align:center;font-weight:700;color:var(--text3)">'+yi+'</td>';
+    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#3b82f6">'+fmtEur(portaf[yi])+'</td>';
+    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#a78bfa">'+fmtEur(base[yi])+'</td>';
+    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#22d47e">'+fmtEur(linea3[yi])+'</td>';
+    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#f87171">'+fmtEur(linea4[yi])+'</td>';
     H += '</tr>';
   }
   H += '</tbody></table></div></details>';
 
   area.innerHTML = '<div style="padding:0 12px 80px">' + H + '</div>';
 
-  // Crea Chart.js
+  // Chart.js
   if (window._pacChart) { try{window._pacChart.destroy();}catch(e){} }
+
   var datasets = LINES.map(function(l){
     return {
-      label:l.nome, data:pts[l.key],
-      borderColor:l.col,
-      backgroundColor: l.key==='portaf' ? l.col+'22' : 'transparent',
-      borderWidth: l.key==='portaf'?2.5:1.5,
-      borderDash:l.dash,
-      pointRadius:0, tension:0.3,
+      label: l.nome, data: l.data,
+      borderColor: l.col,
+      backgroundColor: l.key==='portaf' ? l.col+'20' : 'transparent',
+      borderWidth: l.key==='portaf' ? 2.5 : 1.5,
+      borderDash: l.dash,
+      pointRadius: 0, tension: 0.3,
       fill: l.key==='portaf',
     };
   });
 
   window._pacChart = new Chart(document.getElementById('pac-chartjs-canvas'), {
-    type:'line',
-    data:{ labels:labels, datasets:datasets },
-    options:{
-      responsive:true, maintainAspectRatio:false, animation:false,
-      interaction:{ mode:'index', intersect:false },
-      plugins:{
-        legend:{display:false},
-        tooltip:{
-          callbacks:{
-            label:function(c){ return '  '+c.dataset.label+': '+fmtEur(c.raw); },
-            title:function(items){ return 'Anno '+items[0].label; }
+    type: 'line',
+    data: { labels: labels, datasets: datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: function(items){ return 'Anno ' + items[0].label; },
+            label: function(c){ return '  ' + c.dataset.label + ': ' + fmtEur(c.raw); }
           }
         }
       },
-      scales:{
-        x:{ grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'rgba(255,255,255,.45)',font:{size:11},maxTicksLimit:8} },
-        y:{ grid:{color:'rgba(255,255,255,.06)'}, beginAtZero:true,
-            ticks:{color:'rgba(255,255,255,.45)',font:{size:11},maxTicksLimit:5,callback:fmtAx} }
+      scales: {
+        x: { grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'rgba(255,255,255,.45)',font:{size:11},maxTicksLimit:8} },
+        y: { grid:{color:'rgba(255,255,255,.06)'}, beginAtZero:true,
+             ticks:{color:'rgba(255,255,255,.45)',font:{size:11},maxTicksLimit:5,callback:fmtAx} }
       }
     }
   });
