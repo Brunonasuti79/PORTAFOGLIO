@@ -3725,6 +3725,10 @@ async function fetchPrices() {
 
     const updated=[], errors=[], rejected=[], sources={};
     for (const { h, q: _q } of rows) { let q = _q;
+      // Salva il prezzo attuale PRIMA di qualsiasi modifica
+      // Se il fetch fallisce, questo viene ripristinato alla fine del blocco
+      const _prevPrice = S.prices[h.ticker];
+
       let price = num(q?.price);
       // Fallback: se fetch live fallisce, usa ultimo officialClose dal Gist
       // Fallback Gist: se live fetch fallisce, usa ultimo officialClose
@@ -3794,8 +3798,12 @@ async function fetchPrices() {
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
+        // Prezzo trovato ma anomalo: ripristina il precedente se valido
+        if (isReasonablePrice(_prevPrice, h)) S.prices[h.ticker] = _prevPrice;
       } else {
         errors.push(h.displayTicker);
+        // Nessun prezzo trovato: ripristina il precedente se disponibile
+        if (isReasonablePrice(_prevPrice, h)) S.prices[h.ticker] = _prevPrice;
       }
     }
 
@@ -3833,14 +3841,6 @@ async function fetchPrices() {
     eb.textContent = '⚠ ' + (e.message || 'Errore nel recupero prezzi. Riprova.');
     eb.style.display = 'block';
   } finally {
-    // Ripristina prezzi precedenti per i ticker che non si sono aggiornati
-    hlds.forEach(h => {
-      if (!isReasonablePrice(S.prices[h.ticker], h) && isReasonablePrice(priceSnapshot[h.ticker], h)) {
-        S.prices[h.ticker] = priceSnapshot[h.ticker];
-        console.log('[prezzi] Ripristinato prezzo precedente per', h.ticker, '=', priceSnapshot[h.ticker]);
-      }
-    });
-
     busy = false;
     btn.disabled = false;
     btn.innerHTML = '⟳ Aggiorna';
