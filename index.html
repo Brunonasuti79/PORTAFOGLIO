@@ -1427,7 +1427,13 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
         <button onclick="document.getElementById('import-csv-file').click()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 12px;cursor:pointer;color:rgba(255,255,255,.7);font-size:12px;font-weight:700">Importa</button>
         <input type="file" id="import-csv-file" accept=".csv,.xlsx,.xls" style="display:none" onchange="handleImportFile(this)">
         <button onclick="resolveIsins()" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 10px;cursor:pointer;color:rgba(255,255,255,.7);font-size:12px;font-weight:700" title="Risolvi ISIN">Risolvi</button>
-        <button onclick="openModal()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;cursor:pointer;color:#fff;font-size:14px;font-weight:700">+ Nuova</button>
+        <div style="display:flex;gap:6px;align-items:center">
+          <button id="ops-del-toggle" onclick="toggleOpsDeleteMode()"
+            style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 10px;cursor:pointer;color:var(--text3);font-size:12px;font-weight:700">
+            ✕ Elimina
+          </button>
+          <button onclick="openModal()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;cursor:pointer;color:#fff;font-size:14px;font-weight:700">+ Nuova</button>
+        </div>
       </div>
     </div>
 
@@ -2348,6 +2354,9 @@ let ALL = { portfolios:[], activePortfolioId:null, settings:{ak:'',anthropicKey:
 let S = null; // active portfolio shortcut
 let busy = false;
 let opType = 'buy';
+let _opsDeleteMode = false;
+let _opsSelected   = new Set();
+let _opsShowCash   = false;
 let editingOpId = null;
 let expandedHoldings = {};
 let pfFilterCategory = 'Tutte';
@@ -4561,8 +4570,9 @@ function toggleOpGroup(cat) {
 
 function renderOps() {
   const filterTxt = (document.getElementById('ops-search-inp')?.value||'').toLowerCase().trim();
+  // Mostra cash solo se togglato
   let ops = [...(S.ops||[])]
-    .filter(op => op.ticker !== '__CASH__')  // escludi operazioni di cassa
+    .filter(op => _opsShowCash || op.ticker !== '__CASH__')
     .sort((a,b) => b.date.localeCompare(a.date));
   if (filterTxt) ops = ops.filter(op =>
     (op.name||'').toLowerCase().includes(filterTxt) ||
@@ -4585,6 +4595,35 @@ function renderOps() {
     ca.id = 'ops-chart-area';
     ol.parentElement.insertBefore(ca, ol);
   }
+  // Barra delete mode
+  let delBar = document.getElementById('ops-del-bar');
+  if (!delBar) {
+    delBar = document.createElement('div');
+    delBar.id = 'ops-del-bar';
+    ol.parentNode.insertBefore(delBar, ol);
+  }
+  if (_opsDeleteMode) {
+    const nSel = _opsSelected.size;
+    const hasCash = (S.ops||[]).some(o => o.ticker === '__CASH__');
+    delBar.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:10px;margin:0 0 8px">
+      <span style="flex:1;font-size:12px;color:var(--text2)">
+        ${nSel === 0 ? 'Seleziona le operazioni da eliminare' : nSel + ' selezionat' + (nSel===1?'a':'e')}
+        ${hasCash ? `<span style="margin-left:8px;font-size:11px">·
+          <label style="cursor:pointer;color:var(--blue)">
+            <input type="checkbox" ${_opsShowCash?'checked':''} onchange="_opsShowCash=this.checked;renderOps()" style="accent-color:#38bdf8;vertical-align:middle">
+            Mostra operazioni cassa
+          </label></span>` : ''}
+      </span>
+      ${nSel > 0 ? `<button onclick="deleteSelectedOps()" style="padding:5px 14px;background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);border-radius:8px;color:#f87171;font-size:12px;font-weight:700;cursor:pointer">
+        Elimina ${nSel} op.
+      </button>` : ''}
+      <button onclick="toggleOpsDeleteMode()" style="padding:5px 10px;background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;color:var(--text3);font-size:11px;cursor:pointer">Annulla</button>
+    </div>`;
+  } else {
+    delBar.innerHTML = '';
+    _opsSelected.clear();
+  }
+
   renderOpsChart();
   if (!ops.length) {
     ol.innerHTML = `<div class="empty">Nessuna operazione.<br>Tocca <strong>+ Nuova</strong> per iniziare.</div>`;
@@ -4643,9 +4682,13 @@ function renderOps() {
           <div class="otot ${op.type}">${op.type==='buy'?'−':'+'}${n2(Math.abs(tot))} €</div>
         </div>
         <div class="obts">
+          ${_opsDeleteMode ? `
+            <label style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;cursor:pointer">
+              <input type="checkbox" ${_opsSelected.has(op.id)?'checked':''} style="width:16px;height:16px;cursor:pointer;accent-color:#38bdf8"
+                onchange="event.stopPropagation();_opsSelected[this.checked?'add':'delete']('${op.id}');renderOps()">
+            </label>` : `
           <button class="odup"  onclick="dupOp('${op.id}')" title="Duplica">⧉</button>
-          <button class="oedit" onclick="editOp('${op.id}')">✎</button>
-          <button class="odel"  onclick="delOp('${op.id}')">×</button>
+          <button class="oedit" onclick="editOp('${op.id}')">✎</button>`}
         </div>
       </div>`;
     }).join('');
@@ -6592,6 +6635,35 @@ async function loadSingleTickerHistory(){
   if(!loaded)showToast('⚠ Storico non trovato');
   renderHistory();
   renderPF();
+  // Barra delete mode
+  let delBar = document.getElementById('ops-del-bar');
+  if (!delBar) {
+    delBar = document.createElement('div');
+    delBar.id = 'ops-del-bar';
+    ol.parentNode.insertBefore(delBar, ol);
+  }
+  if (_opsDeleteMode) {
+    const nSel = _opsSelected.size;
+    const hasCash = (S.ops||[]).some(o => o.ticker === '__CASH__');
+    delBar.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:10px;margin:0 0 8px">
+      <span style="flex:1;font-size:12px;color:var(--text2)">
+        ${nSel === 0 ? 'Seleziona le operazioni da eliminare' : nSel + ' selezionat' + (nSel===1?'a':'e')}
+        ${hasCash ? `<span style="margin-left:8px;font-size:11px">·
+          <label style="cursor:pointer;color:var(--blue)">
+            <input type="checkbox" ${_opsShowCash?'checked':''} onchange="_opsShowCash=this.checked;renderOps()" style="accent-color:#38bdf8;vertical-align:middle">
+            Mostra operazioni cassa
+          </label></span>` : ''}
+      </span>
+      ${nSel > 0 ? `<button onclick="deleteSelectedOps()" style="padding:5px 14px;background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);border-radius:8px;color:#f87171;font-size:12px;font-weight:700;cursor:pointer">
+        Elimina ${nSel} op.
+      </button>` : ''}
+      <button onclick="toggleOpsDeleteMode()" style="padding:5px 10px;background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;color:var(--text3);font-size:11px;cursor:pointer">Annulla</button>
+    </div>`;
+  } else {
+    delBar.innerHTML = '';
+    _opsSelected.clear();
+  }
+
   renderOpsChart(); // aggiorna grafico in Operazioni
 }
 
@@ -7204,6 +7276,34 @@ function saveOp() {
     updateCashForOp(opData, holdingsSnap);
   }
   save(); closeModal(); renderAll();
+}
+
+function toggleOpsDeleteMode() {
+  _opsDeleteMode = !_opsDeleteMode;
+  _opsSelected.clear();
+  if (!_opsDeleteMode) _opsShowCash = false;
+  const btn = document.getElementById('ops-del-toggle');
+  if (btn) {
+    btn.style.color     = _opsDeleteMode ? '#f87171' : 'var(--text3)';
+    btn.style.borderColor = _opsDeleteMode ? 'rgba(248,113,113,.5)' : 'rgba(255,255,255,.2)';
+  }
+  renderOps();
+}
+
+function deleteSelectedOps() {
+  if (_opsSelected.size === 0) return;
+  const n = _opsSelected.size;
+  if (!confirm(`Eliminare ${n} operazion${n===1?'e':'i'} selezionat${n===1?'a':'e'}?`)) return;
+  _opsSelected.forEach(id => {
+    const op = (S.ops||[]).find(o => o.id === id);
+    if (op) reverseCashForOp(op);
+  });
+  S.ops = (S.ops||[]).filter(o => !_opsSelected.has(o.id));
+  _opsSelected.clear();
+  _opsDeleteMode = false;
+  _opsShowCash   = false;
+  save(); renderAll();
+  showToast(`🗑️ ${n} operazion${n===1?'e':'i'} eliminat${n===1?'a':'e'}`, 3000);
 }
 
 function delOp(id) {
@@ -11771,6 +11871,35 @@ startAutoRefresh();
 loadSparklines();
 function setOpsChartPeriod(btn) {
   _opsChartPeriod = btn.textContent;
+  // Barra delete mode
+  let delBar = document.getElementById('ops-del-bar');
+  if (!delBar) {
+    delBar = document.createElement('div');
+    delBar.id = 'ops-del-bar';
+    ol.parentNode.insertBefore(delBar, ol);
+  }
+  if (_opsDeleteMode) {
+    const nSel = _opsSelected.size;
+    const hasCash = (S.ops||[]).some(o => o.ticker === '__CASH__');
+    delBar.innerHTML = `<div style="display:flex;align-items:center;gap:8px;padding:8px 14px;background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.2);border-radius:10px;margin:0 0 8px">
+      <span style="flex:1;font-size:12px;color:var(--text2)">
+        ${nSel === 0 ? 'Seleziona le operazioni da eliminare' : nSel + ' selezionat' + (nSel===1?'a':'e')}
+        ${hasCash ? `<span style="margin-left:8px;font-size:11px">·
+          <label style="cursor:pointer;color:var(--blue)">
+            <input type="checkbox" ${_opsShowCash?'checked':''} onchange="_opsShowCash=this.checked;renderOps()" style="accent-color:#38bdf8;vertical-align:middle">
+            Mostra operazioni cassa
+          </label></span>` : ''}
+      </span>
+      ${nSel > 0 ? `<button onclick="deleteSelectedOps()" style="padding:5px 14px;background:rgba(248,113,113,.15);border:1px solid rgba(248,113,113,.4);border-radius:8px;color:#f87171;font-size:12px;font-weight:700;cursor:pointer">
+        Elimina ${nSel} op.
+      </button>` : ''}
+      <button onclick="toggleOpsDeleteMode()" style="padding:5px 10px;background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;color:var(--text3);font-size:11px;cursor:pointer">Annulla</button>
+    </div>`;
+  } else {
+    delBar.innerHTML = '';
+    _opsSelected.clear();
+  }
+
   renderOpsChart();
 }
 
