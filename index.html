@@ -2004,9 +2004,8 @@ function renderPACSim() {
   var area = document.getElementById('pac-sim-area');
   if (!area) return;
   if (typeof Chart === 'undefined') {
-    area.innerHTML = '<div style="padding:20px;color:var(--text3);text-align:center">Caricamento grafico...</div>';
-    setTimeout(renderPACSim, 800);
-    return;
+    area.innerHTML = '<div style="padding:20px;color:var(--text3);text-align:center">Caricamento...</div>';
+    setTimeout(renderPACSim, 600); return;
   }
   var sim  = ALL.settings.pacSim || {};
   var tab  = sim.tab || 'pac';
@@ -2014,183 +2013,170 @@ function renderPACSim() {
   var cap  = +(sim.capital || 0);
   var rate = +(sim.rate !== undefined ? sim.rate : 7);
   var anni = +(sim.anni || 20);
-  var inf  = 0.025;
-  var r    = rate / 100;
-  var rm   = r / 12;
-  var fmtEur = function(v) { return '\u20ac\u202f' + Math.round(Math.max(0,v)).toLocaleString('it-IT'); };
-  var noData = (tab==='pic' && cap<=0) || (tab==='pac' && pac<=0);
+  var inf  = 0.025, r = rate/100, rm = r/12;
+  var isPac = tab==='pac';
+  var noData = isPac ? pac<=0 : cap<=0;
 
-  var calcPts = function() {
-    var out = { labels:[], portaf:[], base:[], infl:[], potere:[], erode:[] };
-    for (var y=0; y<=anni; y++) {
-      out.labels.push(y===0 ? 'Oggi' : y===anni ? y+' anni' : String(y));
-      if (tab==='pac') {
-        var V=pac*12*y;
-        var P=rm>1e-10 ? pac*((Math.pow(1+rm,y*12)-1)/rm) : V;
-        var iV=0; for(var m=1;m<=y*12;m++) iV+=pac*Math.pow(1+inf/12,m);
-        out.portaf.push(Math.round(P));
-        out.base.push(Math.round(V));
-        out.infl.push(Math.round(iV));
-        out.potere.push(Math.round(Math.max(0,P-iV)));
-        out.erode.push(Math.round(V*Math.pow(1-inf,y)));
-      } else {
-        var vp=cap*Math.pow(1+r,y), vi=cap*Math.pow(1+inf,y);
-        out.portaf.push(Math.round(vp));
-        out.base.push(Math.round(cap));
-        out.infl.push(Math.round(vi));
-        out.potere.push(Math.round(Math.max(0,vp-vi)));
-        out.erode.push(Math.round(cap*Math.pow(1-inf,y)));
-      }
-    }
-    return out;
+  var fmtEur = function(v) {
+    return '€ ' + Math.round(Math.max(0,v)).toLocaleString('it-IT');
+  };
+  var fmtAx = function(v) {
+    if (v===0) return '0';
+    if (v >= 1000000) return (v/1000000).toFixed(1).replace('.',',') + 'M';
+    if (v >= 1000)    return Math.round(v/1000).toLocaleString('it-IT') + '.000';
+    return Math.round(v).toString();
   };
 
-  var LINES_PAC = [
-    {key:'portaf', nome:'Portafoglio accumulato', col:'#2563eb', dash:[]},
-    {key:'base',   nome:'Capitale versato',        col:'#7c3aed', dash:[6,3]},
-    {key:'potere', nome:'Guadagno reale netto',    col:'#059669', dash:[]},
-    {key:'erode',  nome:'Senza investire',          col:'#dc2626', dash:[4,3]},
+  // Calcola punti
+  var labels=[], portaf=[], base=[], infl=[], potere=[], erode=[];
+  for (var y=0; y<=anni; y++) {
+    labels.push(y===0?'Oggi': y===anni? y+' anni': String(y));
+    if (isPac) {
+      var V=pac*12*y;
+      var P=rm>1e-10 ? pac*((Math.pow(1+rm,y*12)-1)/rm) : V;
+      var iV=0; for(var m=1;m<=y*12;m++) iV+=pac*Math.pow(1+inf/12,m);
+      portaf.push(Math.round(P)); base.push(Math.round(V));
+      infl.push(Math.round(iV)); potere.push(Math.round(Math.max(0,P-iV)));
+      erode.push(Math.round(V*Math.pow(1-inf,y)));
+    } else {
+      var vp=cap*Math.pow(1+r,y), vi=cap*Math.pow(1+inf,y);
+      portaf.push(Math.round(vp)); base.push(Math.round(cap));
+      infl.push(Math.round(vi)); potere.push(Math.round(Math.max(0,vp-vi)));
+      erode.push(Math.round(cap*Math.pow(1-inf,y)));
+    }
+  }
+  var pts = {portaf:portaf, base:base, infl:infl, potere:potere, erode:erode};
+  var LINES = isPac ? [
+    {key:'portaf',nome:'Portafoglio accumulato',col:'#3b82f6',dash:[]},
+    {key:'base',  nome:'Capitale versato',      col:'#a78bfa',dash:[6,3]},
+    {key:'potere',nome:'Guadagno reale netto',  col:'#22d47e',dash:[]},
+    {key:'erode', nome:'Senza investire',        col:'#f87171',dash:[4,3]},
+  ] : [
+    {key:'portaf',nome:'Portafoglio investito', col:'#3b82f6',dash:[]},
+    {key:'infl',  nome:'Costo inflazione',      col:'#f59e0b',dash:[6,3]},
+    {key:'potere',nome:'Guadagno reale netto',  col:'#22d47e',dash:[]},
+    {key:'erode', nome:'Senza investire',        col:'#f87171',dash:[4,3]},
   ];
-  var LINES_PIC = [
-    {key:'portaf', nome:'Portafoglio investito',   col:'#2563eb', dash:[]},
-    {key:'infl',   nome:'Costo inflazione',         col:'#d97706', dash:[6,3]},
-    {key:'potere', nome:'Guadagno reale netto',    col:'#059669', dash:[]},
-    {key:'erode',  nome:'Senza investire',          col:'#dc2626', dash:[4,3]},
-  ];
-  var LINES = tab==='pac' ? LINES_PAC : LINES_PIC;
 
-  // Tab buttons HTML
-  var isPac = tab==='pac';
-  var tabHTML =
-    '<div style="display:flex;gap:6px;margin-bottom:14px">'
-    +'<button onclick="setPacSim(\\"tab\\",\\"pac\\")" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;'
-    +'border:2px solid '+(isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
-    +'background:'+(isPac?'rgba(37,99,235,.15)':'transparent')+';'
-    +'color:'+(isPac?'var(--blue)':'var(--text2)')+';">'
-    +'<div style="font-size:16px;font-weight:700">PAC</div>'
-    +'<div style="font-size:10px;margin-top:2px">Versamenti mensili ricorrenti</div>'
-    +'</button>'
-    +'<button onclick="setPacSim(\\"tab\\",\\"pic\\")" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;'
-    +'border:2px solid '+(!isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
-    +'background:'+(!isPac?'rgba(37,99,235,.15)':'transparent')+';'
-    +'color:'+(!isPac?'var(--blue)':'var(--text2)')+';">'
-    +'<div style="font-size:16px;font-weight:700">PIC</div>'
-    +'<div style="font-size:10px;margin-top:2px">Investimento unico iniziale</div>'
-    +'</button>'
-    +'</div>';
+  // HTML blocchi
+  var H = '';
 
-  // Input HTML
-  var inpHTML =
-    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
-    +'<div>'
-    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">'
-    +(isPac?'Versamento mensile (\u20ac)':'Capitale iniziale (\u20ac)')+'</div>'
-    +'<input type="number" class="proj-rate-inp" style="width:100%" value="'+(isPac?pac||'':cap||'')+'" '
-    +'min="0" step="'+(isPac?100:1000)+'" inputmode="decimal" '
-    +'oninput="setPacSim(\\"'+(isPac?'pac':'capital')+'\\",this.value)">'
-    +'</div>'
-    +'<div>'
-    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">Rendimento % annuo</div>'
-    +'<input type="number" class="proj-rate-inp" style="width:100%" value="'+rate+'" min="0" max="25" step="0.5" inputmode="decimal" oninput="setPacSim(\\"rate\\",this.value)">'
-    +'</div>'
-    +'</div>';
+  // Tab buttons — usa window._ps come bridge per evitare problemi di escaping
+  window._ps = function(k,v){ setPacSim(k,v); };
+  H += '<div style="display:flex;gap:6px;margin-bottom:14px">';
+  H += '<button onclick="window._ps(\'tab\',\'pac\')" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;border:2px solid '+(isPac?'var(--blue)':'rgba(255,255,255,.12)')+';background:'+(isPac?'rgba(37,99,235,.15)':'transparent')+';color:'+(isPac?'var(--blue)':'var(--text2)')+'">';
+  H += '<div style="font-size:16px;font-weight:800">PAC</div><div style="font-size:10px;margin-top:2px">Versamenti mensili ricorrenti</div></button>';
+  H += '<button onclick="window._ps(\'tab\',\'pic\')" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;border:2px solid '+(!isPac?'var(--blue)':'rgba(255,255,255,.12)')+';background:'+(!isPac?'rgba(37,99,235,.15)':'transparent')+';color:'+(!isPac?'var(--blue)':'var(--text2)')+'">';
+  H += '<div style="font-size:16px;font-weight:800">PIC</div><div style="font-size:10px;margin-top:2px">Investimento unico iniziale</div></button>';
+  H += '</div>';
+
+  // Inputs
+  H += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">';
+  H += '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">'+(isPac?'Versamento mensile (€)':'Capitale iniziale (€)')+'</div>';
+  H += '<input type="number" class="proj-rate-inp" style="width:100%" value="'+(isPac?pac||'':cap||'')+'" min="0" step="'+(isPac?100:1000)+'" inputmode="decimal" oninput="window._ps(\''+( isPac?'pac':'capital')+'\'  ,this.value)"></div>';
+  H += '<div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">Rendimento % annuo</div>';
+  H += '<input type="number" class="proj-rate-inp" style="width:100%" value="'+rate+'" min="0" max="25" step="0.5" inputmode="decimal" oninput="window._ps(\'rate\',this.value)"></div>';
+  H += '</div>';
 
   // Anni buttons
-  var anniHTML = '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;align-items:center">'
-    +'<span style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.7px">Anni:</span>';
-  [5,10,15,20,25,30].forEach(function(y) {
+  H += '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:16px;align-items:center">';
+  H += '<span style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.7px">Anni:</span>';
+  [5,10,15,20,25,30].forEach(function(y){
     var a=anni===y;
-    anniHTML += '<button onclick="setPacSim(\\"anni\\",'+y+')" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;'
-      +'border:1px solid '+(a?'var(--blue)':'rgba(255,255,255,.12)')+';'
-      +'background:'+(a?'var(--blue)':'transparent')+';'
-      +'color:'+(a?'#fff':'var(--text3)')+'">'+y+'</button>';
+    H += '<button onclick="window._ps(\'anni\','+y+')" style="padding:4px 12px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;border:1px solid '+(a?'var(--blue)':'rgba(255,255,255,.12)')+';background:'+(a?'var(--blue)':'transparent')+';color:'+(a?'#fff':'var(--text3)')+'">'+y+'</button>';
   });
-  anniHTML += '</div>';
+  H += '</div>';
 
   if (noData) {
-    area.innerHTML = '<div style="padding:0 12px 80px">' + tabHTML + inpHTML + anniHTML
-      +'<div style="border:1px dashed rgba(255,255,255,.12);border-radius:12px;padding:24px;text-align:center;color:var(--text3);font-size:13px">'
-      +'Inserisci '+(isPac?'il versamento mensile':'il capitale iniziale')+' per vedere la simulazione</div></div>';
+    H += '<div style="border:1px dashed rgba(255,255,255,.12);border-radius:12px;padding:28px;text-align:center;color:var(--text3);font-size:13px">Inserisci '+(isPac?'il versamento mensile':'il capitale iniziale')+' per vedere la simulazione</div>';
+    area.innerHTML = '<div style="padding:0 12px 80px">' + H + '</div>';
     return;
   }
 
-  var pts = calcPts();
-  var last = anni;
-
   // Legenda
-  var legHTML = '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px">';
-  LINES.forEach(function(l) {
-    legHTML += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;'
-      +'border-left:3px solid '+l.col+';background:var(--bg2);border-radius:0 8px 8px 0">'
-      +'<svg width="20" height="3" style="flex-shrink:0"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="'+l.col+'" stroke-width="2.5" stroke-dasharray="'+l.dash.join(',')+'"/></svg>'
-      +'<span style="flex:1;font-size:12px;font-weight:600;color:var(--text2)">'+l.nome+'</span>'
-      +'<span style="font-size:13px;font-weight:900;color:'+l.col+';font-family:monospace">'+fmtEur(pts[l.key][last])+'</span>'
-      +'</div>';
+  H += '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px">';
+  LINES.forEach(function(l){
+    H += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;border-left:3px solid '+l.col+';background:var(--bg2);border-radius:0 8px 8px 0">';
+    H += '<svg width="20" height="3" style="flex-shrink:0"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="'+l.col+'" stroke-width="2.5" stroke-dasharray="'+l.dash.join(',')+'"/></svg>';
+    H += '<span style="flex:1;font-size:12px;font-weight:600;color:var(--text2)">'+l.nome+'</span>';
+    H += '<span style="font-size:13px;font-weight:900;color:'+l.col+';font-family:monospace">'+fmtEur(pts[l.key][anni])+'</span></div>';
   });
-  legHTML += '</div>';
+  H += '</div>';
 
-  // KPI
-  var kpiHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
-    +'<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:10px;padding:10px 12px">'
-    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Anno '+anni+'</div>'
-    +'<div style="font-size:18px;font-weight:900;color:#3b82f6;font-family:monospace">'+fmtEur(pts.portaf[last])+'</div>'
-    +'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(isPac?'versato '+fmtEur(pts.base[last]):'partendo da '+fmtEur(cap))+'</div>'
-    +'</div>'
-    +'<div style="background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.2);border-radius:10px;padding:10px 12px">'
-    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Guadagno reale</div>'
-    +'<div style="font-size:18px;font-weight:900;color:#059669;font-family:monospace">'+fmtEur(pts.potere[last])+'</div>'
-    +'<div style="font-size:10px;color:var(--text3);margin-top:2px">senza invest.: '+fmtEur(pts.erode[last])+'</div>'
-    +'</div></div>';
+  // KPI cards
+  H += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
+  H += '<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:10px 12px">';
+  H += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Valore anno '+anni+'</div>';
+  H += '<div style="font-size:18px;font-weight:900;color:#3b82f6;font-family:monospace">'+fmtEur(portaf[anni])+'</div>';
+  H += '<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(isPac?'versato: '+fmtEur(base[anni]):'da: '+fmtEur(cap))+'</div></div>';
+  H += '<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:10px;padding:10px 12px">';
+  H += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Guadagno reale netto</div>';
+  H += '<div style="font-size:18px;font-weight:900;color:#22d47e;font-family:monospace">'+fmtEur(potere[anni])+'</div>';
+  H += '<div style="font-size:10px;color:var(--text3);margin-top:2px">senza invest.: '+fmtEur(erode[anni])+'</div></div>';
+  H += '</div>';
 
-  // Canvas per Chart.js
-  var canvasHTML = '<div style="position:relative;width:100%;height:200px;margin-bottom:16px">'
-    +'<canvas id="pac-chartjs-canvas"></canvas></div>';
+  // Canvas grafico — 260px di altezza
+  H += '<div style="position:relative;width:100%;height:260px;margin-bottom:16px"><canvas id="pac-chartjs-canvas"></canvas></div>';
 
-  area.innerHTML = '<div style="padding:0 12px 80px">' + tabHTML + inpHTML + anniHTML + legHTML + kpiHTML + canvasHTML + '</div>';
+  // Tabella annuale
+  H += '<details><summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:8px 0;text-transform:uppercase;letter-spacing:.6px">Tabella anno per anno ▾</summary>';
+  H += '<div style="overflow-x:auto;margin-top:8px"><table style="width:100%;border-collapse:collapse;font-size:11px;min-width:340px">';
+  H += '<thead><tr style="background:rgba(255,255,255,.05)">';
+  H += '<th style="padding:5px 6px;color:var(--text3);text-align:center">Anno</th>';
+  H += '<th style="padding:5px 6px;color:#a78bfa;text-align:right">'+(isPac?'Versato':'Capitale')+'</th>';
+  H += '<th style="padding:5px 6px;color:#3b82f6;text-align:right">Portafoglio</th>';
+  H += '<th style="padding:5px 6px;color:#f59e0b;text-align:right">Inflazione</th>';
+  H += '<th style="padding:5px 6px;color:#22d47e;text-align:right">Guadagno</th>';
+  H += '<th style="padding:5px 6px;color:#f87171;text-align:right">Senza inv.</th>';
+  H += '</tr></thead><tbody>';
+  for (var y=1; y<=anni; y++) {
+    var bg = y%2===0?'transparent':'rgba(255,255,255,.02)';
+    H += '<tr style="background:'+bg+'">';
+    H += '<td style="padding:4px 6px;text-align:center;font-weight:700;color:var(--text3)">'+y+'</td>';
+    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace">'+fmtEur(base[y])+'</td>';
+    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#3b82f6">'+fmtEur(portaf[y])+'</td>';
+    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#f59e0b">'+fmtEur(infl[y])+'</td>';
+    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#22d47e">'+fmtEur(Math.max(0,potere[y]))+'</td>';
+    H += '<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#f87171">'+fmtEur(erode[y])+'</td>';
+    H += '</tr>';
+  }
+  H += '</tbody></table></div></details>';
 
-  // Distruggi chart precedente se esiste
-  if (window._pacChart) { try { window._pacChart.destroy(); } catch(e){} window._pacChart = null; }
+  area.innerHTML = '<div style="padding:0 12px 80px">' + H + '</div>';
 
-  var datasets = LINES.map(function(l) {
+  // Crea Chart.js
+  if (window._pacChart) { try{window._pacChart.destroy();}catch(e){} }
+  var datasets = LINES.map(function(l){
     return {
-      label: l.nome, data: pts[l.key],
-      borderColor: l.col,
+      label:l.nome, data:pts[l.key],
+      borderColor:l.col,
       backgroundColor: l.key==='portaf' ? l.col+'22' : 'transparent',
-      borderWidth: l.key==='portaf' ? 2.5 : 1.5,
-      borderDash: l.dash,
-      pointRadius: 0, tension: 0.25,
+      borderWidth: l.key==='portaf'?2.5:1.5,
+      borderDash:l.dash,
+      pointRadius:0, tension:0.3,
       fill: l.key==='portaf',
     };
   });
 
-  var fmtAxis = function(v) {
-    if (v >= 1000000) return (v/1000000).toLocaleString('it-IT',{maximumFractionDigits:1})+' M';
-    if (v >= 1000) return (v/1000).toLocaleString('it-IT',{maximumFractionDigits:0})+'.000';
-    return Math.round(v).toString();
-  };
-
   window._pacChart = new Chart(document.getElementById('pac-chartjs-canvas'), {
-    type: 'line',
-    data: { labels: pts.labels, datasets: datasets },
-    options: {
-      responsive: true, maintainAspectRatio: false, animation: false,
-      plugins: {
-        legend: { display: false },
-        tooltip: { callbacks: { label: function(c) { return ' '+c.dataset.label+': '+fmtEur(c.raw); } } }
-      },
-      scales: {
-        x: {
-          grid: { color: 'rgba(255,255,255,.07)' },
-          ticks: { color: 'rgba(255,255,255,.5)', font: { size: 11 }, maxTicksLimit: 8 }
-        },
-        y: {
-          grid: { color: 'rgba(255,255,255,.07)' },
-          beginAtZero: true,
-          ticks: {
-            color: 'rgba(255,255,255,.5)', font: { size: 11 }, maxTicksLimit: 5,
-            callback: fmtAxis
+    type:'line',
+    data:{ labels:labels, datasets:datasets },
+    options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          callbacks:{
+            label:function(c){ return '  '+c.dataset.label+': '+fmtEur(c.raw); },
+            title:function(items){ return 'Anno '+items[0].label; }
           }
         }
+      },
+      scales:{
+        x:{ grid:{color:'rgba(255,255,255,.06)'}, ticks:{color:'rgba(255,255,255,.45)',font:{size:11},maxTicksLimit:8} },
+        y:{ grid:{color:'rgba(255,255,255,.06)'}, beginAtZero:true,
+            ticks:{color:'rgba(255,255,255,.45)',font:{size:11},maxTicksLimit:5,callback:fmtAx} }
       }
     }
   });
