@@ -1431,35 +1431,6 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
       </div>
     </div>
 
-      <div class="tut-step">
-        <div class="tut-num">💰</div>
-        <div class="tut-content">
-          <div class="tut-title">Reddito Passivo — Cedole e Dividendi</div>
-          <div class="tut-body">
-            <p>Traccia tutto il reddito generato dal tuo portafoglio: cedole dei BTP, dividendi delle azioni e distribuzione degli ETF.</p>
-            <div class="tut-tip">
-              <strong>Cedole BTP automatiche</strong><br>
-              Se hai BTP in portafoglio con ISIN riconosciuto, l'app calcola automaticamente cedola annua lorda e netta (12,5% ritenuta), rateo maturato oggi e data del prossimo stacco.
-            </div>
-            <div class="tut-tip">
-              <strong>Registrare un dividendo o cedola</strong><br>
-              Vai su Operazioni → + Nuova → scegli DIVIDENDO o CEDOLA. Inserisci l'importo lordo e la ritenuta applicata (default 26% per azioni, 12,5% per BTP). L'app calcola il netto e traccia tutto nell'anno.
-            </div>
-            <div class="tut-tip">
-              <strong>Rateo maturato</strong><br>
-              Il rateo è la parte di cedola già maturata ma non ancora pagata. Se vendi un'obbligazione, incassi il rateo maturato dall'acquirente. La sezione Reddito Passivo mostra il rateo aggiornato ad oggi per ogni BTP.
-            </div>
-            <div class="tut-tip">
-              <strong>Tassazione cedole vs dividendi</strong><br>
-              BTP e titoli di Stato italiani: ritenuta 12,5% · Azioni e ETF: ritenuta 26% · ETF ad accumulazione: nessuna cedola (tutto reinvestito automaticamente).
-            </div>
-          </div>
-          <div class="tut-actions">
-            <button class="tut-action" onclick="showPage('reddito')">Reddito Passivo</button>
-            <button class="tut-action alt" onclick="openModal();setTimeout(()=>setOpType('cedola'),100)">+ Cedola</button>
-          </div>
-        </div>
-      </div>
     <div id="ops-list" style="margin-top:8px"></div>
   </div>
 
@@ -4462,9 +4433,10 @@ function renderPF() {
         ${(()=>{
           const btpInfo = h.isin && typeof BTP_DB!=='undefined' ? BTP_DB[h.isin] : null;
           if (!btpInfo || !btpInfo.tasso) return '';
-          const rateoInfo = calcolaRateo(h.isin, h.qty);
-          const cedLorda  = e2(h.qty * btpInfo.tasso / 100);
-          const cedNetta  = e2(h.qty * btpInfo.tasso / 100 * 0.875);
+          const rateoInfo = calcolaRateo(h.isin, h.qty, calcNominaleBTP(h));
+          const nominaleTot2 = calcNominaleBTP(h);
+          const cedLorda  = e2(nominaleTot2 * btpInfo.tasso / 100);
+          const cedNetta  = e2(nominaleTot2 * btpInfo.tasso / 100 * 0.875);
           const rateoStr  = rateoInfo ? e2(rateoInfo.rateo) : '—';
           const nextStr   = rateoInfo ? rateoInfo.nextStaccoFmt : '—';
           const giorniStr = rateoInfo ? `${rateoInfo.giorniPassati}/${rateoInfo.giorniPeriodo} gg` : '';
@@ -10457,13 +10429,41 @@ const BTP_DB = {
   'IT0005422891': { nome:'BTP 01/05/2031 0,90%', tasso:0.90, freq:2, scadenza:'2031-05-01', stacchi:['05-01','11-01'] },
 };
 
+// Calcola nominale BTP dalla qty e dal prezzo medio di carico
+//
+// Convention BTP: 1 bond = €1.000 nominale, prezzo quotato in % del par
+//
+// CASO A — Prezzo inserito come % (es. 99.70, prezzo < 120):
+//   L'utente ha inserito qty "gonfiata" per far tornare il totale
+//   es. qty=100, prezzo=99.70 → totale app=€9.970
+//   → nominale reale = qty × 100 = 100 × 100 = €10.000 ✓
+//
+// CASO B — Prezzo inserito in € reali per bond (es. 997, prezzo ≥ 120):
+//   qty = numero di bond (es. 10), prezzo = prezzo per bond in €
+//   es. qty=10, prezzo=997 → totale app=€9.970
+//   → nominale reale = qty × 1000 = 10 × 1.000 = €10.000 ✓
+//
+// Soglia 200:
+//   BTP in % (99,70 / 103,50) → sempre < 200  → nominale = qty × 100
+//   BTP in € per bond (997 / 1035) → sempre > 200 → nominale = qty × 1000
+//   Entrambi danno nominale = €10.000 per 10 bond ✓
+function calcNominaleBTP(h) {
+  const avgP = h.avgPriceBuyCcy || h.avgPrice || 0;
+  if (avgP < 200) {
+    // Prezzo inserito in % del par (es. 99,70): qty × 100 = nominale totale
+    return h.qty * 100;
+  } else {
+    // Prezzo inserito in € per bond (es. 997): qty × 1000 = nominale totale
+    return h.qty * 1000;
+  }
+}
+
 // Calcola rateo accrued per un'obbligazione
-function calcolaRateo(isin, qty) {
+function calcolaRateo(isin, qty, nominaleTot) {
   const btp = BTP_DB[isin];
   if (!btp || !btp.tasso) return null;
   const today = new Date();
   const yr = today.getFullYear();
-  // Trova stacco precedente e successivo
   const dates = btp.stacchi.flatMap(s => [new Date(yr-1+'-'+s), new Date(yr+'-'+s), new Date(yr+1+'-'+s)]);
   dates.sort((a,b) => a-b);
   const lastS = dates.filter(d => d <= today).pop();
@@ -10471,16 +10471,19 @@ function calcolaRateo(isin, qty) {
   if (!lastS || !nextS) return null;
   const giorniPeriodo = Math.round((nextS - lastS) / 86400000);
   const giorniPassati = Math.round((today - lastS) / 86400000);
-  const cedolaPerPeriodo = (qty * btp.tasso / 100) / btp.freq;
-  const rateo = cedolaPerPeriodo * (giorniPassati / giorniPeriodo);
+  // Cedola per periodo = nominale × tasso / frequenza
+  const cedolaLordaPerPeriodo = nominaleTot * (btp.tasso / 100) / btp.freq;
+  const cedolaLordaAnnua      = nominaleTot * (btp.tasso / 100);
+  const rateo = cedolaLordaPerPeriodo * (giorniPassati / giorniPeriodo);
   return {
-    rateo: Math.round(rateo*100)/100,
+    rateo:      Math.round(rateo * 100) / 100,
     lastStacco: lastS,
     nextStacco: nextS,
-    giorniPassati,
-    giorniPeriodo,
-    cedolaLorda: Math.round(cedolaPerPeriodo*100)/100,
-    cedolaNetta: Math.round(cedolaPerPeriodo*0.875*100)/100, // 12.5% ritenuta BTP
+    giorniPassati, giorniPeriodo,
+    cedolaLorda: Math.round(cedolaLordaPerPeriodo * 100) / 100,
+    cedolaNetta: Math.round(cedolaLordaPerPeriodo * 0.875 * 100) / 100,
+    cedolaLordaAnnua: Math.round(cedolaLordaAnnua * 100) / 100,
+    cedolaNettaAnnua: Math.round(cedolaLordaAnnua * 0.875 * 100) / 100,
     nextStaccoFmt: nextS.toLocaleDateString('it-IT'),
   };
 }
@@ -10497,15 +10500,17 @@ function calcolaRedditoAnnuo() {
     if (h.ticker === '__CASH__' || h.qty <= 0) return;
     const btp = BTP_DB[h.isin];
     if (btp && btp.tasso > 0) {
-      // Obbligazione con cedola nota
-      const cedolaAnnuaLorda = h.qty * btp.tasso / 100;
-      const cedolaAnnuaNetta = cedolaAnnuaLorda * 0.875; // 12.5% ritenuta sui BTP
-      const rateoInfo = calcolaRateo(h.isin, h.qty);
+      // Obbligazione con cedola nota — usa nominale corretto
+      const nominaleTot     = calcNominaleBTP(h);
+      const cedolaAnnuaLorda = nominaleTot * btp.tasso / 100;
+      const cedolaAnnuaNetta = cedolaAnnuaLorda * 0.875; // 12.5% ritenuta BTP
+      const rateoInfo = calcolaRateo(h.isin, h.qty, nominaleTot);
       results.push({
         tipo: 'cedola',
         ticker: h.displayTicker || h.ticker,
         nome: btp.nome || h.name,
         qty: h.qty,
+        nominaleTot,
         tasso: btp.tasso,
         freq: btp.freq,
         cedolaAnnuaLorda,
