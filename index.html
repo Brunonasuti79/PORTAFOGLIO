@@ -10488,32 +10488,58 @@ function calcNominaleBTP(h) {
 }
 
 // Calcola rateo accrued per un'obbligazione
+// Usa Date.UTC per evitare ambiguità di timezone (new Date('2026-03-01')
+// viene parsato come UTC midnight che in browser EU può causare shift di date)
 function calcolaRateo(isin, qty, nominaleTot) {
   const btp = BTP_DB[isin];
   if (!btp || !btp.tasso) return null;
-  const today = new Date();
-  const yr = today.getFullYear();
-  const dates = btp.stacchi.flatMap(s => [new Date(yr-1+'-'+s), new Date(yr+'-'+s), new Date(yr+1+'-'+s)]);
-  dates.sort((a,b) => a-b);
-  const lastS = dates.filter(d => d <= today).pop();
-  const nextS = dates.find(d => d > today);
-  if (!lastS || !nextS) return null;
-  const giorniPeriodo = Math.round((nextS - lastS) / 86400000);
-  const giorniPassati = Math.round((today - lastS) / 86400000);
-  // Cedola per periodo = nominale × tasso / frequenza
+
+  const now = new Date();
+  // Data di oggi in UTC puro (niente ore/minuti)
+  const todayUTC = Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Genera date di stacco come UTC per evitare shift da timezone
+  const candidates = [];
+  for (let yr = now.getFullYear() - 1; yr <= now.getFullYear() + 1; yr++) {
+    for (const s of btp.stacchi) {
+      const parts = s.split('-').map(Number); // [mese, giorno]
+      const mm = parts[0] - 1; // 0-indexed
+      const dd = parts[1];
+      candidates.push(Date.UTC(yr, mm, dd));
+    }
+  }
+  candidates.sort((a, b) => a - b);
+
+  const lastUTC = candidates.filter(d => d <= todayUTC).pop();
+  const nextUTC = candidates.find(d => d > todayUTC);
+  if (!lastUTC || !nextUTC) return null;
+
+  const MS = 86400000;
+  const giorniPeriodo = Math.round((nextUTC - lastUTC) / MS);
+  const giorniPassati = Math.round((todayUTC - lastUTC) / MS);
+
   const cedolaLordaPerPeriodo = nominaleTot * (btp.tasso / 100) / btp.freq;
-  const cedolaLordaAnnua      = nominaleTot * (btp.tasso / 100);
-  const rateo = cedolaLordaPerPeriodo * (giorniPassati / giorniPeriodo);
+  const cedolaNettoPerPeriodo = cedolaLordaPerPeriodo * 0.875; // BTP: 12,5% ritenuta
+  const rateoLordo = cedolaLordaPerPeriodo * (giorniPassati / giorniPeriodo);
+  const rateoNetto = cedolaNettoPerPeriodo * (giorniPassati / giorniPeriodo);
+
+  const lastDate = new Date(lastUTC);
+  const nextDate = new Date(nextUTC);
+
   return {
-    rateo:      Math.round(rateo * 100) / 100,
-    lastStacco: lastS,
-    nextStacco: nextS,
-    giorniPassati, giorniPeriodo,
+    rateo:      Math.round(rateoNetto * 100) / 100,  // rateo netto (quello che ti interessa)
+    rateoLordo: Math.round(rateoLordo * 100) / 100,
+    lastStacco: lastDate,
+    nextStacco: nextDate,
+    giorniPassati,
+    giorniPeriodo,
+    giorniAlProssimo: Math.round((nextUTC - todayUTC) / MS),
     cedolaLorda: Math.round(cedolaLordaPerPeriodo * 100) / 100,
-    cedolaNetta: Math.round(cedolaLordaPerPeriodo * 0.875 * 100) / 100,
-    cedolaLordaAnnua: Math.round(cedolaLordaAnnua * 100) / 100,
-    cedolaNettaAnnua: Math.round(cedolaLordaAnnua * 0.875 * 100) / 100,
-    nextStaccoFmt: nextS.toLocaleDateString('it-IT'),
+    cedolaNetta: Math.round(cedolaNettoPerPeriodo * 100) / 100,
+    cedolaLordaAnnua: Math.round(nominaleTot * btp.tasso / 100 * 100) / 100,
+    cedolaNettaAnnua: Math.round(nominaleTot * btp.tasso / 100 * 0.875 * 100) / 100,
+    nextStaccoFmt: nextDate.toLocaleDateString('it-IT'),
+    lastStaccoFmt: lastDate.toLocaleDateString('it-IT'),
   };
 }
 
