@@ -311,8 +311,8 @@ html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
 .pac-table tbody tr:hover{background:rgba(123,167,255,.04)}
 .pnl-summary{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:10px 14px 6px}
 .pnl-card{background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:10px 12px;text-align:center}
-.pnl-lbl{font-size:11px;color:var(--text2);letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-bottom:6px}
-.pnl-val{font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:900}
+.pnl-lbl{font-size:9px;color:var(--text3);letter-spacing:1px;text-transform:uppercase;font-weight:700;margin-bottom:4px}
+.pnl-val{font-family:'JetBrains Mono',monospace;font-size:16px;font-weight:700}
 .pnl-table-wrap{margin:6px 14px 80px;overflow-x:auto}
 .pnl-table{width:100%;border-collapse:collapse;font-size:11px}
 .pnl-table th{font-size:9px;color:var(--text3);letter-spacing:.8px;text-transform:uppercase;font-weight:700;
@@ -7338,7 +7338,16 @@ function saveTaxRate(ticker, val) {
 
 function calcRealizedPnL() {
   const ops = (S.ops || [])
-    .filter(o => (o.type === 'buy' || o.type === 'sell') && o.ticker !== '__CASH__')
+    .filter(o => {
+      if (o.type !== 'buy' && o.type !== 'sell') return false;
+      const tk = (o.ticker||'').toUpperCase();
+      const qt = (o.quoteTicker||'').toUpperCase();
+      const nm = (o.name||'').toLowerCase();
+      // Escludi qualsiasi operazione di cassa
+      if (tk === '__CASH__' || tk === 'CASH' || qt === '__CASH__') return false;
+      if (nm.includes('prelievo liquidit') || nm.includes('deposito liquidit')) return false;
+      return true;
+    })
     .sort((a, b) => a.date.localeCompare(b.date) || a.id.localeCompare(b.id));
 
   const lots = {}; // quoteTicker -> [{price,qty,date,assetClass,fxRate,titleCcy,purchCcy,name,comm}]
