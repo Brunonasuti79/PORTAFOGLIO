@@ -3676,6 +3676,9 @@ async function fetchPrices() {
     if (!S.sumCcy) S.sumCcy='EUR';
     if (!S.dailyChanges) S.dailyChanges = {};
     // NON cancellare dailyChanges — mantieni i vecchi valori durante il fetch
+
+    // SNAPSHOT prezzi prima del fetch: se un ticker fallisce, ripristina il valore precedente
+    const priceSnapshot = Object.assign({}, S.prices);
     // così la UI mostra sempre l'ultimo dato disponibile, non zero/vuoto
     // I valori vengono aggiornati ticker per ticker man mano che arrivano
 
@@ -3830,6 +3833,14 @@ async function fetchPrices() {
     eb.textContent = '⚠ ' + (e.message || 'Errore nel recupero prezzi. Riprova.');
     eb.style.display = 'block';
   } finally {
+    // Ripristina prezzi precedenti per i ticker che non si sono aggiornati
+    hlds.forEach(h => {
+      if (!isReasonablePrice(S.prices[h.ticker], h) && isReasonablePrice(priceSnapshot[h.ticker], h)) {
+        S.prices[h.ticker] = priceSnapshot[h.ticker];
+        console.log('[prezzi] Ripristinato prezzo precedente per', h.ticker, '=', priceSnapshot[h.ticker]);
+      }
+    });
+
     busy = false;
     btn.disabled = false;
     btn.innerHTML = '⟳ Aggiorna';
