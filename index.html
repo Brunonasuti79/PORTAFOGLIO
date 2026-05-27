@@ -4585,7 +4585,7 @@ function renderOps() {
     ca.id = 'ops-chart-area';
     ol.parentElement.insertBefore(ca, ol);
   }
-  renderOpsChart();
+  try { renderOpsChart(); } catch(e) { console.warn('[OPS] chart error:', e); }
   if (!ops.length) {
     ol.innerHTML = `<div class="empty">Nessuna operazione.<br>Tocca <strong>+ Nuova</strong> per iniziare.</div>`;
     return;
@@ -6775,9 +6775,11 @@ function showPage(pg) {
   if (pg === 'portfolio' && window._appFullyStarted) {
     console.warn('⚠ showPage portfolio chiamato DOPO avvio da:', new Error().stack);
   }
-  // Se è un gruppo, risolvi all'ultima pagina visitata in quel gruppo
+  // Se è un gruppo, risolvi la pagina da mostrare.
+  // Operazioni deve aprire SEMPRE la Lista, non ricordare P&L:
+  // altrimenti cliccando il menu Operazioni si rimane bloccati su P&L.
   if (PAGE_GROUPS[pg]) {
-    pg = lastGroupPage[pg] || PAGE_GROUPS[pg].pages[0];
+    pg = (pg === 'operations') ? PAGE_GROUPS[pg].pages[0] : (lastGroupPage[pg] || PAGE_GROUPS[pg].pages[0]);
   }
   const group = PAGE_TO_GROUP[pg] || pg;
   lastGroupPage[group] = pg;
@@ -6811,6 +6813,7 @@ function showPage(pg) {
   }
 
   // Render pagina
+  if (pg==='operations') renderOps();
   if (pg==='charts')    renderCharts();
   if (pg==='rebalance') renderRebalance();
   if (pg==='proj')      renderProjection();
@@ -11416,22 +11419,18 @@ async function sbLoadData() {
     const prevCloses     = ALL.officialCloses     || {};
     const prevClosesMeta = ALL.officialClosesMeta || {};
 
-    const remoteIsNewer = remoteSavedAt && (!localSavedAt || remoteSavedAt > localSavedAt);
-    const localIsNewer  = localSavedAt  && (!remoteSavedAt || localSavedAt > remoteSavedAt);
+    const localHasPortfolioData = (ALL.portfolios || []).some(pf => (pf.ops || []).length > 0);
 
-    if (remoteIsNewer) {
-      // Il cloud è più aggiornato (operazione fatta su altro device)
+    if (!localHasPortfolioData) {
+      // Nuovo device senza dati locali: usa il cloud.
       ALL = { ...ALL, ...remote };
-      console.log('[SB] cloud più recente (' + remoteSavedAt + ') — caricati dal cloud');
-    } else if (localIsNewer) {
-      // Il locale è più aggiornato (operazione fatta su questo device, non ancora sincronizzata)
-      // Forza salvataggio immediato su Supabase
-      console.log('[SB] locale più recente (' + localSavedAt + ') — push immediato su cloud');
-      sbSaveNow(); // salva subito, non aspettare il debounce
+      console.log('[SB] nuovo device — caricati dati cloud');
     } else {
-      // Stesso timestamp o dati mancanti: usa remoto come riferimento
-      ALL = { ...ALL, ...remote };
-      console.log('[SB] timestamp pari — usati dati cloud');
+      // Device con dati locali: NON sovrascrivere mai i portfolio dal cloud.
+      // Questo evita che una vendita/eliminazione locale venga "resuscitata"
+      // da un payload remoto più vecchio o sincronizzato male.
+      console.log('[SB] dati locali presenti — portfolio locale preservato, push su cloud');
+      sbSaveNow();
     }
 
     // Preserva cache prezzi locale (sempre la più completa)
