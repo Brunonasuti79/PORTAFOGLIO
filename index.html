@@ -4561,7 +4561,9 @@ function toggleOpGroup(cat) {
 
 function renderOps() {
   const filterTxt = (document.getElementById('ops-search-inp')?.value||'').toLowerCase().trim();
-  let ops = [...(S.ops||[])].sort((a,b) => b.date.localeCompare(a.date));
+  let ops = [...(S.ops||[])]
+    .filter(op => op.ticker !== '__CASH__')  // escludi operazioni di cassa
+    .sort((a,b) => b.date.localeCompare(a.date));
   if (filterTxt) ops = ops.filter(op =>
     (op.name||'').toLowerCase().includes(filterTxt) ||
     (op.displayTicker||op.ticker||'').toLowerCase().includes(filterTxt) ||
