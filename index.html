@@ -6426,7 +6426,7 @@ function renderRebalance() {
             return `<tr class="rb-sub-row">
               <td>
                 <div style="font-weight:600;font-size:11px;color:var(--text2)">${esc(h.name||h.displayTicker)}</div>
-                <div style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace">${esc(h.displayTicker)}</div>
+                <div style="font-size:9px;color:var(--text3);font-family:monospace">${esc(h.displayTicker)}</div>
               </td>
               <td class="rb-num" style="text-align:center">
                 <div class="pct-stepper">
@@ -7443,70 +7443,108 @@ function renderPnL() {
 
   const thC = col => pnlSortCol === col ? (pnlSortDir > 0 ? 'pnl-sort-asc' : 'pnl-sort-desc') : '';
 
-  area.innerHTML = `
-  <div class="pnl-summary">
-    <div class="pnl-card">
-      <div class="pnl-lbl">Gain/Loss lordo</div>
-      <div class="pnl-val ${totGross>=0?'gain':'loss'}">${totGross>=0?'+':''}${e2(totGross)}</div>
-    </div>
-    <div class="pnl-card">
-      <div class="pnl-lbl">Gain/Loss netto</div>
-      <div class="pnl-val ${totNet>=0?'gain':'loss'}">${totNet>=0?'+':''}${e2(totNet)}</div>
-    </div>
-    <div class="pnl-card">
-      <div class="pnl-lbl">Imposte stimate</div>
-      <div class="pnl-val loss">−${e2(totTax)}</div>
-    </div>
-    <div class="pnl-card">
-      <div class="pnl-lbl">Commissioni totali</div>
-      <div class="pnl-val neutral">−${e2(totComm)}</div>
-    </div>
-  </div>
-  <div class="sdesc" style="margin:0 14px 6px;font-style:italic">⚠ Imposte calcolate su plusvalenze nette commissioni. Aliquote personalizzabili in Impostazioni.</div>
-  <div class="pnl-table-wrap">
-    <table class="pnl-table">
-      <thead><tr>
-        <th class="${thC('ticker')}" onclick="sortPnL('ticker')">Titolo</th>
-        <th class="${thC('date')}"   onclick="sortPnL('date')">Data vendita</th>
-        <th style="text-align:right">Qtà</th>
-        <th style="text-align:right">P.M. acq.</th>
-        <th style="text-align:right">Prezzo vend.</th>
-        <th class="${thC('pct')}"   onclick="sortPnL('pct')">Rend. %</th>
-        <th class="${thC('gross')}" onclick="sortPnL('gross')">Gain lordo</th>
-        <th style="text-align:right">Aliquota</th>
-        <th style="text-align:right">Imposte</th>
-        <th class="${thC('net')}"   onclick="sortPnL('net')">Gain netto</th>
-      </tr></thead>
-      <tbody>
-        ${trades.map(t => {
-          const gc = t.netTotal >= 0 ? 'gain' : 'loss';
-          const fg = t.grossTotal >= 0 ? 'gain' : 'loss';
-          return `<tr>
-            <td>
-              <div style="font-weight:600;color:var(--text2)">${esc(t.ticker)}</div>
-              <div style="font-size:10px;color:var(--text3);font-family:'Outfit',sans-serif">${esc(t.name)}</div>
-            </td>
-            <td style="color:var(--text3);font-family:'Outfit',sans-serif">${t.sellDate}</td>
-            <td>${t.qty % 1 === 0 ? t.qty : t.qty.toFixed(4)}</td>
-            <td>${n3(t.buyPrice)} ${t.sym}</td>
-            <td>${n3(t.sellPrice)} ${t.sym}</td>
-            <td class="${fg}">${t.gainPct>=0?'+':''}${t.gainPct.toFixed(2)}%</td>
-            <td class="${fg}">${t.grossTotal>=0?'+':''}${e2(t.grossTotal)} ${t.sym}</td>
-            <td style="color:var(--text3)">${t.taxRate.toFixed(1)}%</td>
-            <td class="loss">${t.tax > 0 ? '−'+e2(t.tax)+' '+t.sym : '—'}</td>
-            <td class="${gc}" style="font-weight:700">${t.netTotal>=0?'+':''}${e2(t.netTotal)} ${t.sym}</td>
-          </tr>`;
-        }).join('')}
-      </tbody>
-      <tfoot><tr>
-        <td colspan="6" style="text-align:right;font-weight:700;color:var(--text2);border-top:2px solid var(--border)">TOTALE</td>
-        <td class="${totGross>=0?'gain':'loss'}" style="font-weight:700;border-top:2px solid var(--border)">${totGross>=0?'+':''}${e2(totGross)}</td>
-        <td style="border-top:2px solid var(--border)">—</td>
-        <td class="loss" style="font-weight:700;border-top:2px solid var(--border)">${totTax>0?'−'+e2(totTax):'—'}</td>
-        <td class="${totNet>=0?'gain':'loss'}" style="font-weight:700;border-top:2px solid var(--border)">${totNet>=0?'+':''}${e2(totNet)}</td>
-      </tr></tfoot>
-    </table>
-  </div>`;
+  // KPI summary
+  const kpiGrossCol = totGross >= 0 ? '#22d47e' : '#f87171';
+  const kpiNetCol   = totNet   >= 0 ? '#22d47e' : '#f87171';
+  const kpiGrossBg  = totGross >= 0 ? 'rgba(34,212,126,.08)' : 'rgba(248,113,113,.08)';
+  const kpiNetBg    = totNet   >= 0 ? 'rgba(34,212,126,.08)' : 'rgba(248,113,113,.08)';
+
+  // Trade cards — stile holding portafoglio
+  const tradeCards = trades.map(t => {
+    const gc  = t.netTotal  >= 0 ? '#22d47e' : '#f87171';
+    const gcB = t.netTotal  >= 0 ? 'rgba(34,212,126,.1)' : 'rgba(248,113,113,.1)';
+    const fg  = t.grossTotal>= 0 ? '#22d47e' : '#f87171';
+    const qtyStr = t.qty % 1 === 0 ? t.qty : t.qty.toFixed(4);
+    return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;
+      padding:12px 14px;margin-bottom:8px;border-left:3px solid ${gc}">
+      <!-- Riga 1: ticker + data + gain netto -->
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+        <div style="flex:1;min-width:0">
+          <div style="font-size:15px;font-weight:800;color:var(--text);letter-spacing:-.2px">${esc(t.ticker)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px">${esc(t.name)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:16px;font-weight:900;color:${gc};font-family:monospace">
+            ${t.netTotal>=0?'+':''}${e2(t.netTotal)}
+          </div>
+          <div style="font-size:11px;color:var(--text3);margin-top:1px">gain netto</div>
+        </div>
+      </div>
+      <!-- Riga 2: dettagli in griglia -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px">
+        <div style="background:var(--bg3);border-radius:8px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Data vendita</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2)">${t.sellDate}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Quantità</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2)">${qtyStr}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Rendimento</div>
+          <div style="font-size:12px;font-weight:700;color:${fg}">${t.gainPct>=0?'+':''}${t.gainPct.toFixed(2)}%</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">P.M. acquisto</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2)">${n3(t.buyPrice)} ${t.sym}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Prezzo vendita</div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2)">${n3(t.sellPrice)} ${t.sym}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Gain lordo</div>
+          <div style="font-size:12px;font-weight:700;color:${fg}">${t.grossTotal>=0?'+':''}${e2(t.grossTotal)}</div>
+        </div>
+        <div style="background:var(--bg3);border-radius:8px;padding:6px 8px;grid-column:1/3">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Imposte (${t.taxRate.toFixed(1)}%)</div>
+          <div style="font-size:12px;font-weight:600;color:#f59e0b">${t.tax > 0 ? '−'+e2(t.tax) : '—'}</div>
+        </div>
+        <div style="background:${gcB};border:1px solid ${gc}40;border-radius:8px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Netto</div>
+          <div style="font-size:13px;font-weight:900;color:${gc};font-family:monospace">${t.netTotal>=0?'+':''}${e2(t.netTotal)}</div>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  area.innerHTML =
+    '<div style="padding:0 14px 80px">'
+    // KPI
+    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+    + '<div style="background:'+kpiGrossBg+';border:1px solid '+kpiGrossCol+'40;border-radius:12px;padding:12px 14px">'
+    +   '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.8px;margin-bottom:4px">Gain / Loss lordo</div>'
+    +   '<div style="font-size:22px;font-weight:900;color:'+kpiGrossCol+';font-family:monospace">'+(totGross>=0?'+':'')+e2(totGross)+'</div>'
+    + '</div>'
+    + '<div style="background:'+kpiNetBg+';border:1px solid '+kpiNetCol+'40;border-radius:12px;padding:12px 14px">'
+    +   '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.8px;margin-bottom:4px">Gain / Loss netto</div>'
+    +   '<div style="font-size:22px;font-weight:900;color:'+kpiNetCol+';font-family:monospace">'+(totNet>=0?'+':'')+e2(totNet)+'</div>'
+    + '</div>'
+    + '<div style="background:rgba(245,158,11,.08);border:1px solid rgba(245,158,11,.3);border-radius:12px;padding:12px 14px">'
+    +   '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.8px;margin-bottom:4px">Imposte stimate</div>'
+    +   '<div style="font-size:22px;font-weight:900;color:#f59e0b;font-family:monospace">−'+e2(totTax)+'</div>'
+    + '</div>'
+    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">'
+    +   '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.8px;margin-bottom:4px">Commissioni totali</div>'
+    +   '<div style="font-size:22px;font-weight:900;color:var(--text2);font-family:monospace">−'+e2(totComm)+'</div>'
+    + '</div></div>'
+    // Nota
+    + '<div style="font-size:11px;color:var(--text3);font-style:italic;margin-bottom:14px">⚠ Imposte calcolate su plusvalenze nette commissioni. Aliquote in Impostazioni.</div>'
+    // Sort bar
+    + '<div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">'
+    + '<span style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.6px">Ordina:</span>'
+    + ['date:Data','gross:Gain lordo','net:Gain netto','pct:Rendimento %','ticker:Titolo'].map(function(x) {
+        var parts = x.split(':'), k=parts[0], l=parts[1];
+        var active = pnlSortCol === k;
+        return '<button onclick="sortPnL(\"'+k+'\")" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;'
+          +'border:1px solid '+(active?'var(--blue)':'rgba(255,255,255,.12)')+';'
+          +'background:'+(active?'var(--blue)':'transparent')+';'
+          +'color:'+(active?'#fff':'var(--text3)')+'">'+l+(active?(pnlSortDir>0?' ▲':' ▼'):'')+'</button>';
+      }).join('')
+    + '</div>'
+    // Cards
+    + tradeCards
+    + '</div>';
 }
 
 function renderTaxUI() {
@@ -7533,7 +7571,7 @@ function renderTaxRateSettings() {
       return `<div class="taxrate-row">
         <div style="flex:1;min-width:0">
           <div class="taxrate-lbl">${esc(nm)}</div>
-          <div style="font-size:9px;color:var(--text3);font-family:'JetBrains Mono',monospace">${esc(tk)}</div>
+          <div style="font-size:9px;color:var(--text3);font-family:monospace">${esc(tk)}</div>
         </div>
         <input type="number" class="taxrate-inp" value="${cur}" step="0.1" min="0" max="100"
           onchange="saveTaxRate('${tk}',this.value)">
@@ -9824,7 +9862,7 @@ function renderGeoGrid(geos) {
       return `<div style="background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:8px 12px">
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span style="font-size:13px">${flag} ${geo}</span>
-          <span style="font-weight:700;font-size:13px;font-family:'JetBrains Mono',monospace">${pct.toFixed(1)}%</span>
+          <span style="font-weight:700;font-size:13px;font-family:monospace">${pct.toFixed(1)}%</span>
         </div>
         <div style="background:var(--bg3);border-radius:3px;height:5px;margin-top:6px;overflow:hidden">
           <div style="background:var(--blue);width:${Math.min(pct,100)}%;height:100%;border-radius:3px"></div>
@@ -10015,7 +10053,7 @@ function renderETFAnalytics() {
       const m    = ETF_MACRO_LABELS[type];
       html += `<div style="background:${m.bg};border:1.5px solid ${m.border};border-radius:14px;padding:14px;text-align:center">
         <div style="font-size:32px;line-height:1;margin-bottom:6px">${m.icon}</div>
-        <div style="font-size:22px;font-weight:700;color:${m.color};font-family:'JetBrains Mono',monospace">${pct.toFixed(1)}%</div>
+        <div style="font-size:22px;font-weight:700;color:${m.color};font-family:monospace">${pct.toFixed(1)}%</div>
         <div style="font-size:11px;color:var(--text3);margin-top:4px;font-weight:600">${m.label}</div>
         <div style="font-size:10px;color:var(--text3);margin-top:2px">${withVal.length} ETF</div>
       </div>`;
@@ -10487,7 +10525,7 @@ function buildIPResult(prof) {
         <div style="margin-bottom:10px">
           <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px">
             <span style="color:var(--text2);font-weight:600">${lbl}</span>
-            <span style="font-weight:800;color:${col};font-family:'JetBrains Mono',monospace">${pct}%</span>
+            <span style="font-weight:800;color:${col};font-family:monospace">${pct}%</span>
           </div>
           ${barStyle(pct, col)}
         </div>`).join('')}
@@ -11087,9 +11125,9 @@ function renderWatchlist() {
     const th6m = (S.tickerHistory||{})[item.ticker]?.['6M'];
     const th1a = (S.tickerHistory||{})[item.ticker]?.['1A'];
     const perfCard = (th) => {
-      if (!th?.pts?.length) return `<div style="min-width:60px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center"><span style="font-size:15px;color:var(--text3);font-family:'JetBrains Mono',monospace">—</span></div>`;
+      if (!th?.pts?.length) return `<div style="min-width:60px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center"><span style="font-size:15px;color:var(--text3);font-family:monospace">—</span></div>`;
       const pts2 = th.pts.filter(x=>x.c>0);
-      if (pts2.length < 2) return `<div style="min-width:60px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center"><span style="font-size:15px;color:var(--text3);font-family:'JetBrains Mono',monospace">—</span></div>`;
+      if (pts2.length < 2) return `<div style="min-width:60px;background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:6px 8px;text-align:center"><span style="font-size:15px;color:var(--text3);font-family:monospace">—</span></div>`;
       const pct2 = ((pts2[pts2.length-1].c - pts2[0].c) / pts2[0].c) * 100;
       const col2 = pct2 >= 0 ? 'var(--green)' : 'var(--red)';
       const bg2  = pct2 >= 0 ? 'rgba(31,224,126,.1)' : 'rgba(255,59,59,.1)';
