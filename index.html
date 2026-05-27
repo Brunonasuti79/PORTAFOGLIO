@@ -4469,7 +4469,7 @@ function renderPF() {
       <td>
         <div class="pf-name" style="display:flex;align-items:center;gap:6px">
           ${renderSparkline(getSparkPts(h.ticker))}
-          <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;overflow:hidden"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(h.name||h.displayTicker)}${arrow}</span>${getAnyBadge(h.ticker, badgePrice(h))}<span class="pf-badge" style="--bb:rgba(123,167,255,.4);--bg:rgba(123,167,255,.07);cursor:pointer;padding:2px 6px" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico" tabindex="0" role="button"><svg width="22" height="14" viewBox="0 0 22 14" fill="none" style="vertical-align:middle;display:block"><path d="M1,13 L5,7 L10,10 L15,2 L21,5 L21,13 Z" fill="rgba(123,167,255,.2)"/><polyline points="1,13 5,7 10,10 15,2 21,5" fill="none" stroke="#7ba7ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span></div>
+          <div style="display:flex;align-items:center;gap:5px;min-width:0;flex:1;overflow:hidden"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0">${esc(h.name||h.displayTicker)}${arrow}</span>${getAnyBadge(h.ticker, badgePrice(h))}<span class="pf-badge" style="--bb:rgba(123,167,255,.4);--bg:rgba(123,167,255,.07);cursor:pointer;padding:2px 6px" onclick="event.stopPropagation();openChartModal('${jsq(h.ticker)}')" title="Grafico storico" tabindex="0" role="button"><svg width="22" height="14" viewBox="0 0 22 14" fill="none" style="vertical-align:middle;display:block"><path d="M1,13 L5,7 L10,10 L15,2 L21,5 L21,13 Z" fill="rgba(123,167,255,.2)"/><polyline points="1,13 5,7 10,10 15,2 21,5" fill="none" stroke="#7ba7ff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span><span class="pf-badge" style="--bb:rgba(255,77,109,.4);--bg:rgba(255,77,109,.08);cursor:pointer;padding:2px 7px;font-size:10px;font-weight:700;color:var(--red);letter-spacing:.3px" onclick="event.stopPropagation();openSellFromHolding('${jsq(h.ticker)}')" title="Vendi" tabindex="0" role="button">VENDI</span></div>
         </div>
         <div class="pf-ticker">${esc(h.displayTicker)}<span class="pf-cat-tag">${esc(h.assetClass||UNCATEGORIZED)}</span></div>
       </td>
@@ -6831,6 +6831,61 @@ function showPage(pg) {
 // ════════════════════════════════════════════════════════════════
 //  MODALS — OPERATION
 // ════════════════════════════════════════════════════════════════
+function openSellFromHolding(ticker) {
+  // Trova il holding nel portafoglio
+  const hlds = calcPF();
+  const h = hlds.find(h => h.ticker === ticker || h.displayTicker === ticker);
+  if (!h) return;
+
+  // Apri modal in modalità vendita
+  editingOpId = null;
+  setOpType('sell');
+  document.getElementById('modal-title').textContent = 'VENDI — ' + (h.displayTicker || ticker);
+  document.getElementById('modal-save-btn').textContent = 'Vendi';
+
+  // Precompila data = oggi
+  document.getElementById('f-date').value = new Date().toISOString().slice(0, 10);
+
+  // Precompila ticker e dati titolo
+  const qSym = h.quoteTicker || h.ticker || '';
+  const dTick = h.displayTicker || h.ticker || '';
+  document.getElementById('f-ticker').value = dTick;
+  document.getElementById('f-quote').value  = qSym;
+  document.getElementById('f-isin').value   = h.isin  || '';
+  document.getElementById('f-name').value   = h.name  || dTick;
+
+  // Precompila categoria e mercato
+  populateCatSelect('f', h.assetClass || 'ETF Azionario');
+  populateMarketSelect('f', h.market || '');
+
+  // Valuta
+  const tcEl = document.getElementById('f-titleccy');
+  if (tcEl) tcEl.value = h.titleCcy || 'EUR';
+  const pcEl = document.getElementById('f-purchccy');
+  if (pcEl) pcEl.value = h.titleCcy || 'EUR';
+  onTitleCcyChange('f');
+
+  // Precompila prezzo = prezzo corrente di mercato (o PMC se non disponibile)
+  const mktPrice = S.prices && S.prices[h.ticker];
+  const fillPrice = (mktPrice && mktPrice > 0) ? mktPrice : (h.avgPriceBuyCcy || h.avgPrice || '');
+  document.getElementById('f-price').value = fillPrice ? Number(fillPrice).toFixed(2) : '';
+
+  // Precompila quantità = quantità attualmente detenuta
+  document.getElementById('f-qty').value = h.qty || '';
+
+  // Commissioni a zero di default
+  document.getElementById('f-comm').value = '0';
+
+  calcFTotal();
+  document.getElementById('modal').classList.remove('hidden');
+
+  // Focus sul prezzo per cambiarlo facilmente
+  setTimeout(() => {
+    const priceEl = document.getElementById('f-price');
+    if (priceEl) { priceEl.focus(); priceEl.select(); }
+  }, 150);
+}
+
 function openModal() {
   editingOpId = null; opType = 'buy'; setOpType('buy');
   document.getElementById('modal-title').textContent = 'NUOVA OPERAZIONE';
