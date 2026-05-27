@@ -12,6 +12,7 @@
 <title>Portafoglio BIT v9</title>
 <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
 <style>
 /* ──────────────────────── RESET & TOKENS ──────────────────────── */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -2000,216 +2001,201 @@ function setPacSim(key, val) {
 }
 
 function renderPACSim() {
-  const area = document.getElementById('pac-sim-area');
+  var area = document.getElementById('pac-sim-area');
   if (!area) return;
-  const sim  = ALL.settings.pacSim || {};
-  const tab  = sim.tab || 'pac';
-  const pac  = +(sim.pac || 0);
-  const cap  = +(sim.capital || 0);
-  const rate = +(sim.rate ?? 7);
-  const anni = +(sim.anni || 20);
-  const inf  = +(ALL.settings && ALL.settings.projInflation ? ALL.settings.projInflation : 2.5) / 100;
-  const r    = rate / 100;
-  const rm   = r / 12;
-  const fmt  = function(v) { return '\u20ac ' + Math.round(Math.max(0,v)).toLocaleString('it-IT'); };
-  const noData = (tab==='pic' && cap<=0) || (tab==='pac' && pac<=0);
+  if (typeof Chart === 'undefined') {
+    area.innerHTML = '<div style="padding:20px;color:var(--text3);text-align:center">Caricamento grafico...</div>';
+    setTimeout(renderPACSim, 800);
+    return;
+  }
+  var sim  = ALL.settings.pacSim || {};
+  var tab  = sim.tab || 'pac';
+  var pac  = +(sim.pac || 0);
+  var cap  = +(sim.capital || 0);
+  var rate = +(sim.rate !== undefined ? sim.rate : 7);
+  var anni = +(sim.anni || 20);
+  var inf  = 0.025;
+  var r    = rate / 100;
+  var rm   = r / 12;
+  var fmtEur = function(v) { return '\u20ac\u202f' + Math.round(Math.max(0,v)).toLocaleString('it-IT'); };
+  var noData = (tab==='pic' && cap<=0) || (tab==='pac' && pac<=0);
 
-  var d = [];
-  for (var y=0; y<=anni; y++) {
-    if (tab==='pic') {
-      var C=cap, vp=C*Math.pow(1+r,y), vi=C*Math.pow(1+inf,y);
-      d.push({y:y, base:C, portafoglio:vp, inflazione:vi, potere:vp-vi, erosione:C*Math.pow(1-inf,y)});
-    } else {
-      var P=pac, versato=P*12*y;
-      var portaf = rm>1e-10 ? P*((Math.pow(1+rm,y*12)-1)/rm) : versato;
-      var inflV=0;
-      for(var m=1;m<=y*12;m++) inflV+=P*Math.pow(1+inf/12,m);
-      d.push({y:y, base:versato, portafoglio:portaf, inflazione:inflV, potere:portaf-inflV, erosione:versato*Math.pow(1-inf,y)});
+  var calcPts = function() {
+    var out = { labels:[], portaf:[], base:[], infl:[], potere:[], erode:[] };
+    for (var y=0; y<=anni; y++) {
+      out.labels.push(y===0 ? 'Oggi' : y===anni ? y+' anni' : String(y));
+      if (tab==='pac') {
+        var V=pac*12*y;
+        var P=rm>1e-10 ? pac*((Math.pow(1+rm,y*12)-1)/rm) : V;
+        var iV=0; for(var m=1;m<=y*12;m++) iV+=pac*Math.pow(1+inf/12,m);
+        out.portaf.push(Math.round(P));
+        out.base.push(Math.round(V));
+        out.infl.push(Math.round(iV));
+        out.potere.push(Math.round(Math.max(0,P-iV)));
+        out.erode.push(Math.round(V*Math.pow(1-inf,y)));
+      } else {
+        var vp=cap*Math.pow(1+r,y), vi=cap*Math.pow(1+inf,y);
+        out.portaf.push(Math.round(vp));
+        out.base.push(Math.round(cap));
+        out.infl.push(Math.round(vi));
+        out.potere.push(Math.round(Math.max(0,vp-vi)));
+        out.erode.push(Math.round(cap*Math.pow(1-inf,y)));
+      }
     }
-  }
-  var last = d[anni];
+    return out;
+  };
 
-  var LINES = tab==='pic' ? [
-    {key:'portafoglio', nome:'Portafoglio investito', col:'#3b82f6', w:2.5, dash:''},
-    {key:'inflazione',  nome:'Costo inflazione',      col:'#f59e0b', w:1.5, dash:'5,4'},
-    {key:'potere',      nome:'Guadagno reale netto',  col:'#22d47e', w:1.5, dash:''},
-    {key:'erosione',    nome:'Senza investire',        col:'#f87171', w:1.5, dash:'4,3'},
-  ] : [
-    {key:'portafoglio', nome:'Portafoglio accumulato', col:'#3b82f6', w:2.5, dash:''},
-    {key:'base',        nome:'Capitale versato',       col:'#a78bfa', w:1.5, dash:''},
-    {key:'potere',      nome:'Guadagno reale netto',   col:'#22d47e', w:1.5, dash:''},
-    {key:'erosione',    nome:'Senza investire',         col:'#f87171', w:1.5, dash:'4,3'},
+  var LINES_PAC = [
+    {key:'portaf', nome:'Portafoglio accumulato', col:'#2563eb', dash:[]},
+    {key:'base',   nome:'Capitale versato',        col:'#7c3aed', dash:[6,3]},
+    {key:'potere', nome:'Guadagno reale netto',    col:'#059669', dash:[]},
+    {key:'erode',  nome:'Senza investire',          col:'#dc2626', dash:[4,3]},
   ];
+  var LINES_PIC = [
+    {key:'portaf', nome:'Portafoglio investito',   col:'#2563eb', dash:[]},
+    {key:'infl',   nome:'Costo inflazione',         col:'#d97706', dash:[6,3]},
+    {key:'potere', nome:'Guadagno reale netto',    col:'#059669', dash:[]},
+    {key:'erode',  nome:'Senza investire',          col:'#dc2626', dash:[4,3]},
+  ];
+  var LINES = tab==='pac' ? LINES_PAC : LINES_PIC;
 
-  // SVG
-  var W=320, H=145, PL=44, PR=6, PT=8, PB=20;
-  var cw=W-PL-PR, ch=H-PT-PB;
-  var allV = [];
-  for(var i=0;i<d.length;i++) for(var j=0;j<LINES.length;j++) allV.push(Math.max(0, d[i][LINES[j].key]||0));
-  var maxV = Math.max.apply(null, allV.concat([1])) * 1.08;
-  var sx = function(i){ return PL+(i/anni)*cw; };
-  var sy = function(v){ return PT+ch*(1-Math.max(0,v)/maxV); };
+  // Tab buttons HTML
+  var isPac = tab==='pac';
+  var tabHTML =
+    '<div style="display:flex;gap:6px;margin-bottom:14px">'
+    +'<button onclick="setPacSim(\\"tab\\",\\"pac\\")" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;'
+    +'border:2px solid '+(isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
+    +'background:'+(isPac?'rgba(37,99,235,.15)':'transparent')+';'
+    +'color:'+(isPac?'var(--blue)':'var(--text2)')+';">'
+    +'<div style="font-size:16px;font-weight:700">PAC</div>'
+    +'<div style="font-size:10px;margin-top:2px">Versamenti mensili ricorrenti</div>'
+    +'</button>'
+    +'<button onclick="setPacSim(\\"tab\\",\\"pic\\")" style="flex:1;padding:10px 8px;border-radius:10px;text-align:left;cursor:pointer;'
+    +'border:2px solid '+(!isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
+    +'background:'+(!isPac?'rgba(37,99,235,.15)':'transparent')+';'
+    +'color:'+(!isPac?'var(--blue)':'var(--text2)')+';">'
+    +'<div style="font-size:16px;font-weight:700">PIC</div>'
+    +'<div style="font-size:10px;margin-top:2px">Investimento unico iniziale</div>'
+    +'</button>'
+    +'</div>';
 
-  function ptsFor(key) {
-    var r2=[];
-    for(var i=0;i<=anni;i++) r2.push(sx(i).toFixed(1)+','+sy(d[i][key]||0).toFixed(1));
-    return r2.join(' ');
-  }
-  function fmtAx(v) {
-    if(v>=1e6) return (v/1e6).toFixed(1)+'M';
-    if(v>=1e3) return Math.round(v/1000)+'k';
-    return Math.round(v)+'';
+  // Input HTML
+  var inpHTML =
+    '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+    +'<div>'
+    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">'
+    +(isPac?'Versamento mensile (\u20ac)':'Capitale iniziale (\u20ac)')+'</div>'
+    +'<input type="number" class="proj-rate-inp" style="width:100%" value="'+(isPac?pac||'':cap||'')+'" '
+    +'min="0" step="'+(isPac?100:1000)+'" inputmode="decimal" '
+    +'oninput="setPacSim(\\"'+(isPac?'pac':'capital')+'\\",this.value)">'
+    +'</div>'
+    +'<div>'
+    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">Rendimento % annuo</div>'
+    +'<input type="number" class="proj-rate-inp" style="width:100%" value="'+rate+'" min="0" max="25" step="0.5" inputmode="decimal" oninput="setPacSim(\\"rate\\",this.value)">'
+    +'</div>'
+    +'</div>';
+
+  // Anni buttons
+  var anniHTML = '<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;align-items:center">'
+    +'<span style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.7px">Anni:</span>';
+  [5,10,15,20,25,30].forEach(function(y) {
+    var a=anni===y;
+    anniHTML += '<button onclick="setPacSim(\\"anni\\",'+y+')" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;'
+      +'border:1px solid '+(a?'var(--blue)':'rgba(255,255,255,.12)')+';'
+      +'background:'+(a?'var(--blue)':'transparent')+';'
+      +'color:'+(a?'#fff':'var(--text3)')+'">'+y+'</button>';
+  });
+  anniHTML += '</div>';
+
+  if (noData) {
+    area.innerHTML = '<div style="padding:0 12px 80px">' + tabHTML + inpHTML + anniHTML
+      +'<div style="border:1px dashed rgba(255,255,255,.12);border-radius:12px;padding:24px;text-align:center;color:var(--text3);font-size:13px">'
+      +'Inserisci '+(isPac?'il versamento mensile':'il capitale iniziale')+' per vedere la simulazione</div></div>';
+    return;
   }
 
-  // Griglia Y (4 livelli)
-  var yGrid='';
-  for(var i=1;i<=4;i++){
-    var v=maxV*i/4;
-    var ys=sy(v).toFixed(1);
-    yGrid += '<line x1="'+PL+'" y1="'+ys+'" x2="'+(PL+cw)+'" y2="'+ys+'" stroke="rgba(255,255,255,.06)" stroke-width="1"/>';
-    yGrid += '<text x="'+(PL-4)+'" y="'+(+ys+3.5)+'" text-anchor="end" fill="#4b6090" font-size="9.5" font-family="monospace">'+fmtAx(v)+'</text>';
-  }
-
-  // Labels X
-  var xTicks=[0];
-  var xStep = anni<=10?2:anni<=20?5:10;
-  for(var i=xStep;i<anni;i+=xStep) xTicks.push(i);
-  xTicks.push(anni);
-  var xLab='';
-  for(var i=0;i<xTicks.length;i++){
-    var y2=xTicks[i];
-    var s2 = y2===0?'Oggi': y2===anni?y2+'a': String(y2);
-    xLab += '<text x="'+sx(y2).toFixed(1)+'" y="'+(H-3)+'" text-anchor="middle" fill="#4b6090" font-size="9.5">'+s2+'</text>';
-  }
-
-  // Linee grafico
-  var svgLines='';
-  for(var i=0;i<LINES.length;i++){
-    var l=LINES[i];
-    svgLines += '<polyline points="'+ptsFor(l.key)+'" fill="none" stroke="'+l.col+'" stroke-width="'+l.w+'" stroke-dasharray="'+l.dash+'" stroke-linecap="round" stroke-linejoin="round"/>';
-  }
+  var pts = calcPts();
+  var last = anni;
 
   // Legenda
-  var legendHTML='';
-  for(var i=0;i<LINES.length;i++){
-    var l=LINES[i];
-    legendHTML += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;background:var(--bg2);border-left:3px solid '+l.col+';border-radius:0 8px 8px 0">'
-      +'<svg width="20" height="3" style="flex-shrink:0"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="'+l.col+'" stroke-width="'+l.w+'" stroke-dasharray="'+l.dash+'"/></svg>'
+  var legHTML = '<div style="display:flex;flex-direction:column;gap:4px;margin-bottom:12px">';
+  LINES.forEach(function(l) {
+    legHTML += '<div style="display:flex;align-items:center;gap:8px;padding:7px 10px;'
+      +'border-left:3px solid '+l.col+';background:var(--bg2);border-radius:0 8px 8px 0">'
+      +'<svg width="20" height="3" style="flex-shrink:0"><line x1="0" y1="1.5" x2="20" y2="1.5" stroke="'+l.col+'" stroke-width="2.5" stroke-dasharray="'+l.dash.join(',')+'"/></svg>'
       +'<span style="flex:1;font-size:12px;font-weight:600;color:var(--text2)">'+l.nome+'</span>'
-      +'<span style="font-size:13px;font-weight:900;color:'+l.col+';font-family:monospace">'+fmt(last[l.key]||0)+'</span>'
+      +'<span style="font-size:13px;font-weight:900;color:'+l.col+';font-family:monospace">'+fmtEur(pts[l.key][last])+'</span>'
       +'</div>';
-  }
+  });
+  legHTML += '</div>';
 
-  // Tabella
-  var tabRows='';
-  for(var i=1;i<=anni;i++){
-    var pt=d[i];
-    var bg2=i%2===0?'transparent':'rgba(255,255,255,.02)';
-    tabRows += '<tr style="background:'+bg2+'">'
-      +'<td style="padding:4px 6px;text-align:center;color:var(--text3);font-weight:700">'+pt.y+'</td>'
-      +'<td style="padding:4px 6px;text-align:right;font-family:monospace">'+fmt(pt.base||0)+'</td>'
-      +'<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#3b82f6">'+fmt(pt.portafoglio)+'</td>'
-      +'<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#f59e0b">'+fmt(pt.inflazione)+'</td>'
-      +'<td style="padding:4px 6px;text-align:right;font-family:monospace;font-weight:700;color:#22d47e">'+fmt(Math.max(0,pt.potere))+'</td>'
-      +'<td style="padding:4px 6px;text-align:right;font-family:monospace;color:#f87171">'+fmt(pt.erosione)+'</td>'
-      +'</tr>';
-  }
-
-  // Tab buttons
-  var isPac = tab==='pac';
-  var tabBtns =
-    '<button onclick="setPacSim(\"tab\",\"pac\")" style="flex:1;padding:9px 8px;'
-    +'border:2px solid '+(isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
-    +'border-radius:10px;background:'+(isPac?'rgba(37,99,235,.15)':'transparent')+';'
-    +'color:'+(isPac?'var(--blue)':'var(--text3)')+';cursor:pointer;text-align:left">'
-    +'<div style="font-size:16px;font-weight:900">PAC</div>'
-    +'<div style="font-size:10px;font-weight:600;margin-top:2px">Accumulo mensile</div></button>'
-    +'<button onclick="setPacSim(\"tab\",\"pic\")" style="flex:1;padding:9px 8px;'
-    +'border:2px solid '+(!isPac?'var(--blue)':'rgba(255,255,255,.12)')+';'
-    +'border-radius:10px;background:'+(!isPac?'rgba(37,99,235,.15)':'transparent')+';'
-    +'color:'+(!isPac?'var(--blue)':'var(--text3)')+';cursor:pointer;text-align:left">'
-    +'<div style="font-size:16px;font-weight:900">PIC</div>'
-    +'<div style="font-size:10px;font-weight:600;margin-top:2px">Investimento unico</div></button>';
-
-  var inpLabel = tab==='pic' ? 'Capitale iniziale (\u20ac)' : 'Versamento mensile (\u20ac)';
-  var inpKey   = tab==='pic' ? 'capital' : 'pac';
-  var inpVal   = tab==='pic' ? (cap||'') : (pac||'');
-  var inpStep  = tab==='pic' ? 1000 : 100;
-
-  var anniBtns='';
-  var ay=[5,10,15,20,25,30];
-  for(var i=0;i<ay.length;i++){
-    var y3=ay[i], act=anni===y3;
-    anniBtns += '<button onclick="setPacSim(\"anni\",'+y3+')" style="padding:3px 10px;border-radius:20px;font-size:11px;font-weight:700;cursor:pointer;'
-      +'border:1px solid '+(act?'var(--blue)':'rgba(255,255,255,.12)')+';'
-      +'background:'+(act?'var(--blue)':'transparent')+';'
-      +'color:'+(act?'#fff':'var(--text3)')+'">'+y3+'</button>';
-  }
-
-  var graphHTML='';
-  if(!noData){
-    graphHTML =
-      '<div style="background:rgba(255,255,255,.02);border:1px solid rgba(255,255,255,.07);border-radius:12px;padding:8px 6px 2px;margin-bottom:12px">'
-      +'<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:auto;display:block;overflow:hidden">'
-      +yGrid+xLab
-      +'<line x1="'+PL+'" y1="'+(PT+ch)+'" x2="'+(PL+cw)+'" y2="'+(PT+ch)+'" stroke="rgba(255,255,255,.15)" stroke-width="1"/>'
-      +'<line x1="'+PL+'" y1="'+PT+'" x2="'+PL+'" y2="'+(PT+ch)+'" stroke="rgba(255,255,255,.1)" stroke-width="1"/>'
-      +svgLines
-      +'</svg></div>'
-      +'<div style="display:flex;flex-direction:column;gap:5px;margin-bottom:14px">'+legendHTML+'</div>'
-      +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
-        +'<div style="background:rgba(59,130,246,.08);border:1px solid rgba(59,130,246,.2);border-radius:10px;padding:10px 12px">'
-          +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Anno '+anni+'</div>'
-          +'<div style="font-size:18px;font-weight:900;color:#3b82f6;font-family:monospace">'+fmt(last.portafoglio)+'</div>'
-          +'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(tab==='pic'?'partendo da '+fmt(cap):'versato '+fmt(last.base))+'</div>'
-        +'</div>'
-        +'<div style="background:rgba(34,212,126,.08);border:1px solid rgba(34,212,126,.2);border-radius:10px;padding:10px 12px">'
-          +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Guadagno reale netto</div>'
-          +'<div style="font-size:18px;font-weight:900;color:#22d47e;font-family:monospace">'+fmt(last.potere)+'</div>'
-          +'<div style="font-size:10px;color:var(--text3);margin-top:2px">senza invest.: '+fmt(last.erosione)+'</div>'
-        +'</div>'
-      +'</div>'
-      +'<details>'
-        +'<summary style="font-size:11px;font-weight:700;color:var(--text3);cursor:pointer;padding:6px 0;text-transform:uppercase;letter-spacing:.6px">Tabella anno per anno</summary>'
-        +'<div style="overflow-x:auto;margin-top:6px;font-size:11px">'
-          +'<table style="width:100%;border-collapse:collapse;min-width:340px">'
-            +'<thead><tr style="background:rgba(255,255,255,.05)">'
-              +'<th style="padding:5px 6px;color:var(--text3);text-align:center">Anno</th>'
-              +'<th style="padding:5px 6px;color:#a78bfa;text-align:right">'+(tab==='pic'?'Capitale':'Versato')+'</th>'
-              +'<th style="padding:5px 6px;color:#3b82f6;text-align:right">Portafoglio</th>'
-              +'<th style="padding:5px 6px;color:#f59e0b;text-align:right">Inflazione</th>'
-              +'<th style="padding:5px 6px;color:#22d47e;text-align:right">Guadagno</th>'
-              +'<th style="padding:5px 6px;color:#f87171;text-align:right">Senza inv.</th>'
-            +'</tr></thead>'
-            +'<tbody>'+tabRows+'</tbody>'
-          +'</table>'
-        +'</div>'
-      +'</details>';
-  } else {
-    graphHTML = '<div style="border:1px dashed rgba(255,255,255,.1);border-radius:12px;padding:24px;text-align:center;color:var(--text3);font-size:13px">'
-      +'Inserisci '+(tab==='pic'?'il capitale iniziale':'il versamento mensile')+' per vedere la simulazione</div>';
-  }
-
-  area.innerHTML =
-    '<div style="padding:0 12px 80px">'
-    +'<div style="display:flex;gap:6px;margin-bottom:14px">'+tabBtns+'</div>'
-    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
-      +'<div>'
-        +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">'+inpLabel+'</div>'
-        +'<input type="number" class="proj-rate-inp" style="width:100%" value="'+inpVal+'" min="0" step="'+inpStep+'" inputmode="decimal" oninput="setPacSim(\"'+(tab==='pic'?'capital':'pac')+'\",this.value)">'
-      +'</div>'
-      +'<div>'
-        +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;font-weight:700;margin-bottom:3px">Rendimento % annuo</div>'
-        +'<input type="number" class="proj-rate-inp" style="width:100%" value="'+rate+'" min="0" max="25" step="0.5" inputmode="decimal" oninput="setPacSim(\"rate\",this.value)">'
-      +'</div>'
+  // KPI
+  var kpiHTML = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
+    +'<div style="background:rgba(37,99,235,.08);border:1px solid rgba(37,99,235,.2);border-radius:10px;padding:10px 12px">'
+    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Anno '+anni+'</div>'
+    +'<div style="font-size:18px;font-weight:900;color:#3b82f6;font-family:monospace">'+fmtEur(pts.portaf[last])+'</div>'
+    +'<div style="font-size:10px;color:var(--text3);margin-top:2px">'+(isPac?'versato '+fmtEur(pts.base[last]):'partendo da '+fmtEur(cap))+'</div>'
     +'</div>'
-    +'<div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:14px;align-items:center">'
-      +'<span style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.7px">Anni:</span>'
-      +anniBtns
-    +'</div>'
-    +graphHTML
-    +'</div>';
+    +'<div style="background:rgba(5,150,105,.08);border:1px solid rgba(5,150,105,.2);border-radius:10px;padding:10px 12px">'
+    +'<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">Guadagno reale</div>'
+    +'<div style="font-size:18px;font-weight:900;color:#059669;font-family:monospace">'+fmtEur(pts.potere[last])+'</div>'
+    +'<div style="font-size:10px;color:var(--text3);margin-top:2px">senza invest.: '+fmtEur(pts.erode[last])+'</div>'
+    +'</div></div>';
+
+  // Canvas per Chart.js
+  var canvasHTML = '<div style="position:relative;width:100%;height:200px;margin-bottom:16px">'
+    +'<canvas id="pac-chartjs-canvas"></canvas></div>';
+
+  area.innerHTML = '<div style="padding:0 12px 80px">' + tabHTML + inpHTML + anniHTML + legHTML + kpiHTML + canvasHTML + '</div>';
+
+  // Distruggi chart precedente se esiste
+  if (window._pacChart) { try { window._pacChart.destroy(); } catch(e){} window._pacChart = null; }
+
+  var datasets = LINES.map(function(l) {
+    return {
+      label: l.nome, data: pts[l.key],
+      borderColor: l.col,
+      backgroundColor: l.key==='portaf' ? l.col+'22' : 'transparent',
+      borderWidth: l.key==='portaf' ? 2.5 : 1.5,
+      borderDash: l.dash,
+      pointRadius: 0, tension: 0.25,
+      fill: l.key==='portaf',
+    };
+  });
+
+  var fmtAxis = function(v) {
+    if (v >= 1000000) return (v/1000000).toLocaleString('it-IT',{maximumFractionDigits:1})+' M';
+    if (v >= 1000) return (v/1000).toLocaleString('it-IT',{maximumFractionDigits:0})+'.000';
+    return Math.round(v).toString();
+  };
+
+  window._pacChart = new Chart(document.getElementById('pac-chartjs-canvas'), {
+    type: 'line',
+    data: { labels: pts.labels, datasets: datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false, animation: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: { callbacks: { label: function(c) { return ' '+c.dataset.label+': '+fmtEur(c.raw); } } }
+      },
+      scales: {
+        x: {
+          grid: { color: 'rgba(255,255,255,.07)' },
+          ticks: { color: 'rgba(255,255,255,.5)', font: { size: 11 }, maxTicksLimit: 8 }
+        },
+        y: {
+          grid: { color: 'rgba(255,255,255,.07)' },
+          beginAtZero: true,
+          ticks: {
+            color: 'rgba(255,255,255,.5)', font: { size: 11 }, maxTicksLimit: 5,
+            callback: fmtAxis
+          }
+        }
+      }
+    }
+  });
 }
+
 
 
 
@@ -6678,6 +6664,7 @@ function renderHistoryChart(ticker,th,hlds,period){
 
 
 const PAGE_GROUPS = {
+  welcome:    { pages:['welcome'],                                           single:true },
   portfolio:  { pages:['portfolio'],                                         single:true },
   operations: { pages:['operations'],                                        single:true },
   watchlist:  { pages:['watchlist'],                                         single:true },
