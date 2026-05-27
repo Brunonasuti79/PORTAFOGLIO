@@ -1430,10 +1430,48 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
         <button onclick="openModal()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 14px;cursor:pointer;color:#fff;font-size:14px;font-weight:700">+ Nuova</button>
       </div>
     </div>
+
+      <div class="tut-step">
+        <div class="tut-num">💰</div>
+        <div class="tut-content">
+          <div class="tut-title">Reddito Passivo — Cedole e Dividendi</div>
+          <div class="tut-body">
+            <p>Traccia tutto il reddito generato dal tuo portafoglio: cedole dei BTP, dividendi delle azioni e distribuzione degli ETF.</p>
+            <div class="tut-tip">
+              <strong>Cedole BTP automatiche</strong><br>
+              Se hai BTP in portafoglio con ISIN riconosciuto, l'app calcola automaticamente cedola annua lorda e netta (12,5% ritenuta), rateo maturato oggi e data del prossimo stacco.
+            </div>
+            <div class="tut-tip">
+              <strong>Registrare un dividendo o cedola</strong><br>
+              Vai su Operazioni → + Nuova → scegli DIVIDENDO o CEDOLA. Inserisci l'importo lordo e la ritenuta applicata (default 26% per azioni, 12,5% per BTP). L'app calcola il netto e traccia tutto nell'anno.
+            </div>
+            <div class="tut-tip">
+              <strong>Rateo maturato</strong><br>
+              Il rateo è la parte di cedola già maturata ma non ancora pagata. Se vendi un'obbligazione, incassi il rateo maturato dall'acquirente. La sezione Reddito Passivo mostra il rateo aggiornato ad oggi per ogni BTP.
+            </div>
+            <div class="tut-tip">
+              <strong>Tassazione cedole vs dividendi</strong><br>
+              BTP e titoli di Stato italiani: ritenuta 12,5% · Azioni e ETF: ritenuta 26% · ETF ad accumulazione: nessuna cedola (tutto reinvestito automaticamente).
+            </div>
+          </div>
+          <div class="tut-actions">
+            <button class="tut-action" onclick="showPage('reddito')">Reddito Passivo</button>
+            <button class="tut-action alt" onclick="openModal();setTimeout(()=>setOpType('cedola'),100)">+ Cedola</button>
+          </div>
+        </div>
+      </div>
     <div id="ops-list" style="margin-top:8px"></div>
   </div>
 
   <!-- CHARTS PAGE -->
+  <!-- REDDITO PASSIVO PAGE -->
+  <div id="pg-reddito" class="page">
+    <div class="ph">
+      <div class="ph-left"><div class="pt">REDDITO PASSIVO</div><div class="pt-sub">Cedole · Dividendi · Rateo</div></div>
+    </div>
+    <div id="reddito-area" style="padding:0 14px 80px"></div>
+  </div>
+
   <div id="pg-charts" class="page">
     <div class="ph"><div class="ph-left"><div class="pt">GRAFICI</div><div class="pt-sub">Analisi portafoglio</div></div></div>
     <div id="charts-area"></div>
@@ -1913,9 +1951,27 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
 <div id="modal" class="mov hidden" onclick="if(event.target.id==='modal')closeModal()">
   <div class="msh">
     <div class="mtit" id="modal-title">NUOVA OPERAZIONE</div>
-    <div class="ttog">
+    <div class="ttog" style="flex-wrap:wrap;gap:4px">
       <button class="tbtn buy active" id="tbuy" onclick="setOpType('buy')">ACQUISTO</button>
       <button class="tbtn sell" id="tsell" onclick="setOpType('sell')">VENDITA</button>
+      <button class="tbtn" id="tdiv" onclick="setOpType('dividendo')" style="background:rgba(34,197,94,.15);color:#22d47e;border-color:#22d47e">DIVIDENDO</button>
+      <button class="tbtn" id="tced" onclick="setOpType('cedola')" style="background:rgba(245,158,11,.15);color:#f59e0b;border-color:#f59e0b">CEDOLA</button>
+    </div>
+    <!-- Campi aggiuntivi per cedola/dividendo -->
+    <div id="div-ced-fields" class="fgrid hidden" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
+      <div class="fld"><label>Importo lordo (€)</label>
+        <input type="number" id="f-gross" placeholder="0.00" step="0.01" min="0" inputmode="decimal" oninput="calcDivCedTot()"></div>
+      <div class="fld"><label>Ritenuta % (default 26%)</label>
+        <input type="number" id="f-withhold" value="26" step="0.1" min="0" max="100" inputmode="decimal" oninput="calcDivCedTot()"></div>
+      <div class="fld"><label>Importo netto (€)</label>
+        <input type="number" id="f-net" placeholder="0.00" readonly style="color:var(--green)"></div>
+      <div class="fld"><label>Periodicità cedola</label>
+        <select id="f-freq">
+          <option value="2">Semestrale (BTP)</option>
+          <option value="4">Trimestrale</option>
+          <option value="1">Annuale</option>
+          <option value="12">Mensile</option>
+        </select></div>
     </div>
     <div class="fgrid">
       <div class="fld"><label>Data</label>
@@ -6685,7 +6741,7 @@ const PAGE_GROUPS = {
   portfolio:  { pages:['portfolio'],                                         single:true },
   operations: { pages:['operations'],                                        single:true },
   watchlist:  { pages:['watchlist'],                                         single:true },
-  analisi:    { pages:['charts','proj','pnl','history'], labels:['Grafici','Proiezione','P&L','Storico'] },
+  analisi:    { pages:['charts','proj','pnl','history','reddito'], labels:['Grafici','Proiezione','P&L','Storico','Reddito'] },
   pianifica:  { pages:['rebalance','pac','pac-sim'],         labels:['Ribilanciamento','PAC','Simulatore'] },
   tutorial:   { pages:['tutorial'],                                          single:true },
   gestione:   { pages:['settings','tax','backup'],          labels:['Impostazioni','Tassazione','Backup'] },
@@ -6738,6 +6794,8 @@ function showPage(pg) {
   if (pg==='rebalance') renderRebalance();
   if (pg==='proj')      renderProjection();
   if (pg==='pac-sim')   renderPACSim();
+  if (pg==='reddito')    renderReddito();
+  if (pg==='welcome')    setTimeout(initWelcomePage, 300);
   if (pg==='welcome')    setTimeout(initWelcomePage, 300);
   if (pg==='pac')       renderPAC();
   if (pg==='pnl')       renderPnL();
@@ -6834,7 +6892,27 @@ function setOpType(t) {
   opType = t;
   document.getElementById('tbuy').classList.toggle('active', t==='buy');
   document.getElementById('tsell').classList.toggle('active', t==='sell');
-  calcFTotal();
+  const tdiv = document.getElementById('tdiv'); if(tdiv) tdiv.classList.toggle('active', t==='dividendo');
+  const tced = document.getElementById('tced'); if(tced) tced.classList.toggle('active', t==='cedola');
+  const isDivCed = t==='dividendo'||t==='cedola';
+  const dcFields = document.getElementById('div-ced-fields');
+  if (dcFields) dcFields.classList.toggle('hidden', !isDivCed);
+  // Nascondi/mostra campi prezzo e quantità
+  const priceRow = document.getElementById('f-price')?.closest('.fld');
+  const qtyRow   = document.getElementById('f-qty')?.closest('.fld');
+  const commRow  = document.getElementById('f-comm')?.closest('.fld');
+  if (priceRow) priceRow.style.display = isDivCed ? 'none' : '';
+  if (qtyRow)   qtyRow.style.display   = isDivCed ? 'none' : '';
+  if (commRow)  commRow.style.display  = isDivCed ? 'none' : '';
+  if (!isDivCed) calcFTotal();
+}
+
+function calcDivCedTot() {
+  const gross = parseFloat(document.getElementById('f-gross')?.value)||0;
+  const wh    = parseFloat(document.getElementById('f-withhold')?.value)||26;
+  const net   = gross * (1 - wh/100);
+  const netEl = document.getElementById('f-net');
+  if (netEl) netEl.value = net>0 ? net.toFixed(2) : '';
 }
 
 function calcFTotal() {
@@ -6945,7 +7023,36 @@ function saveOp() {
   const comm  = parseFloat(document.getElementById('f-comm').value)||0;
   const assetClass = readCategory('f');
   if (!assetClass) return;
-  if (!date)       { alert('Inserisci la data'); return; }
+  if (!date) { alert('Inserisci la data'); return; }
+  // Per cedola/dividendo: valida gross invece di prezzo/qty
+  if (opType==='cedola'||opType==='dividendo') {
+    const gross = parseFloat(document.getElementById('f-gross')?.value)||0;
+    if (gross<=0) { alert('Inserisci l\u0027importo lordo'); return; }
+    const wh  = parseFloat(document.getElementById('f-withhold')?.value)||26;
+    const net = gross*(1-wh/100);
+    const freq= parseInt(document.getElementById('f-freq')?.value)||2;
+    const divOpData = {
+      id: editingOpId || Date.now().toString(36)+Math.random().toString(36).slice(2,6),
+      date, type: opType,
+      ticker: document.getElementById('f-ticker')?.value.trim().toUpperCase()||'',
+      displayTicker: document.getElementById('f-ticker')?.value.trim().toUpperCase()||'',
+      quoteTicker:   document.getElementById('f-quote')?.value.trim().toUpperCase()||'',
+      isin:  document.getElementById('f-isin')?.value.trim().toUpperCase()||'',
+      name:  document.getElementById('f-name')?.value.trim()||'',
+      gross, withhold:wh, net, freq,
+      note: ''
+    };
+    if (editingOpId) {
+      const idx = (S.ops||[]).findIndex(o=>o.id===editingOpId);
+      if (idx>=0) S.ops[idx]=divOpData; else S.ops.push(divOpData);
+    } else {
+      S.ops = S.ops||[];
+      S.ops.unshift(divOpData);
+    }
+    save(); closeModal(); renderAll();
+    showToast((opType==='cedola'?'✅ Cedola':'✅ Dividendo')+' di €'+net.toFixed(2)+' (netto) registrato');
+    return;
+  }
   if (!price||price<=0) { alert('Inserisci un prezzo valido'); return; }
   if (!qty||qty<=0)     { alert('Inserisci una quantità valida'); return; }
 
@@ -10297,6 +10404,215 @@ function applyIPProfile(alloc) {
   save();
   showToast('✅ Profilo applicato al ribilanciamento', 3000);
   showPage('rebalance');
+}
+
+
+// ════════════════════════════════════════════════════════════════
+//  DATABASE BTP E OBBLIGAZIONI ITALIANE
+// ════════════════════════════════════════════════════════════════
+const BTP_DB = {
+  'IT0005530032': { nome:'BTP 01/06/2032 1,65%', tasso:1.65, freq:2, scadenza:'2032-06-01', stacchi:['06-01','12-01'] },
+  'IT0005534992': { nome:'BTP 01/03/2072 2,15%', tasso:2.15, freq:2, scadenza:'2072-03-01', stacchi:['03-01','09-01'] },
+  'IT0005519787': { nome:'BTP 15/04/2025 0%',    tasso:0,    freq:2, scadenza:'2025-04-15', stacchi:['04-15','10-15'] },
+  'IT0001086567': { nome:'BTP 01/02/2033 5,75%', tasso:5.75, freq:2, scadenza:'2033-02-01', stacchi:['02-01','08-01'] },
+  'IT0005441883': { nome:'BTP 01/12/2030 0,50%', tasso:0.50, freq:2, scadenza:'2030-12-01', stacchi:['06-01','12-01'] },
+  'IT0005546643': { nome:'BTP 01/09/2052 3,25%', tasso:3.25, freq:2, scadenza:'2052-09-01', stacchi:['03-01','09-01'] },
+  'IT0005508590': { nome:'BTP 15/07/2025 0%',    tasso:0,    freq:2, scadenza:'2025-07-15', stacchi:['01-15','07-15'] },
+  'IT0005422891': { nome:'BTP 01/05/2031 0,90%', tasso:0.90, freq:2, scadenza:'2031-05-01', stacchi:['05-01','11-01'] },
+};
+
+// Calcola rateo accrued per un'obbligazione
+function calcolaRateo(isin, qty) {
+  const btp = BTP_DB[isin];
+  if (!btp || !btp.tasso) return null;
+  const today = new Date();
+  const yr = today.getFullYear();
+  // Trova stacco precedente e successivo
+  const dates = btp.stacchi.flatMap(s => [new Date(yr-1+'-'+s), new Date(yr+'-'+s), new Date(yr+1+'-'+s)]);
+  dates.sort((a,b) => a-b);
+  const lastS = dates.filter(d => d <= today).pop();
+  const nextS = dates.find(d => d > today);
+  if (!lastS || !nextS) return null;
+  const giorniPeriodo = Math.round((nextS - lastS) / 86400000);
+  const giorniPassati = Math.round((today - lastS) / 86400000);
+  const cedolaPerPeriodo = (qty * btp.tasso / 100) / btp.freq;
+  const rateo = cedolaPerPeriodo * (giorniPassati / giorniPeriodo);
+  return {
+    rateo: Math.round(rateo*100)/100,
+    lastStacco: lastS,
+    nextStacco: nextS,
+    giorniPassati,
+    giorniPeriodo,
+    cedolaLorda: Math.round(cedolaPerPeriodo*100)/100,
+    cedolaNetta: Math.round(cedolaPerPeriodo*0.875*100)/100, // 12.5% ritenuta BTP
+    nextStaccoFmt: nextS.toLocaleDateString('it-IT'),
+  };
+}
+
+// Calcola reddito annuo atteso da tutto il portafoglio
+function calcolaRedditoAnnuo() {
+  const hlds = calcPF();
+  const ops  = S.ops || [];
+  const results = [];
+  const today = new Date();
+  const thisYear = today.getFullYear();
+
+  hlds.forEach(h => {
+    if (h.ticker === '__CASH__' || h.qty <= 0) return;
+    const btp = BTP_DB[h.isin];
+    if (btp && btp.tasso > 0) {
+      // Obbligazione con cedola nota
+      const cedolaAnnuaLorda = h.qty * btp.tasso / 100;
+      const cedolaAnnuaNetta = cedolaAnnuaLorda * 0.875; // 12.5% ritenuta sui BTP
+      const rateoInfo = calcolaRateo(h.isin, h.qty);
+      results.push({
+        tipo: 'cedola',
+        ticker: h.displayTicker || h.ticker,
+        nome: btp.nome || h.name,
+        qty: h.qty,
+        tasso: btp.tasso,
+        freq: btp.freq,
+        cedolaAnnuaLorda,
+        cedolaAnnuaNetta,
+        rateo: rateoInfo,
+        scadenza: btp.scadenza,
+      });
+    }
+  });
+
+  // Dividendi e cedole già registrati nelle operazioni
+  const divCed = ops.filter(o =>
+    (o.type==='dividendo'||o.type==='cedola') &&
+    new Date(o.date).getFullYear() === thisYear
+  );
+
+  // Dividendi/cedole per ticker nell'anno corrente
+  const byTicker = {};
+  divCed.forEach(op => {
+    if (!byTicker[op.ticker]) byTicker[op.ticker] = { lordo:0, netto:0, count:0, ops:[] };
+    byTicker[op.ticker].lordo  += op.gross  || 0;
+    byTicker[op.ticker].netto  += op.net    || 0;
+    byTicker[op.ticker].count  += 1;
+    byTicker[op.ticker].ops.push(op);
+  });
+
+  return { bondResults: results, divCedByTicker: byTicker, divCedOps: divCed };
+}
+
+// ════════════════════════════════════════════════════════════════
+//  RENDER REDDITO PASSIVO
+// ════════════════════════════════════════════════════════════════
+function renderReddito() {
+  const area = document.getElementById('reddito-area');
+  if (!area) return;
+  const fmt  = v => '€ ' + Math.abs(Math.round(v)).toLocaleString('it-IT');
+  const fmtD = d => new Date(d).toLocaleDateString('it-IT');
+  const { bondResults, divCedByTicker, divCedOps } = calcolaRedditoAnnuo();
+  const today = new Date();
+
+  // KPI sommario
+  const totCedoleLorde  = bondResults.reduce((s,b) => s + b.cedolaAnnuaLorda, 0);
+  const totCedoleNette  = bondResults.reduce((s,b) => s + b.cedolaAnnuaNetta, 0);
+  const totRateo        = bondResults.reduce((s,b) => s + (b.rateo?.rateo||0), 0);
+  const incassatoAnno   = divCedOps.reduce((s,o) => s + (o.net||0), 0);
+  const totDivLordi     = Object.values(divCedByTicker).reduce((s,v)=>s+v.lordo,0);
+
+  let H = '';
+
+  // KPI cards
+  H += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">';
+  [
+    { label:'Cedole annue attese (nette)', val: totCedoleNette, col:'#f59e0b', bg:'rgba(245,158,11,.08)', bc:'rgba(245,158,11,.25)' },
+    { label:'Rateo maturato oggi',         val: totRateo,       col:'#a78bfa', bg:'rgba(167,139,250,.08)', bc:'rgba(167,139,250,.25)' },
+    { label:'Incassato anno corrente',      val: incassatoAnno,  col:'#22d47e', bg:'rgba(34,212,126,.08)', bc:'rgba(34,212,126,.25)' },
+    { label:'Dividendi lordi (anno)',       val: totDivLordi,    col:'#3b82f6', bg:'rgba(59,130,246,.08)', bc:'rgba(59,130,246,.25)' },
+  ].forEach(function(k) {
+    H += '<div style="background:'+k.bg+';border:1px solid '+k.bc+';border-radius:10px;padding:10px 12px">';
+    H += '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;margin-bottom:3px">'+k.label+'</div>';
+    H += '<div style="font-size:18px;font-weight:900;color:'+k.col+';font-family:monospace">'+fmt(k.val)+'</div>';
+    H += '</div>';
+  });
+  H += '</div>';
+
+  // ── Sezione cedole obbligazioni ────────────────────────────
+  H += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">📋 Cedole obbligazioni in portafoglio</div>';
+
+  if (bondResults.length === 0) {
+    H += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;color:var(--text3);font-size:13px;text-align:center;margin-bottom:16px">'
+      + 'Nessun BTP/obbligazione con cedola riconosciuta nel portafoglio.<br>'
+      + '<span style="font-size:11px">Aggiungi le operazioni di acquisto con ISIN corretto.</span></div>';
+  } else {
+    bondResults.forEach(function(b) {
+      const r = b.rateo;
+      H += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:14px;margin-bottom:10px">';
+      H += '<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">';
+      H += '<div><div style="font-size:13px;font-weight:700;color:var(--text)">'+b.ticker+'</div>';
+      H += '<div style="font-size:11px;color:var(--text3)">'+b.nome+'</div></div>';
+      H += '<div style="text-align:right"><div style="font-size:15px;font-weight:900;color:#f59e0b;font-family:monospace">'+b.tasso+'%</div>';
+      H += '<div style="font-size:10px;color:var(--text3)">cedola annua</div></div></div>';
+
+      // Griglia dati cedola
+      H += '<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">';
+      H += '<div style="background:rgba(245,158,11,.08);border-radius:8px;padding:8px;text-align:center">';
+      H += '<div style="font-size:9px;color:var(--text3);font-weight:700;margin-bottom:2px">CEDOLA LORDA</div>';
+      H += '<div style="font-size:14px;font-weight:900;color:#f59e0b;font-family:monospace">'+fmt(b.cedolaAnnuaLorda)+'</div>';
+      H += '<div style="font-size:9px;color:var(--text3)">annua</div></div>';
+      H += '<div style="background:rgba(34,212,126,.08);border-radius:8px;padding:8px;text-align:center">';
+      H += '<div style="font-size:9px;color:var(--text3);font-weight:700;margin-bottom:2px">CEDOLA NETTA</div>';
+      H += '<div style="font-size:14px;font-weight:900;color:#22d47e;font-family:monospace">'+fmt(b.cedolaAnnuaNetta)+'</div>';
+      H += '<div style="font-size:9px;color:var(--text3)">12,5% ritenuta</div></div>';
+      H += '<div style="background:rgba(167,139,250,.08);border-radius:8px;padding:8px;text-align:center">';
+      H += '<div style="font-size:9px;color:var(--text3);font-weight:700;margin-bottom:2px">RATEO OGGI</div>';
+      H += '<div style="font-size:14px;font-weight:900;color:#a78bfa;font-family:monospace">'+(r?fmt(r.rateo):'—')+'</div>';
+      H += '<div style="font-size:9px;color:var(--text3)">'+(r?r.giorniPassati+'/'+r.giorniPeriodo+' gg':'')+'</div></div>';
+      H += '</div>';
+
+      // Prossimo stacco
+      if (r) {
+        const daysLeft = Math.round((r.nextStacco - today) / 86400000);
+        H += '<div style="display:flex;align-items:center;gap:8px;background:rgba(59,130,246,.06);border:1px solid rgba(59,130,246,.15);border-radius:8px;padding:8px 10px">';
+        H += '<span style="font-size:16px">📅</span>';
+        H += '<span style="font-size:12px;color:var(--text2)">Prossimo stacco: <strong style="color:var(--blue)">'+r.nextStaccoFmt+'</strong> — tra '+daysLeft+' giorni</span>';
+        H += '<span style="margin-left:auto;font-size:12px;font-weight:900;color:#22d47e;font-family:monospace">'+fmt(r.cedolaNetta)+' netti</span>';
+        H += '</div>';
+      }
+      H += '</div>';
+    });
+  }
+
+  // ── Dividendi e cedole registrati ─────────────────────────
+  H += '<div style="font-size:11px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin:16px 0 8px">💰 Incassi registrati '+today.getFullYear()+'</div>';
+
+  const sorted = [...divCedOps].sort((a,b) => new Date(b.date)-new Date(a.date));
+  if (sorted.length === 0) {
+    H += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:16px;color:var(--text3);font-size:13px;text-align:center;margin-bottom:16px">'
+      + 'Nessun dividendo o cedola registrato.<br>'
+      + '<span style="font-size:11px">Usa il bottone + Nuova con tipo DIVIDENDO o CEDOLA.</span></div>';
+  } else {
+    H += '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px">';
+    sorted.forEach(function(op) {
+      const isDiv = op.type==='dividendo';
+      const col   = isDiv ? '#3b82f6' : '#f59e0b';
+      H += '<div style="display:flex;align-items:center;gap:10px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px">';
+      H += '<div style="background:'+(isDiv?'rgba(59,130,246,.15)':'rgba(245,158,11,.15)')+';border-radius:6px;padding:4px 8px;font-size:10px;font-weight:800;color:'+col+';white-space:nowrap">'
+        +(isDiv?'DIV':'CED')+'</div>';
+      H += '<div style="flex:1"><div style="font-size:13px;font-weight:700;color:var(--text)">'+op.ticker+'</div>';
+      H += '<div style="font-size:10px;color:var(--text3)">'+fmtD(op.date)+'</div></div>';
+      H += '<div style="text-align:right">';
+      H += '<div style="font-size:13px;font-weight:900;color:#22d47e;font-family:monospace">'+fmt(op.net)+'</div>';
+      H += '<div style="font-size:10px;color:var(--text3)">lordo '+fmt(op.gross)+' (−'+op.withhold+'%)</div></div>';
+      H += '</div>';
+    });
+    H += '</div>';
+  }
+
+  // ── Bottone aggiungi rapido ────────────────────────────────
+  H += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">';
+  H += '<button onclick="openModal();setTimeout(function(){setOpType(\'dividendo\');},100)" style="padding:12px;background:rgba(59,130,246,.1);border:1px solid rgba(59,130,246,.3);border-radius:12px;color:var(--blue);font-size:13px;font-weight:700;cursor:pointer">+ Dividendo</button>';
+  H += '<button onclick="openModal();setTimeout(function(){setOpType(\'cedola\');},100)" style="padding:12px;background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:12px;color:#f59e0b;font-size:13px;font-weight:700;cursor:pointer">+ Cedola</button>';
+  H += '</div>';
+
+  area.innerHTML = H;
 }
 
 function wlSetSort(key) {
