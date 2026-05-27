@@ -4562,7 +4562,7 @@ function toggleOpGroup(cat) {
 function renderOps() {
   const filterTxt = (document.getElementById('ops-search-inp')?.value||'').toLowerCase().trim();
   let ops = [...(S.ops||[])]
-    .filter(op => op.ticker !== '__CASH__')
+    .filter(op => op.ticker !== '__CASH__' && op.type !== 'cedola' && op.type !== 'dividendo')
     .sort((a,b) => b.date.localeCompare(a.date));
   if (filterTxt) ops = ops.filter(op =>
     (op.name||'').toLowerCase().includes(filterTxt) ||
@@ -6760,9 +6760,9 @@ function renderHistoryChart(ticker,th,hlds,period){
 const PAGE_GROUPS = {
   welcome:    { pages:['welcome'],                                           single:true },
   portfolio:  { pages:['portfolio'],                                         single:true },
-  operations: { pages:['operations'],                                        single:true },
+  operations: { pages:['operations','pnl'], labels:['Lista','P&L'] },
   watchlist:  { pages:['watchlist'],                                         single:true },
-  analisi:    { pages:['charts','proj','pnl','history','reddito'], labels:['Grafici','Proiezione','P&L','Storico','Reddito'] },
+  analisi:    { pages:['charts','proj','history','reddito'], labels:['Grafici','Proiezione','Storico','Reddito'] },
   pianifica:  { pages:['rebalance','pac','pac-sim'],         labels:['Ribilanciamento','PAC','Simulatore'] },
   tutorial:   { pages:['tutorial'],                                          single:true },
   gestione:   { pages:['settings','tax','backup'],          labels:['Impostazioni','Tassazione','Backup'] },
@@ -7500,8 +7500,12 @@ function renderPnL() {
           <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Imposte (${t.taxRate.toFixed(1)}%)</div>
           <div style="font-size:12px;font-weight:600;color:#f59e0b">${t.tax > 0 ? '−'+e2(t.tax) : '—'}</div>
         </div>
+        <div style="background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:6px 8px">
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Commissioni</div>
+          <div style="font-size:12px;font-weight:700;color:#f59e0b">${t.commissions > 0 ? '−'+e2(t.commissions) : '—'}</div>
+        </div>
         <div style="background:${gcB};border:1px solid ${gc}40;border-radius:8px;padding:6px 8px">
-          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Netto</div>
+          <div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.6px;margin-bottom:2px">Netto finale</div>
           <div style="font-size:13px;font-weight:900;color:${gc};font-family:monospace">${t.netTotal>=0?'+':''}${e2(t.netTotal)}</div>
         </div>
       </div>
@@ -7511,7 +7515,7 @@ function renderPnL() {
   area.innerHTML =
     '<div style="padding:0 14px 80px">'
     // KPI
-    + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">'
+    + '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">'
     + '<div style="background:'+kpiGrossBg+';border:1px solid '+kpiGrossCol+'40;border-radius:12px;padding:12px 14px">'
     +   '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.8px;margin-bottom:4px">Gain / Loss lordo</div>'
     +   '<div style="font-size:22px;font-weight:900;color:'+kpiGrossCol+';font-family:monospace">'+(totGross>=0?'+':'')+e2(totGross)+'</div>'
@@ -7524,12 +7528,9 @@ function renderPnL() {
     +   '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.8px;margin-bottom:4px">Imposte stimate</div>'
     +   '<div style="font-size:22px;font-weight:900;color:#f59e0b;font-family:monospace">−'+e2(totTax)+'</div>'
     + '</div>'
-    + '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px 14px">'
-    +   '<div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:700;letter-spacing:.8px;margin-bottom:4px">Commissioni totali</div>'
-    +   '<div style="font-size:22px;font-weight:900;color:var(--text2);font-family:monospace">−'+e2(totComm)+'</div>'
-    + '</div></div>'
+    + '</div>'
     // Nota
-    + '<div style="font-size:11px;color:var(--text3);font-style:italic;margin-bottom:14px">⚠ Imposte calcolate su plusvalenze nette commissioni. Aliquote in Impostazioni.</div>'
+    + '<div style="font-size:11px;color:var(--text3);font-style:italic;margin-bottom:14px">⚠ Gain netto = gain lordo − commissioni − imposte. Aliquote personalizzabili in Impostazioni.</div>'
     // Sort bar
     + '<div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;flex-wrap:wrap">'
     + '<span style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.6px">Ordina:</span>'
@@ -11418,15 +11419,19 @@ async function sbLoadData() {
     const remoteSavedAt = remote.savedAt || '';
     const localSavedAt  = ALL.savedAt  || '';
 
-    if (!localHasData) {
-      // Nuovo device senza dati: usa tutto il remoto
-      ALL = { ...ALL, ...remote };
-      console.log('[SB] nuovo device — caricati dati remoti');
-    } else {
-      // Device con dati locali: tieni sempre i portfolio locali
-      // Prendi dal remoto solo watchlist aggiuntiva
-      console.log('[SB] dati locali presenti — portfolio locale preservato');
+    // Supabase è la fonte di verità per chi è loggato.
+    // Il localStorage è solo una cache offline.
+    // Al login, i dati del cloud sovrascrivono sempre quelli locali.
+    const prevCloses     = ALL.officialCloses     || {};
+    const prevClosesMeta = ALL.officialClosesMeta || {};
+    ALL = { ...ALL, ...remote };
+    // Preserva solo la cache locale dei prezzi di chiusura (non è dato utente)
+    if (Object.keys(prevCloses).length > Object.keys(ALL.officialCloses||{}).length) {
+      ALL.officialCloses     = prevCloses;
+      ALL.officialClosesMeta = prevClosesMeta;
     }
+    console.log('[SB] dati caricati dal cloud (' + (remoteSavedAt||'?') + ')');
+    updateSyncBadge('ok');
 
     // Sempre: merge officialCloses e watchlist (unione)
     ALL.officialCloses     = { ...localCloses,     ...(remote.officialCloses     || {}) };
