@@ -2419,12 +2419,12 @@ function load() {
 }
 
 function save() {
-  // Timestamp locale: fondamentale per evitare che Supabase sovrascriva
-  // modifiche appena fatte (nome portafoglio, watchlist, ecc.) con dati vecchi.
   ALL.savedAt = new Date().toISOString();
   try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
   scheduleAutoGistSync('save');
-  sbScheduleSave(); // sync Supabase in background
+  // Push immediato su Supabase — nessun debounce per non perdere operazioni
+  // se l'utente chiude il browser subito dopo una vendita/acquisto
+  sbSaveNow();
 }
 
 function normalizePortfolio(pf) {
@@ -3724,10 +3724,12 @@ async function fetchPrices() {
     console.log(`[fetch] Totale: ${Date.now()-t0}ms per ${total} titoli`);
 
     const updated=[], errors=[], rejected=[], sources={};
+    // SNAPSHOT prezzi correnti prima di elaborare i risultati
+    // Garanzia: nessun ticker finisce con prezzo nullo/zero dopo il fetch
+    const _preLoopSnapshot = Object.assign({}, S.prices);
+
     for (const { h, q: _q } of rows) { let q = _q;
-      // Salva il prezzo attuale PRIMA di qualsiasi modifica
-      // Se il fetch fallisce, questo viene ripristinato alla fine del blocco
-      const _prevPrice = S.prices[h.ticker];
+      const _prevPrice = _preLoopSnapshot[h.ticker];
 
       let price = num(q?.price);
       // Fallback: se fetch live fallisce, usa ultimo officialClose dal Gist
@@ -3806,6 +3808,16 @@ async function fetchPrices() {
         if (isReasonablePrice(_prevPrice, h)) S.prices[h.ticker] = _prevPrice;
       }
     }
+
+    // GARANZIA FINALE: per ogni ticker che non ha ricevuto un prezzo valido
+    // durante questo fetch, ripristina il prezzo precedente dallo snapshot
+    hlds.forEach(h => {
+      if (!isReasonablePrice(S.prices[h.ticker], h) && isReasonablePrice(_preLoopSnapshot[h.ticker], h)) {
+        S.prices[h.ticker] = _preLoopSnapshot[h.ticker];
+        if (!errors.includes(h.displayTicker || h.ticker))
+          errors.push(h.displayTicker || h.ticker);
+      }
+    });
 
     // Aspetta che EUR/USD sia pronto (lanciato in parallelo all'inizio)
     if (_fxPromise) await _fxPromise;
@@ -11408,51 +11420,40 @@ async function sbLoadData() {
     localWl.forEach(i => { if (!wlMap.has(i.ticker)) wlMap.set(i.ticker, i); });
     const wlMerged = [...wlMap.values()];
 
-    // Strategia merge: localStorage è SEMPRE fonte primaria per i portfolio.
-    // I dati remoti sovrascrivono SOLO se localStorage è vuoto (nuovo device).
-    const localHasData = (ALL.portfolios || []).some(pf => (pf.ops || []).length > 0);
     const remoteSavedAt = remote.savedAt || '';
     const localSavedAt  = ALL.savedAt  || '';
 
-    // Merge basato su timestamp: vince sempre il più recente
-    // savedAt è aggiornato ad ogni save() — è la fonte di verità per capire chi è più aggiornato
+    // ── MERGE: vince il timestamp più recente ─────────────────────────
+    // savedAt viene aggiornato ad ogni save() su qualsiasi device.
+    // Confrontando i due timestamp capiamo quale device ha i dati più aggiornati.
     const prevCloses     = ALL.officialCloses     || {};
     const prevClosesMeta = ALL.officialClosesMeta || {};
 
-    const localHasPortfolioData = (ALL.portfolios || []).some(pf => (pf.ops || []).length > 0);
-
-    if (!localHasPortfolioData) {
-      // Nuovo device senza dati locali: usa il cloud.
+    if (!localSavedAt || (remoteSavedAt && remoteSavedAt > localSavedAt)) {
+      // ▶ Cloud più recente (o locale vuoto) → usa cloud
       ALL = { ...ALL, ...remote };
-      console.log('[SB] nuovo device — caricati dati cloud');
+      console.log('[SB] cloud più recente (' + remoteSavedAt + ' > ' + (localSavedAt||'—') + ') → caricati dati cloud');
     } else {
-      // Device con dati locali: NON sovrascrivere mai i portfolio dal cloud.
-      // Questo evita che una vendita/eliminazione locale venga "resuscitata"
-      // da un payload remoto più vecchio o sincronizzato male.
-      console.log('[SB] dati locali presenti — portfolio locale preservato, push su cloud');
-      sbSaveNow();
+      // ▶ Locale più recente (o pari) → mantieni locale, aggiorna cloud
+      console.log('[SB] locale più recente (' + localSavedAt + ' ≥ ' + remoteSavedAt + ') → push locale su cloud');
+      // Non sovrascrivere i dati locali — sono già corretti
     }
 
-    // Preserva cache prezzi locale (sempre la più completa)
-    if (Object.keys(prevCloses).length > Object.keys(ALL.officialCloses||{}).length) {
-      ALL.officialCloses     = prevCloses;
-      ALL.officialClosesMeta = prevClosesMeta;
-    }
-    updateSyncBadge('ok');
-
-    // Sempre: merge officialCloses e watchlist (unione)
-    ALL.officialCloses     = { ...localCloses,     ...(remote.officialCloses     || {}) };
-    ALL.officialClosesMeta = { ...localClosesMeta, ...(remote.officialClosesMeta || {}) };
+    // Merge officialCloses (unione: teniamo la cache più grande)
+    ALL.officialCloses     = { ...(remote.officialCloses||{}), ...prevCloses };
+    ALL.officialClosesMeta = { ...(remote.officialClosesMeta||{}), ...prevClosesMeta };
+    // Merge watchlist (unione)
     ALL.watchlist = wlMerged;
 
     ALL.portfolios.forEach(pf => normalizePortfolio(pf));
     S = ALL.portfolios.find(p => p.id === ALL.activePortfolioId) || ALL.portfolios[0];
     try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
     injectOfficialClosesToTickerHistory();
+    updateSyncBadge('ok');
 
-    // Risalva sempre su Supabase con i dati correnti (aggiorna il remoto)
+    // Push immediato su Supabase con i dati vincitori
     sbSaveNow();
-    console.log('[SB] load OK');
+    console.log('[SB] load OK — savedAt locale: ' + ALL.savedAt);
   } catch(e) {
     console.warn('[SB] load fallback to localStorage:', e.message);
     // Nessun problema — localStorage è già caricato
