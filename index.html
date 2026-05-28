@@ -537,12 +537,14 @@ html.light .ops-group-body{border-color:var(--border)}
   display:flex;flex-direction:column;overflow-y:auto;animation:su .3s cubic-bezier(.32,.72,0,1)}
 @keyframes su{from{transform:translateY(100%)}to{transform:translateY(0)}}
 .mtit{font-family:'Bebas Neue',sans-serif;font-size:24px;letter-spacing:2px;color:#fff;margin-bottom:14px}
-.ttog{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px}
-.tbtn{padding:12px;border-radius:12px;cursor:pointer;font-family:'Outfit',sans-serif;
+.ttog{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-bottom:14px}
+.tbtn{padding:8px 4px;border-radius:10px;cursor:pointer;font-family:'Outfit',sans-serif;
   font-size:14px;font-weight:600;border:2px solid var(--border2);
   background:var(--bg);color:var(--text3);transition:all .2s;-webkit-tap-highlight-color:transparent}
-.tbtn.active.buy{background:rgba(123,167,255,.15);border-color:var(--blue);color:var(--blue)}
-.tbtn.active.sell{background:rgba(245,158,11,.12);border-color:#f59e0b;color:#f59e0b}
+.tbtn.active.buy{background:rgba(59,130,246,.15);border-color:#3b82f6;color:#60a5fa}
+.tbtn.active.sell{background:rgba(251,146,60,.15);border-color:#fb923c;color:#fb923c}
+.tbtn.active.cedola{background:rgba(245,158,11,.15);border-color:#fbbf24;color:#fbbf24}
+.tbtn.active.dividendo{background:rgba(34,197,94,.15);border-color:#4ade80;color:#4ade80}
 
 /* form */
 .fgrid{display:grid;grid-template-columns:1fr 1fr;gap:11px 12px;align-content:start}
@@ -561,7 +563,7 @@ html.light .ops-group-body{border-color:var(--border)}
   position:sticky;bottom:0;background:var(--bg2);padding-bottom:4px}
 .bcanc{background:var(--bg);border:1px solid var(--border2);color:var(--text3);
   font-family:'Outfit',sans-serif;font-size:15px;font-weight:500;padding:15px;border-radius:12px;cursor:pointer}
-.bsave{background:#1a3a7a;border:none;color:#fff;
+.bsave{background:#3b82f6;border:none;color:#fff;
   font-family:'Outfit',sans-serif;font-size:15px;font-weight:600;padding:15px;border-radius:12px;cursor:pointer}
 .bsave:active{background:#1f4090}
 .bsave:disabled{opacity:.4;cursor:not-allowed}
@@ -772,6 +774,34 @@ input[type=number]{-moz-appearance:textfield}
 
 .opcard{cursor:pointer;transition:background .12s}
 .opcard:hover{background:rgba(123,167,255,.08)!important}
+.ops-filter-pills{display:flex;gap:6px;padding:8px 14px 0;flex-wrap:wrap}
+.ops-fpill{padding:4px 12px;border-radius:20px;border:1px solid var(--border2);font-size:10px;font-weight:700;cursor:pointer;background:transparent;color:var(--text3);letter-spacing:.4px}
+.ops-fpill.active{background:var(--bg2);color:var(--text);border-color:var(--blue)}
+.ops-fpill.active.incassi{background:rgba(245,158,11,.1);color:#fbbf24;border-color:#fbbf24}
+.ops-section-hdr{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:12px 14px 5px;border-bottom:1px solid var(--border)}
+.ops-kpi-bar{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 14px 4px}
+.ops-kpi{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px}
+.ops-kpi-lbl{font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
+.ops-kpi-val{font-size:15px;font-weight:900;font-family:'JetBrains Mono',monospace}
+.opcard-new{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin:4px 14px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.opcard-new.incasso-ced{border-left:2px solid #fbbf24}
+.opcard-new.incasso-div{border-left:2px solid #4ade80}
+.opcard-badge{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;font-weight:700}
+.opcard-badge.buy{background:rgba(59,130,246,.15);color:#60a5fa}
+.opcard-badge.sell{background:rgba(251,146,60,.15);color:#fb923c}
+.opcard-badge.ced{background:rgba(245,158,11,.12);color:#fbbf24}
+.opcard-badge.div{background:rgba(34,197,94,.12);color:#4ade80}
+.opcard-main{flex:1;min-width:0}
+.opcard-ticker{font-size:13px;font-weight:700;color:var(--text)}
+.opcard-sub{font-size:10px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opcard-right{text-align:right;flex-shrink:0}
+.opcard-amt{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.opcard-date{font-size:10px;color:var(--text3);margin-top:1px}
+.opcard-actions{display:flex;gap:4px;margin-left:4px}
+.opcard-btn{background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);font-size:12px;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center}
+.btp-preview{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:11px;color:var(--text2);line-height:1.8}
+.btp-preview-row{display:flex;justify-content:space-between}
+.section-divider{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:6px 0 4px;border-top:1px solid var(--border);margin-top:8px}
 .ops-search-wrap{padding:4px 14px 2px;position:relative}
 .ops-search-inp{width:100%;background:var(--bg2);border:1px solid var(--border2);border-radius:8px;padding:4px 10px 4px 28px;font-size:12px;color:var(--text);font-family:'Outfit',sans-serif}
 .ops-search-inp::placeholder{color:var(--text3)}
@@ -1921,58 +1951,91 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
 <!-- OPERATION MODAL -->
 <div id="modal" class="mov hidden" onclick="if(event.target.id==='modal')closeModal()">
   <div class="msh">
-    <div class="mtit" id="modal-title">NUOVA OPERAZIONE</div>
-    <div class="ttog" style="flex-wrap:wrap;gap:4px">
-      <button class="tbtn buy active" id="tbuy" onclick="setOpType('buy')">ACQUISTO</button>
-      <button class="tbtn sell" id="tsell" onclick="setOpType('sell')">VENDITA</button>
-      <button class="tbtn" id="tdiv" onclick="setOpType('dividendo')" style="background:rgba(34,197,94,.15);color:#22d47e;border-color:#22d47e">DIVIDENDO 📈</button>
-      <button class="tbtn" id="tced" onclick="setOpType('cedola')" style="background:rgba(245,158,11,.15);color:#f59e0b;border-color:#f59e0b">CEDOLA 🏛️</button>
+    <!-- HEADER -->
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+      <div class="mtit" id="modal-title" style="margin-bottom:0">NUOVA OPERAZIONE</div>
+      <button onclick="closeModal()" style="background:var(--bg3);border:1px solid var(--border2);border-radius:8px;width:32px;height:32px;cursor:pointer;color:var(--text3);font-size:18px;display:flex;align-items:center;justify-content:center;flex-shrink:0">×</button>
     </div>
-    <!-- Campi aggiuntivi per cedola/dividendo -->
-    <div id="div-ced-fields" class="fgrid hidden" style="border-top:1px solid var(--border);padding-top:12px;margin-top:4px">
-      <div class="fld"><label>Importo lordo (€)</label>
-        <input type="number" id="f-gross" placeholder="0.00" step="0.01" min="0" inputmode="decimal" oninput="calcDivCedTot()"></div>
-      <div class="fld"><label>Ritenuta fiscale % <span style="color:var(--text3);font-size:10px">(BTP 12,5% · Azioni 26%)</span></label>
-        <input type="number" id="f-withhold" value="26" step="0.1" min="0" max="100" inputmode="decimal" oninput="calcDivCedTot()"></div>
-      <div class="fld"><label>Importo netto (€)</label>
-        <input type="number" id="f-net" placeholder="0.00" readonly style="color:var(--green)"></div>
-      <div class="fld"><label>Periodicità cedola</label>
-        <select id="f-freq">
-          <option value="2">Semestrale (BTP)</option>
-          <option value="4">Trimestrale</option>
-          <option value="1">Annuale</option>
-          <option value="12">Mensile</option>
-        </select></div>
+
+    <!-- TYPE TABS -->
+    <div class="ttog">
+      <button class="tbtn buy active" id="tbuy" onclick="setOpType('buy')" style="font-size:11px">▲ ACQU.</button>
+      <button class="tbtn sell" id="tsell" onclick="setOpType('sell')" style="font-size:11px">▼ VEND.</button>
+      <button class="tbtn cedola" id="tced" onclick="setOpType('cedola')" style="font-size:11px">🏛 CED.</button>
+      <button class="tbtn dividendo" id="tdiv" onclick="setOpType('dividendo')" style="font-size:11px">% DIV.</button>
     </div>
-    <div class="fgrid">
+
+    <!-- BANNER PRECOMPILATO (vendita da portafoglio) -->
+    <div id="modal-prefill-banner" class="hidden" style="background:rgba(251,146,60,.08);border:1px solid rgba(251,146,60,.2);border-radius:8px;padding:6px 10px;margin-bottom:10px;font-size:11px;color:#fb923c">
+      ✓ Precompilato · modifica solo prezzo e quantità
+    </div>
+
+    <!-- CAMPI CEDOLA/DIVIDENDO -->
+    <div id="div-ced-fields" class="hidden">
+      <!-- Preview auto-calcolo BTP -->
+      <div id="btp-preview-box" class="btp-preview hidden">
+        <div class="btp-preview-row"><span>Nominale</span><span id="btp-prev-nom" style="font-weight:700">—</span></div>
+        <div class="btp-preview-row"><span>Tasso cedola</span><span id="btp-prev-tasso">—</span></div>
+        <div class="btp-preview-row"><span>Cedola lorda</span><span id="btp-prev-lorda">—</span></div>
+        <div class="btp-preview-row"><span id="btp-prev-rit-lbl">Ritenuta 12,5%</span><span id="btp-prev-rit">—</span></div>
+        <div class="btp-preview-row" style="border-top:1px solid rgba(245,158,11,.25);margin-top:4px;padding-top:4px">
+          <span style="font-weight:700;color:#fbbf24">Cedola netta</span>
+          <span id="btp-prev-netta" style="font-weight:800;font-size:14px;color:#fbbf24">—</span>
+        </div>
+      </div>
+      <div class="fgrid" style="margin-bottom:0">
+        <div class="fld"><label>Importo lordo (€)</label>
+          <input type="number" id="f-gross" placeholder="0.00" step="0.01" min="0" inputmode="decimal" oninput="calcDivCedTot()"></div>
+        <div class="fld"><label>Ritenuta % <span style="color:var(--text3);font-size:10px">(BTP 12,5% · Az. 26%)</span></label>
+          <input type="number" id="f-withhold" value="26" step="0.1" min="0" max="100" inputmode="decimal" oninput="calcDivCedTot()"></div>
+        <div class="fld"><label style="color:var(--green)">Netto in liquidità (€)</label>
+          <input type="number" id="f-net" placeholder="0.00" readonly style="color:var(--green);font-weight:700;font-size:16px"></div>
+        <div class="fld"><label>Periodicità</label>
+          <select id="f-freq">
+            <option value="2">Semestrale (BTP)</option>
+            <option value="4">Trimestrale</option>
+            <option value="1">Annuale</option>
+            <option value="12">Mensile</option>
+          </select></div>
+      </div>
+    </div>
+
+    <!-- CAMPI COMUNI -->
+    <div class="fgrid" id="modal-common-fields">
       <div class="fld"><label>Data</label>
         <input type="date" id="f-date"></div>
-      <div class="fld"><label>Ticker visibile</label>
-        <input type="text" id="f-ticker" placeholder="es. SWDA, ENI" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
+      <div class="fld"><label>Ticker</label>
+        <input type="text" id="f-ticker" placeholder="es. SWDA, META" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
       <div class="fld"><label>ISIN (opzionale)</label>
         <input type="text" id="f-isin" placeholder="es. IE00B4L5Y983" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase();autoFillFromIsin('f')"></div>
-      <div class="fld"><label>Mercato quotazione</label>
+      <div class="fld"><label>Nome titolo</label>
+        <input type="text" id="f-name" placeholder="es. iShares MSCI World"></div>
+    </div>
+
+    <!-- CAMPI SOLO ACQUISTO/VENDITA -->
+    <div id="modal-buy-sell-fields" class="fgrid">
+      <div class="section-divider" style="grid-column:1/-1">Mercato &amp; valuta</div>
+      <div class="fld"><label>Borsa di quotazione</label>
         <select id="f-market" onchange="onMarketChange('f')"></select></div>
       <div class="fld"><label>Valuta titolo</label>
         <select id="f-titleccy" onchange="onTitleCcyChange('f')">
           <option value="EUR">€ — Euro</option>
           <option value="USD">$ — Dollaro USA</option>
         </select></div>
-      <div class="fld hidden" id="f-purchccy-row"><label>Valuta acquisto</label>
+      <div class="fld hidden" id="f-purchccy-row"><label>Valuta pagamento</label>
         <select id="f-purchccy" onchange="onTitleCcyChange('f')">
-          <option value="EUR">€ — Ho pagato in euro</option>
-          <option value="USD">$ — Ho pagato in dollari</option>
+          <option value="EUR">€ — Pagato in euro</option>
+          <option value="USD">$ — Pagato in dollari</option>
         </select></div>
-      <div class="fld full hidden" id="f-fxrate-row"><label>Cambio €/$ al momento dell'acquisto</label>
+      <div class="fld full hidden" id="f-fxrate-row"><label>Cambio €/$ al momento dell'operazione</label>
         <input type="number" id="f-fxrate" placeholder="es. 1.08" step="0.0001" min="0.1" max="9" inputmode="decimal"></div>
-      <div class="fld full"><label>Simbolo prezzo (per Aggiorna)</label>
-        <input type="text" id="f-quote" placeholder="es. SWDA.MI, EHF1.DE, CD9.PA" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
-      <div class="fld full"><label>Nome titolo (opzionale)</label>
-        <input type="text" id="f-name" placeholder="es. iShares Core MSCI World"></div>
+      <div class="fld full"><label>Simbolo fetch prezzi</label>
+        <input type="text" id="f-quote" placeholder="es. SWDA.MI, META, EHF1.DE" autocapitalize="characters" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()"></div>
       <div class="fld full"><label>Categoria</label>
         <select id="f-cat" onchange="onCatChange('f')"></select></div>
-      <div class="fld full cat-custom hidden" id="f-cat-cw"><label>Nome categoria personalizzata</label>
+      <div class="fld full cat-custom hidden" id="f-cat-cw"><label>Categoria personalizzata</label>
         <input type="text" id="f-cat-custom" placeholder="es. Polizza, Fondo pensione..."></div>
+      <div class="section-divider" style="grid-column:1/-1">Prezzo &amp; quantità</div>
       <div class="fld"><label>Prezzo (<span id="f-price-ccy">€</span>)</label>
         <input type="number" id="f-price" placeholder="0.000" step="0.001" min="0" inputmode="decimal" oninput="calcFTotal()"></div>
       <div class="fld"><label>Quantità</label>
@@ -1981,9 +2044,11 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
         <input type="number" id="f-amt" placeholder="0.00" readonly></div>
       <div class="fld"><label>Commissioni (€)</label>
         <input type="number" id="f-comm" placeholder="0.00" step="0.01" min="0" value="0" inputmode="decimal" oninput="calcFTotal()"></div>
-      <div class="fld full"><label>Totale operazione (<span id="f-tot-ccy">€</span>)</label>
-        <input type="number" id="f-tot" placeholder="0.00" readonly style="font-size:17px;color:var(--blue)"></div>
+      <div class="fld full">
+        <label id="f-tot-label">Totale (<span id="f-tot-ccy">€</span>)</label>
+        <input type="number" id="f-tot" placeholder="0.00" readonly style="font-size:18px;font-weight:700;color:#60a5fa"></div>
     </div>
+
     <div class="mbtns">
       <button class="bcanc" onclick="closeModal()">Annulla</button>
       <button class="bsave" id="modal-save-btn" onclick="saveOp()">Salva</button>
@@ -4590,111 +4655,135 @@ function toggleOpGroup(cat) {
 }
 
 function renderOps() {
-  const filterTxt = (document.getElementById('ops-search-inp')?.value||'').toLowerCase().trim();
-  let ops = [...(S.ops||[])]
-    .filter(op => op.ticker !== '__CASH__' && op.type !== 'cedola' && op.type !== 'dividendo')
-    .sort((a,b) => b.date.localeCompare(a.date));
-  if (filterTxt) ops = ops.filter(op =>
-    (op.name||'').toLowerCase().includes(filterTxt) ||
-    (op.displayTicker||op.ticker||'').toLowerCase().includes(filterTxt) ||
-    (op.isin||'').toLowerCase().includes(filterTxt) ||
-    (op.assetClass||'').toLowerCase().includes(filterTxt)
-  );
-  document.getElementById('ops-sub').textContent = `${ops.length} registrat${ops.length===1?'a':'e'}`;
-  const ol = document.getElementById('ops-list');
-  // Search bar
+  var filterTxt = (document.getElementById('ops-search-inp')?.value||'').toLowerCase().trim();
+  var activeFilter = window._opsFilter || 'tutti';
+  var allOps = (S.ops||[]).filter(function(op){ return op.ticker !== '__CASH__'; });
+
+  // Applica filtro tipo
+  var titoli   = allOps.filter(function(o){ return o.type==='buy'||o.type==='sell'; });
+  var incassi  = allOps.filter(function(o){ return o.type==='cedola'||o.type==='dividendo'; });
+  var visOps   = activeFilter==='titoli' ? titoli : activeFilter==='incassi' ? incassi : allOps;
+
+  if (filterTxt) visOps = visOps.filter(function(op){
+    return (op.name||'').toLowerCase().includes(filterTxt) ||
+           (op.displayTicker||op.ticker||'').toLowerCase().includes(filterTxt) ||
+           (op.isin||'').toLowerCase().includes(filterTxt) ||
+           (op.assetClass||'').toLowerCase().includes(filterTxt);
+  });
+
+  visOps = visOps.slice().sort(function(a,b){ return b.date.localeCompare(a.date); });
+
+  var nTot = titoli.length, nInc = incassi.length;
+  document.getElementById('ops-sub').textContent = visOps.length + ' operazion' + (visOps.length===1?'e':'i');
+
+  var ol = document.getElementById('ops-list');
+
+  // ── Search bar ──────────────────────────────────────────
   if (!document.getElementById('ops-search-inp')) {
-    const sw = document.createElement('div');
-    sw.className = 'ops-search-wrap';
-    sw.innerHTML = '<span class="ops-search-icon">🔍</span><input id="ops-search-inp" class="ops-search-inp" placeholder="Cerca per nome, ticker, ISIN, categoria..." oninput="renderOps()">';
+    var sw = document.createElement('div'); sw.className = 'ops-search-wrap';
+    sw.innerHTML = '<span class="ops-search-icon">🔍</span><input id="ops-search-inp" class="ops-search-inp" placeholder="Cerca ticker, nome, ISIN..." oninput="renderOps()">';
     ol.parentElement.insertBefore(sw, ol);
   }
-  // Chart area
+
+  // ── Chart ───────────────────────────────────────────────
   if (!document.getElementById('ops-chart-area')) {
-    const ca = document.createElement('div');
-    ca.id = 'ops-chart-area';
+    var ca = document.createElement('div'); ca.id = 'ops-chart-area';
     ol.parentElement.insertBefore(ca, ol);
   }
-  try { renderOpsChart(); } catch(e) { console.warn('[OPS] chart error:', e); }
-  if (!ops.length) {
-    ol.innerHTML = `<div class="empty">Nessuna operazione.<br>Tocca <strong>+ Nuova</strong> per iniziare.</div>`;
+  try { renderOpsChart(); } catch(e) {}
+
+  // ── Filter pills ─────────────────────────────────────────
+  var pillsBar = document.getElementById('ops-pills-bar');
+  if (!pillsBar) {
+    pillsBar = document.createElement('div');
+    pillsBar.id = 'ops-pills-bar';
+    pillsBar.className = 'ops-filter-pills';
+    ol.parentElement.insertBefore(pillsBar, ol);
+  }
+  pillsBar.innerHTML =
+    '<button class="ops-fpill'+(activeFilter==='tutti'?' active':'')+'" onclick="window._opsFilter=\'tutti\';renderOps()">Tutti ('+allOps.length+')</button>'
+    +'<button class="ops-fpill'+(activeFilter==='titoli'?' active':'')+'" onclick="window._opsFilter=\'titoli\';renderOps()">Titoli ('+nTot+')</button>'
+    +'<button class="ops-fpill incassi'+(activeFilter==='incassi'?' active':'')+'" onclick="window._opsFilter=\'incassi\';renderOps()" style="'+(activeFilter==='incassi'?'background:rgba(245,158,11,.1);color:#fbbf24;border-color:#fbbf24':'')+'" >Incassi ('+nInc+')</button>';
+
+  if (!visOps.length) {
+    ol.innerHTML = '<div class="empty">Nessuna operazione.</div>';
     return;
   }
 
-  // Raggruppa per categoria
-  const groups = {};
-  ops.forEach(op => {
-    const cat = categoryOf(op) || UNCATEGORIZED;
-    if (!groups[cat]) groups[cat] = [];
-    groups[cat].push(op);
+  // ── KPI incassi (solo se filtro incassi attivo) ──────────
+  var kpiHtml = '';
+  if (activeFilter === 'incassi' && incassi.length) {
+    var totCed = incassi.filter(function(o){return o.type==='cedola';}).reduce(function(s,o){return s+(o.net||0);},0);
+    var totDiv = incassi.filter(function(o){return o.type==='dividendo';}).reduce(function(s,o){return s+(o.net||0);},0);
+    kpiHtml = '<div class="ops-kpi-bar">'
+      +'<div class="ops-kpi"><div class="ops-kpi-lbl">Cedole nette anno</div>'
+      +'<div class="ops-kpi-val" style="color:#fbbf24">'+e2(totCed)+'</div></div>'
+      +'<div class="ops-kpi"><div class="ops-kpi-lbl">Dividendi netti anno</div>'
+      +'<div class="ops-kpi-val" style="color:#4ade80">'+e2(totDiv)+'</div></div>'
+      +'</div>';
+  }
+
+  // ── Raggruppa per mese ───────────────────────────────────
+  function monthKey(dateStr) {
+    if (!dateStr) return '—';
+    var parts = dateStr.slice(0,7).split('-');
+    var d = new Date(parseInt(parts[0]), parseInt(parts[1])-1, 1);
+    return d.toLocaleDateString('it-IT',{month:'long',year:'numeric'});
+  }
+
+  var byMonth = {};
+  visOps.forEach(function(op){
+    var mk = monthKey(op.date);
+    if (!byMonth[mk]) byMonth[mk] = [];
+    byMonth[mk].push(op);
   });
 
-  // Ordina: categorie con nome, poi "Senza categoria" in fondo
-  const catOrder = Object.keys(groups).sort((a,b) => {
-    if (a === UNCATEGORIZED) return 1;
-    if (b === UNCATEGORIZED) return -1;
-    return a.localeCompare(b,'it');
-  });
+  var monthOrder = Object.keys(byMonth);
 
-  ol.innerHTML = catOrder.map(cat => {
-    const catOps = groups[cat];
-    const isOpen = expandedOpGroups.has(cat);
-    const totInv = catOps.filter(o=>o.type==='buy')
-                         .reduce((s,o)=>s+o.price*o.qty+(o.commissions||0),0);
-    const totDis = catOps.filter(o=>o.type==='sell')
-                         .reduce((s,o)=>s+o.price*o.qty-(o.commissions||0),0);
+  var opsHtml = monthOrder.map(function(mk){
+    var mOps = byMonth[mk];
+    var rows = mOps.map(function(op){
+      var isCed = op.type==='cedola', isDiv = op.type==='dividendo';
+      var isBuy = op.type==='buy', isSell = op.type==='sell';
+      var extraClass = isCed?' incasso-ced':isDiv?' incasso-div':'';
+      var badgeClass = isBuy?'buy':isSell?'sell':isCed?'ced':'div';
+      var badgeIcon  = isBuy?'▲':isSell?'▼':isCed?'🏛':'%';
+      var ticker = esc(op.displayTicker||op.ticker||'');
+      var name   = esc(op.name||'');
+      var subTxt = '';
+      if (isBuy||isSell) {
+        var ccy = op.titleCcy==='USD'?'$':'€';
+        subTxt = op.qty + ' × ' + n3(op.price) + ' ' + ccy;
+        if (op.commissions) subTxt += ' · comm. ' + n2(op.commissions) + ' €';
+      } else {
+        subTxt = isCed?'cedola netta · '+(op.withhold||12.5)+'%':'dividendo netto · '+(op.withhold||26)+'%';
+      }
+      var amtVal = isBuy||isSell ? (op.price*(op.qty||0)+(isBuy?1:-1)*(op.commissions||0)) : (op.net||0);
+      var amtColor = (isSell||isDiv||isCed) ? '#22d47e' : '#f87171';
+      var amtSign  = (isSell||isDiv||isCed) ? '+' : '−';
+      var amtStr   = amtSign + n2(Math.abs(amtVal)) + ' €';
 
-    const opRows = catOps.map((op,i) => {
-      const tot = op.price*op.qty + (op.type==='buy'?1:-1)*(op.commissions||0);
-      return `<div class="opcard">
-        <div class="otb ${op.ticker==='__CASH__'?'buy':op.type}">${op.ticker==='__CASH__'?'💶':op.type==='buy'?'▲':'▼'}</div>
-        <div class="om">
-          ${op.ticker==='__CASH__' ? `
-            <span class="otk" style="color:var(--blue)">CASH</span>
-            <span class="osep">·</span>
-            <span class="otn">${esc(op.name||'Deposito liquidità')}</span>
-            <span class="osep">·</span>
-            <span class="od">${fdate(op.date)}</span>
-            <span class="osep">·</span>
-            <span class="odet" style="color:var(--green);font-weight:700">+${e2(op.price||0)}</span>
-          ` : `
-          <span class="otk">${esc(op.displayTicker||op.ticker)}</span>
-          <span class="osep">·</span>
-          <span class="otn">${esc(op.name||'')}</span>
-          <span class="osep">·</span>
-          <span class="od">${fdate(op.date)}</span>
-          <span class="osep">·</span>
-          <span class="odet">${op.qty} × ${n3(op.price)} ${op.titleCcy==='USD'?'$':'€'}${op.commissions?` · comm. ${n2(op.commissions)} €`:''}</span>
-          `}
-          <span class="osep">·</span>
-          <span class="op-badge ${op.type}">${op.type==='buy'?'ACQUISTO':'VENDITA'}</span>
-        </div>
-        <div class="ort">
-          <div class="otot ${op.type}">${op.type==='buy'?'−':'+'}${n2(Math.abs(tot))} €</div>
-        </div>
-        <div class="obts">
-          <button class="odup"  onclick="dupOp('${op.id}')" title="Duplica">⧉</button>
-          <button class="oedit" onclick="editOp('${op.id}')">✎</button>
-          <button class="odel"  onclick="delOp('${op.id}')">×</button>
-        </div>
-      </div>`;
+      return '<div class="opcard-new'+extraClass+'">'
+        +'<div class="opcard-badge '+badgeClass+'">'+badgeIcon+'</div>'
+        +'<div class="opcard-main">'
+        +'<div class="opcard-ticker">'+ticker+'</div>'
+        +'<div class="opcard-sub">'+name+(name&&subTxt?' · ':'')+subTxt+'</div>'
+        +'</div>'
+        +'<div class="opcard-right">'
+        +'<div class="opcard-amt" style="color:'+amtColor+'">'+amtStr+'</div>'
+        +'<div class="opcard-date">'+fdate(op.date)+'</div>'
+        +'</div>'
+        +'<div class="opcard-actions">'
+        +'<button class="opcard-btn" onclick="editOp(\"'+op.id+'\")" title="Modifica">✎</button>'
+        +'<button class="opcard-btn" onclick="delOp(\"'+op.id+'\")" title="Elimina" style="color:var(--red)">×</button>'
+        +'</div>'
+        +'</div>';
     }).join('');
 
-    const metaParts = [`${catOps.length} op.`];
-    if (totInv > 0) metaParts.push(`inv. ${e2(totInv)}`);
-    if (totDis > 0) metaParts.push(`dis. ${e2(totDis)}`);
-
-    return `<div class="ops-group">
-      <div class="ops-group-hdr${isOpen?' open':''}" onclick="toggleOpGroup('${jsq(cat)}')">
-        <span class="ops-group-arrow">▶</span>
-        <span class="ops-group-name">${esc(cat)}</span>
-        <span class="ops-group-meta">${metaParts.join(' · ')}</span>
-      </div>
-      <div class="ops-group-body${isOpen?' open':''}">
-        ${opRows}
-      </div>
-    </div>`;
+    return '<div class="ops-section-hdr">'+mk+'</div>' + rows;
   }).join('');
+
+  ol.innerHTML = kpiHtml + opsHtml;
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -6876,6 +6965,8 @@ function openSellFromHolding(ticker) {
   editingOpId = null;
   setOpType('sell');
   document.getElementById('modal-title').textContent = 'VENDI — ' + (h.displayTicker || ticker);
+  const banner = document.getElementById('modal-prefill-banner');
+  if (banner) banner.classList.remove('hidden');
   document.getElementById('modal-save-btn').textContent = 'Vendi';
 
   // Precompila data = oggi
@@ -6922,7 +7013,11 @@ function openSellFromHolding(ticker) {
 }
 
 function openModal() {
-  editingOpId = null; opType = 'buy'; setOpType('buy');
+  editingOpId = null;
+  const banner = document.getElementById('modal-prefill-banner');
+  if (banner) banner.classList.add('hidden');
+  const saveBtn = document.getElementById('modal-save-btn');
+  if (saveBtn) { saveBtn.textContent = ''; delete saveBtn.dataset.custom; } opType = 'buy'; setOpType('buy');
   document.getElementById('modal-title').textContent = 'NUOVA OPERAZIONE';
   document.getElementById('modal-save-btn').textContent = 'Salva';
   document.getElementById('f-date').value = new Date().toISOString().slice(0,10);
@@ -6999,38 +7094,70 @@ function clearDupLocks() {
 
 function setOpType(t) {
   opType = t;
-  document.getElementById('tbuy').classList.toggle('active', t==='buy');
-  document.getElementById('tsell').classList.toggle('active', t==='sell');
-  const tdiv = document.getElementById('tdiv'); if(tdiv) tdiv.classList.toggle('active', t==='dividendo');
-  const tced = document.getElementById('tced'); if(tced) tced.classList.toggle('active', t==='cedola');
-  const isDivCed = t==='dividendo'||t==='cedola';
-  const dcFields = document.getElementById('div-ced-fields');
+  ['buy','sell','cedola','dividendo'].forEach(function(type) {
+    var id = type==='buy'?'tbuy':type==='sell'?'tsell':type==='cedola'?'tced':'tdiv';
+    var el = document.getElementById(id);
+    if (!el) return;
+    el.classList.toggle('active', t===type);
+  });
+  var isDivCed = t==='dividendo'||t==='cedola';
+  var dcFields = document.getElementById('div-ced-fields');
+  var buySellFields = document.getElementById('modal-buy-sell-fields');
   if (dcFields) dcFields.classList.toggle('hidden', !isDivCed);
-  // Ritenuta default: 12,5% per cedola (BTP/TdS), 26% per dividendo
+  if (buySellFields) buySellFields.style.display = isDivCed ? 'none' : '';
+  var saveBtn = document.getElementById('modal-save-btn');
+  if (saveBtn && !saveBtn.dataset.custom) {
+    var colors = {buy:'#3b82f6',sell:'#fb923c',cedola:'#d97706',dividendo:'#16a34a'};
+    saveBtn.style.background = colors[t] || '#3b82f6';
+    var labels = {buy:'Salva acquisto',sell:'Conferma vendita',cedola:'Registra cedola',dividendo:'Registra dividendo'};
+    saveBtn.textContent = labels[t] || 'Salva';
+  }
+  var totEl = document.getElementById('f-tot');
+  if (totEl) totEl.style.color = t==='sell' ? '#22d47e' : '#60a5fa';
   if (isDivCed) {
-    const whEl = document.getElementById('f-withhold');
+    var whEl = document.getElementById('f-withhold');
     if (whEl) {
       if (t === 'cedola') {
         whEl.value = 12.5;
       } else {
-        // Per dividendo: controlla ISIN — se IT (BTP) usa 12,5%, altrimenti 26%
-        const isinEl = document.getElementById('f-isin');
-        const isinVal = (isinEl?.value||'').toUpperCase().trim();
-        const isGovBond = isinVal.startsWith('IT') && BTP_DB && BTP_DB[isinVal];
+        var isinVal = (document.getElementById('f-isin')?.value||'').toUpperCase().trim();
+        var isGovBond = isinVal.startsWith('IT') && typeof BTP_DB!=='undefined' && BTP_DB[isinVal];
         whEl.value = isGovBond ? 12.5 : 26;
       }
       calcDivCedTot();
+      if (typeof updateBtpPreview==='function') updateBtpPreview();
     }
   }
-  // Nascondi/mostra campi prezzo e quantità
-  const priceRow = document.getElementById('f-price')?.closest('.fld');
-  const qtyRow   = document.getElementById('f-qty')?.closest('.fld');
-  const commRow  = document.getElementById('f-comm')?.closest('.fld');
-  if (priceRow) priceRow.style.display = isDivCed ? 'none' : '';
-  if (qtyRow)   qtyRow.style.display   = isDivCed ? 'none' : '';
-  if (commRow)  commRow.style.display  = isDivCed ? 'none' : '';
   if (!isDivCed) calcFTotal();
 }
+
+function updateBtpPreview() {
+  var isinVal = (document.getElementById('f-isin')?.value||'').toUpperCase().trim();
+  var ticker  = (document.getElementById('f-ticker')?.value||'').trim();
+  var btp = typeof BTP_DB!=='undefined' ? BTP_DB[isinVal] : null;
+  var box = document.getElementById('btp-preview-box');
+  if (!box) return;
+  if (btp && btp.tasso > 0) {
+    var hlds = calcPF();
+    var h = hlds.find(function(h){ return h.isin===isinVal || fc(h.ticker)===fc(ticker); });
+    var nominaleTot = h ? calcNominaleBTP(h) : null;
+    if (nominaleTot) {
+      var lorda = nominaleTot * btp.tasso/100 / btp.freq;
+      var rit   = parseFloat(document.getElementById('f-withhold')?.value||12.5)/100;
+      var netta = lorda * (1-rit);
+      document.getElementById('btp-prev-nom').textContent   = '€ ' + nominaleTot.toLocaleString('it-IT');
+      document.getElementById('btp-prev-tasso').textContent = btp.tasso + '%';
+      document.getElementById('btp-prev-lorda').textContent = '€ ' + lorda.toFixed(2);
+      document.getElementById('btp-prev-rit-lbl').textContent = 'Ritenuta ' + (rit*100).toFixed(1) + '%';
+      document.getElementById('btp-prev-rit').textContent   = '−€ ' + (lorda*rit).toFixed(2);
+      document.getElementById('btp-prev-netta').textContent = '€ ' + netta.toFixed(2);
+      var grossEl = document.getElementById('f-gross');
+      if (grossEl && !grossEl.value) { grossEl.value = lorda.toFixed(2); calcDivCedTot(); }
+      box.classList.remove('hidden');
+    } else { box.classList.add('hidden'); }
+  } else { box.classList.add('hidden'); }
+}
+
 
 function calcDivCedTot() {
   const gross = parseFloat(document.getElementById('f-gross')?.value)||0;
