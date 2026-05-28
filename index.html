@@ -3800,20 +3800,38 @@ async function fetchPrices() {
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
-        // Prezzo trovato ma anomalo: ripristina il precedente se valido
-        if (isReasonablePrice(_prevPrice, h)) S.prices[h.ticker] = _prevPrice;
+        if (isReasonablePrice(_prevPrice, h)) {
+          S.prices[h.ticker] = _prevPrice;
+        } else {
+          const pmc = h.avgPriceBuyCcy || h.avgPrice;
+          if (pmc && pmc > 0) S.prices[h.ticker] = pmc;
+        }
       } else {
         errors.push(h.displayTicker);
-        // Nessun prezzo trovato: ripristina il precedente se disponibile
-        if (isReasonablePrice(_prevPrice, h)) S.prices[h.ticker] = _prevPrice;
+        // Nessun prezzo trovato:
+        // 1. Ripristina il precedente se disponibile (fetch precedente)
+        // 2. Altrimenti usa il PMC come fallback minimo (mostra almeno qualcosa)
+        if (isReasonablePrice(_prevPrice, h)) {
+          S.prices[h.ticker] = _prevPrice;
+        } else {
+          const pmc = h.avgPriceBuyCcy || h.avgPrice;
+          if (pmc && pmc > 0) S.prices[h.ticker] = pmc;
+        }
       }
     }
 
     // GARANZIA FINALE: per ogni ticker che non ha ricevuto un prezzo valido
     // durante questo fetch, ripristina il prezzo precedente dallo snapshot
     hlds.forEach(h => {
-      if (!isReasonablePrice(S.prices[h.ticker], h) && isReasonablePrice(_preLoopSnapshot[h.ticker], h)) {
-        S.prices[h.ticker] = _preLoopSnapshot[h.ticker];
+      if (!isReasonablePrice(S.prices[h.ticker], h)) {
+        if (isReasonablePrice(_preLoopSnapshot[h.ticker], h)) {
+          // Ripristina snapshot pre-fetch
+          S.prices[h.ticker] = _preLoopSnapshot[h.ticker];
+        } else {
+          // Ultima ancora: usa PMC (prezzo medio di carico)
+          const pmc = h.avgPriceBuyCcy || h.avgPrice;
+          if (pmc && pmc > 0) S.prices[h.ticker] = pmc;
+        }
         if (!errors.includes(h.displayTicker || h.ticker))
           errors.push(h.displayTicker || h.ticker);
       }
@@ -9380,7 +9398,9 @@ async function renderOpsChart() {
     if (snapIdx < 0) snapIdx = pts.length - 1;
     const cx=sx(snapIdx), cy=sy(pts[snapIdx].c);
     const dotCol = op.type==='buy'?'#7ba7ff':'#f59e0b';
-    const label = (op.type==='buy'?'▲ Acq. ':'▼ Vend. ')+op.qty+' × '+(op.price||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+'€ ('+op.date+')';
+    const opCcy = op.titleCcy || op.purchCcy || th.ccy || 'EUR';
+    const opSym = opCcy === 'USD' ? '$' : opCcy === 'GBP' ? '£' : '€';
+    const label = (op.type==='buy'?'▲ Acq. ':'▼ Vend. ')+op.qty+' × '+(op.price||0).toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+opSym+' ('+op.date+')';
     svgDots += '<circle cx="'+cx.toFixed(1)+'" cy="'+cy.toFixed(1)+'" r="5" fill="'+dotCol+'" stroke="var(--bg2)" stroke-width="1.5" style="cursor:pointer"><title>'+label+'</title></circle>';
   });
 
@@ -9437,7 +9457,9 @@ async function renderOpsChart() {
       const p2 = pts[idx];
       const px = sx(idx), py = sy(p2.c);
       const d = new Date(p2.t).toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'});
-      const vTxt = p2.c.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' €';
+      const chartCcy = th.ccy || 'EUR';
+      const chartSym = chartCcy === 'USD' ? '$' : chartCcy === 'GBP' ? '£' : '€';
+      const vTxt = p2.c.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2})+' '+chartSym;
       // Box tooltip più grande
       const bw=130, bh=40;
       const boxX = Math.min(pl+cw-bw-4, Math.max(pl+4, px-bw/2));
