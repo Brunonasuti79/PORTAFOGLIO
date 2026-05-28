@@ -4665,7 +4665,11 @@ function renderOps() {
   // Applica filtro tipo
   var titoli   = allOps.filter(function(o){ return o.type==='buy'||o.type==='sell'; });
   var incassi  = allOps.filter(function(o){ return o.type==='cedola'||o.type==='dividendo'; });
-  var visOps   = activeFilter==='titoli' ? titoli : activeFilter==='incassi' ? incassi : allOps;
+  var isCatFilter = activeFilter!=='tutti' && activeFilter!=='titoli' && activeFilter!=='incassi';
+  var visOps   = activeFilter==='titoli' ? titoli
+               : activeFilter==='incassi' ? incassi
+               : isCatFilter ? titoli.filter(function(o){ return (o.assetClass||'Senza categoria')===activeFilter; })
+               : allOps;
 
   if (filterTxt) visOps = visOps.filter(function(op){
     return (op.name||'').toLowerCase().includes(filterTxt) ||
@@ -4703,10 +4707,20 @@ function renderOps() {
     pillsBar.className = 'ops-filter-pills';
     ol.parentElement.insertBefore(pillsBar, ol);
   }
+  var cats = [...new Set(titoli.map(function(o){ return o.assetClass||'Senza categoria'; }))].sort();
+  var catPills = cats.map(function(cat) {
+    var act = activeFilter === cat;
+    return '<button class="ops-fpill'+(act?' active':'')+'" '
+      +'onclick="window._opsFilter=\''+cat.replace(/'/g,'')+'\'  ;renderOps()" '
+      +'style="'+(act?'background:var(--bg2);color:var(--text);border-color:var(--blue)':'')+'">'
+      +cat+'</button>';
+  }).join('');
+
   pillsBar.innerHTML =
     '<button class="ops-fpill'+(activeFilter==='tutti'?' active':'')+'" onclick="window._opsFilter=\'tutti\';renderOps()">Tutti ('+allOps.length+')</button>'
     +'<button class="ops-fpill'+(activeFilter==='titoli'?' active':'')+'" onclick="window._opsFilter=\'titoli\';renderOps()">Titoli ('+nTot+')</button>'
-    +'<button class="ops-fpill incassi'+(activeFilter==='incassi'?' active':'')+'" onclick="window._opsFilter=\'incassi\';renderOps()" style="'+(activeFilter==='incassi'?'background:rgba(245,158,11,.1);color:#fbbf24;border-color:#fbbf24':'')+'" >Incassi ('+nInc+')</button>';
+    +'<button class="ops-fpill incassi'+(activeFilter==='incassi'?' active':'')+'" onclick="window._opsFilter=\'incassi\';renderOps()" style="'+(activeFilter==='incassi'?'background:rgba(245,158,11,.1);color:#fbbf24;border-color:#fbbf24':'')+'" >Incassi ('+nInc+')</button>'
+    + catPills;
 
   if (!visOps.length) {
     ol.innerHTML = '<div class="empty">Nessuna operazione.</div>';
@@ -4777,8 +4791,8 @@ function renderOps() {
         +'<div class="opcard-date">'+fdate(op.date)+'</div>'
         +'</div>'
         +'<div class="opcard-actions">'
-        +'<button class="opcard-btn" onclick="editOp(\"'+op.id+'\")" title="Modifica">✎</button>'
-        +'<button class="opcard-btn" onclick="delOp(\"'+op.id+'\")" title="Elimina" style="color:var(--red)">×</button>'
+        +"<button class='opcard-btn' onclick='editOp(\"'+op.id+'\")'  title='Modifica'>✎</button>"
+        +"<button class='opcard-btn' onclick='delOp(\"'+op.id+'\")' title='Elimina' style='color:var(--red)'>×</button>"
         +'</div>'
         +'</div>';
     }).join('');
