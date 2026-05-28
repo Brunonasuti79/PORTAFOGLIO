@@ -4323,174 +4323,156 @@ function toggleHolding(ticker) {
 //  PORTFOLIO — VISTA TABELLA (desktop)
 // ════════════════════════════════════════════════════════════════
 function renderPF_table() {
-  const hlds  = calcPF();
-  const fxUSD = ALL.fxRates?.EURUSD || 1.08;
-  const totalEUR = hlds.reduce((s,h) => s + (currentValueAllEUR(h)||0), 0) + (S.cashEUR||0);
-  const totInvested = hlds.reduce((s,h) => s + h.avgPrice * h.qty, 0);
-  const totGainEUR  = hlds.reduce((s,h) => { const v=currentValueAllEUR(h); return s+(v!=null?v-h.avgPrice*h.qty:0); }, 0);
-  const todayGain   = hlds.reduce((s,h) => {
-    const dc = S.dailyChanges?.[h.ticker];
-    const v  = currentValueAllEUR(h);
-    return s + (v!=null && dc ? v*(dc/100)/(1+dc/100) : 0);
-  }, 0);
-  const todayPct = totalEUR > 0 ? (todayGain / (totalEUR - todayGain)) * 100 : 0;
-  const gainPct  = totInvested > 0 ? (totGainEUR / totInvested) * 100 : 0;
+  try {
+    var hlds    = calcPF();
+    var fxUSD   = ALL.fxRates?.EURUSD || 1.08;
+    var totalEUR = hlds.reduce(function(s,h){ var v=currentValueAllEUR(h); return s+(v||0); },0) + (S.cashEUR||0);
 
-  const fmtEUR = v => (v>=0?'+':'')+Math.round(v).toLocaleString('it-IT')+' €';
-  const fmtPct = v => (v>=0?'+':'')+v.toFixed(2)+'%';
-  const col    = v => v>=0 ? '#22d47e' : '#f87171';
-  const isOpen_eu = isEUMarketOpen?.() ?? false;
-  const isOpen_us = isUSMarketOpen?.() ?? false;
+    var pl = document.getElementById('port-list');
+    if (!pl) return;
 
-  const pl = document.getElementById('port-list');
-  if (!pl) return;
+    // Svuota aree card
+    var saEl = document.getElementById('sum-area');
+    var caEl = document.getElementById('cash-area');
+    var ptEl = document.getElementById('port-tools');
+    if (saEl) saEl.innerHTML = '';
+    if (caEl) caEl.innerHTML = '';
+    if (ptEl) { ptEl.style.display='none'; ptEl.innerHTML=''; }
 
-  // In vista tabella: svuota sum-area, cash-area e port-tools
-  // così non rimane il vecchio contenuto della vista card
-  const saEl = document.getElementById('sum-area');
-  const caEl = document.getElementById('cash-area');
-  const ptEl = document.getElementById('port-tools');
-  if (saEl) saEl.innerHTML = '';
-  if (caEl) caEl.innerHTML = '';
-  if (ptEl) { ptEl.style.display = 'none'; ptEl.innerHTML = ''; }
+    var sorted = sortHoldings(hlds);
 
-  // Tabella + sidebar
-  let H = '<div style="display:flex;gap:0;padding:0 0 80px">';
+    // Header colonne con sort
+    var cols = [
+      {lbl:'Titolo',  k:'name',    al:'left'},
+      {lbl:'Qtà',     k:'qty',     al:'right'},
+      {lbl:'Valuta',  k:'',        al:'center'},
+      {lbl:'PMC',     k:'avgprice',al:'right'},
+      {lbl:'Prezzo',  k:'price',   al:'right'},
+      {lbl:'Val. €',  k:'value',   al:'right'},
+      {lbl:'Oggi %',  k:'oggi',    al:'right'},
+      {lbl:'Gain',    k:'gain',    al:'right'},
+      {lbl:'Gain %',  k:'gainpct', al:'right'},
+      {lbl:'',        k:'',        al:'right'},
+    ];
 
-  // ── Tabella ──────────────────────────────────────────────────
-  H += '<div style="flex:1;min-width:0;overflow-x:auto">';
-  H += '<table style="width:100%;border-collapse:collapse;font-family:monospace;min-width:540px">';
-  // Header con sort — usa pfSort() già esistente
-  const tblCols = [
-    {lbl:'Titolo',  key:'name',    align:'left'},
-    {lbl:'Qtà',     key:'qty',     align:'right'},
-    {lbl:'PMC',     key:'avgprice',align:'right'},
-    {lbl:'Prezzo',  key:'price',   align:'right'},
-    {lbl:'Valore €',key:'value',   align:'right'},
-    {lbl:'Oggi',    key:'oggi',    align:'right'},
-    {lbl:'Gain',    key:'gain',    align:'right'},
-    {lbl:'Peso',    key:'weight',  align:'right'},
-    {lbl:'',        key:'',        align:'right'},
-  ];
-  H += '<thead><tr style="background:var(--bg2)">';
-  tblCols.forEach(function(col,i){
-    var isSort = pfSortCol === col.key;
-    var arrow  = isSort ? (pfSortDir===1?' ▲':' ▼') : '';
-    var cursor = col.key ? 'cursor:pointer;' : '';
-    var color  = isSort ? 'color:var(--blue)' : 'color:var(--text3)';
-    var click  = col.key ? 'onclick="pfSort(\'' + col.key + '\')"' : '';
-    H += '<th '+click+' style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;'
-      + color+';'
-      +'padding:7px '+(i===0?'14':'8')+'px;text-align:'+col.align+';border-bottom:1px solid var(--border);white-space:nowrap;user-select:none;'+cursor+'">'
-      + col.lbl + arrow
-      +'</th>';
-  });
-  H += '</tr></thead><tbody>';
+    var thStyle = function(c){
+      var base = 'padding:8px '+(c.al==='left'?'14px':'10px')+';text-align:'+c.al
+        +';font-size:9px;text-transform:uppercase;letter-spacing:.6px;font-weight:700'
+        +';border-bottom:2px solid var(--border);white-space:nowrap;user-select:none';
+      var isActive = pfSortCol === c.k;
+      return base + ';color:'+(isActive?'#38bdf8':'var(--text3)')+(c.k?';cursor:pointer':'');
+    };
 
-  // Applica sort holdings (stessa funzione della vista card)
-  var visible = sortHoldings(hlds);
+    var H = '<div style="overflow-x:auto;padding:0 0 80px">';
+    H += '<table style="width:100%;border-collapse:collapse;font-size:12px;min-width:700px">';
 
-  visible.forEach(h => {
-    const curP   = S.prices?.[h.ticker];
-    const valEUR = currentValueAllEUR(h);
-    const gain   = valEUR!=null ? valEUR - h.avgPrice*h.qty : null;
-    const gainP  = gain!=null && h.avgPrice*h.qty > 0 ? gain/(h.avgPrice*h.qty)*100 : null;
-    const dc     = S.dailyChanges?.[h.ticker];
-    const peso   = totalEUR > 0 && valEUR!=null ? (valEUR/totalEUR*100).toFixed(1)+'%' : '—';
-    const isUSD  = h.titleCcy==='USD';
-    const mktOpen= isUSD ? isOpen_us : isOpen_eu;
-    const dotC   = mktOpen ? '#22d47e' : '#f59e0b';
-    const pmcStr = isUSD ? n2(h.avgPriceBuyCcy||h.avgPrice)+' $' : n2(h.avgPrice)+' €';
-    const priceStr = curP ? (isUSD ? n2(curP)+' $' : n2(curP)+' €') : '—';
-    const n3loc  = v => v!=null ? v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-
-    H += '<tr style="border-bottom:1px solid rgba(30,41,59,.5)" onmouseover="this.style.background=\'var(--bg2)\'" onmouseout="this.style.background=\'\'">';
-    H += '<td style="padding:8px 14px;text-align:left">'
-      +'<div style="display:flex;align-items:center;gap:6px">'
-      +'<span style="width:7px;height:7px;border-radius:50%;background:'+dotC+';flex-shrink:0;display:inline-block"></span>'
-      +'<span style="font-size:13px;font-weight:800;color:var(--text)">'+esc(h.displayTicker||h.ticker)+'</span>'
-      +(isUSD?'<span style="font-size:9px;font-weight:700;background:var(--bg3);color:var(--text3);border-radius:4px;padding:1px 5px">USD</span>':'')
-      +'</div>'
-      +'<div style="font-size:10px;color:var(--text3);margin-top:2px;margin-left:13px">'+esc(h.name||'')+'</div>'
-      +'</td>';
-    H += '<td style="padding:8px;text-align:right;font-size:12px;color:var(--text2)">'+n3loc(h.qty)+'</td>';
-    H += '<td style="padding:8px;text-align:right;font-size:11px;color:var(--text3)">'+pmcStr+'</td>';
-    H += '<td style="padding:8px;text-align:right;font-size:12px;color:var(--text2)">'+priceStr+'</td>';
-    H += '<td style="padding:8px;text-align:right;font-size:13px;font-weight:700;color:var(--text)">'+(valEUR!=null?Math.round(valEUR).toLocaleString('it-IT')+' €':'—')+'</td>';
-    H += '<td style="padding:8px;text-align:right">'+(dc!=null?'<span style="background:'+(dc>=0?'rgba(34,212,126,.1)':'rgba(248,113,113,.1)')+';color:'+(dc>=0?'#22d47e':'#f87171')+';border-radius:20px;padding:2px 7px;font-size:10px;font-weight:700">'+(dc>=0?'+':'')+dc.toFixed(2)+'%</span>':'<span style="color:var(--text3);font-size:11px">—</span>')+'</td>';
-    H += '<td style="padding:8px;text-align:right;font-size:12px;font-weight:700;color:'+(gain!=null?col(gain):'var(--text3)')+'">'+(gain!=null?fmtEUR(gain)+'<br><span style="font-size:10px;opacity:.8">'+(gainP!=null?fmtPct(gainP):'')+'</span>':'—')+'</td>';
-    H += '<td style="padding:8px;text-align:right;font-size:11px;color:var(--text3)">'+peso+'</td>';
-    H += '<td style="padding:8px;text-align:right"><button data-tk="'+jsq(h.ticker)+'" class="tbl-vendi-btn" style="background:transparent;border:1px solid rgba(56,189,248,.4);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:500;color:#38bdf8;cursor:pointer">VENDI</button></td>';
-    H += '</tr>';
-  });
-
-  // Footer totali
-  H += '<tr style="border-top:2px solid var(--border)">';
-  H += '<td colspan="4" style="padding:9px 14px;font-size:10px;color:var(--text3);font-family:sans-serif">Liquidità € '+Math.round(S.cashEUR||0).toLocaleString('it-IT')
-    +(fxUSD?' &nbsp;·&nbsp; EUR/USD '+fxUSD.toFixed(3):'')+'</td>';
-  H += '<td style="padding:9px 8px;text-align:right;font-size:14px;font-weight:700;color:var(--text)">'+Math.round(totalEUR).toLocaleString('it-IT')+' €</td>';
-  H += '<td style="padding:9px 8px;text-align:right;font-size:12px;font-weight:700;color:'+col(todayGain)+'">'+fmtEUR(todayGain)+'</td>';
-  H += '<td style="padding:9px 8px;text-align:right;font-size:12px;font-weight:700;color:'+col(totGainEUR)+'">'+fmtEUR(totGainEUR)+'<br><span style="font-size:10px">'+fmtPct(gainPct)+'</span></td>';
-  H += '<td colspan="2"></td></tr>';
-  H += '</tbody></table></div>';
-
-  // ── Sidebar ──────────────────────────────────────────────────
-  H += '<div style="width:200px;flex-shrink:0;border-left:1px solid var(--border);padding:12px">';
-
-  // Andamento settimana
-  H += '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Settimana</div>';
-  const weekHlds = hlds.filter(h => S.dailyChanges?.[h.ticker] != null).slice(0,6);
-  if (weekHlds.length) {
-    const maxAbs = Math.max(...weekHlds.map(h => Math.abs(S.dailyChanges?.[h.ticker]||0)), 0.1);
-    weekHlds.forEach(h => {
-      const dc = S.dailyChanges?.[h.ticker]||0;
-      const w  = Math.min(100, Math.abs(dc)/maxAbs*90+10);
-      H += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
-        +'<span style="font-size:10px;font-weight:700;color:var(--text2);min-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(h.displayTicker||h.ticker)+'</span>'
-        +'<div style="flex:1;height:4px;background:var(--bg3);border-radius:2px">'
-        +'<div style="width:'+w+'%;height:4px;border-radius:2px;background:'+(dc>=0?'#22d47e':'#f87171')+'"></div></div>'
-        +'<span style="font-size:10px;font-weight:700;color:'+(dc>=0?'#22d47e':'#f87171')+';min-width:40px;text-align:right">'+(dc>=0?'+':'')+dc.toFixed(1)+'%</span>'
-        +'</div>';
+    // THEAD
+    H += '<thead><tr style="background:#111827">';
+    cols.forEach(function(c){
+      var arrow = pfSortCol===c.k ? (pfSortDir===1?' ▲':' ▼') : '';
+      var onclick = c.k ? ' onclick="pfSort(\''+c.k+'\')"' : '';
+      H += '<th'+onclick+' style="'+thStyle(c)+'">'+c.lbl+arrow+'</th>';
     });
-  } else {
-    H += '<div style="font-size:10px;color:var(--text3)">Aggiorna per vedere</div>';
+    H += '</tr></thead><tbody>';
+
+    // RIGHE
+    sorted.forEach(function(h){
+      var curP   = S.prices?.[h.ticker];
+      var valEUR = currentValueAllEUR(h);
+      var cost   = h.avgPrice * h.qty;
+      var gain   = valEUR!=null ? valEUR - cost : null;
+      var gainP  = gain!=null && cost>0 ? gain/cost*100 : null;
+      var dc     = S.dailyChanges?.[h.ticker];
+      var dcPct  = dc?.pct ?? dc ?? null;
+      var isUSD  = h.titleCcy==='USD';
+      var peso   = totalEUR>0 && valEUR!=null ? (valEUR/totalEUR*100).toFixed(1)+'%' : '—';
+      var gcol   = gain!=null ? (gain>=0?'#22d47e':'#f87171') : 'var(--text3)';
+      var dcol   = dcPct!=null ? (dcPct>=0?'#22d47e':'#f87171') : 'var(--text3)';
+      var n2l    = function(v){ return v!=null?v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}):'—'; };
+
+      var isOpen = isUSD ? isUSMarketOpen?.()??false : isEUMarketOpen?.()??false;
+
+      H += '<tr style="border-bottom:1px solid rgba(255,255,255,.05)" '
+        +'onmouseover="this.style.background=\'rgba(255,255,255,.03)\'" '
+        +'onmouseout="this.style.background=\'\'">';
+
+      // Titolo
+      H += '<td style="padding:9px 14px;text-align:left">'
+        +'<div style="display:flex;align-items:center;gap:6px">'
+        +'<span style="width:7px;height:7px;border-radius:50%;background:'+(isOpen?'#22d47e':'#f59e0b')+';flex-shrink:0"></span>'
+        +'<span style="font-size:13px;font-weight:800;color:var(--text)">'+esc(h.displayTicker||h.ticker)+'</span>'
+        +'</div>'
+        +'<div style="font-size:10px;color:var(--text3);margin-top:1px;padding-left:13px">'+esc(h.name||'')+'</div>'
+        +'</td>';
+
+      // Qtà
+      H += '<td style="padding:9px 10px;text-align:right;color:var(--text2)">'+n2l(h.qty)+'</td>';
+
+      // Valuta badge
+      H += '<td style="padding:9px 10px;text-align:center">'
+        +'<span style="font-size:9px;font-weight:700;background:var(--bg3);color:'+(isUSD?'#fbbf24':'#60a5fa')+';border-radius:4px;padding:2px 6px">'
+        +(isUSD?'USD':'EUR')+'</span></td>';
+
+      // PMC
+      H += '<td style="padding:9px 10px;text-align:right;color:var(--text3);font-family:monospace">'+n2l(h.avgPriceBuyCcy||h.avgPrice)+(isUSD?' $':' €')+'</td>';
+
+      // Prezzo
+      H += '<td style="padding:9px 10px;text-align:right;color:var(--text2);font-family:monospace">'+(curP?n2l(curP)+(isUSD?' $':' €'):'—')+'</td>';
+
+      // Valore EUR
+      H += '<td style="padding:9px 10px;text-align:right;font-weight:700;color:var(--text);font-family:monospace">'+(valEUR!=null?Math.round(valEUR).toLocaleString('it-IT')+' €':'—')+'</td>';
+
+      // Oggi %
+      H += '<td style="padding:9px 10px;text-align:right">'
+        +(dcPct!=null
+          ?'<span style="background:'+(dcPct>=0?'rgba(34,212,126,.1)':'rgba(248,113,113,.1)')
+            +';color:'+dcol+';border-radius:20px;padding:2px 8px;font-size:11px;font-weight:700">'
+            +(dcPct>=0?'+':'')+Number(dcPct).toFixed(2)+'%</span>'
+          :'<span style="color:var(--text3)">—</span>')
+        +'</td>';
+
+      // Gain €
+      H += '<td style="padding:9px 10px;text-align:right;font-weight:700;color:'+gcol+';font-family:monospace">'
+        +(gain!=null?(gain>=0?'+':'')+Math.round(gain).toLocaleString('it-IT')+' €':'—')+'</td>';
+
+      // Gain %
+      H += '<td style="padding:9px 10px;text-align:right;font-weight:700;color:'+gcol+'">'
+        +(gainP!=null?(gainP>=0?'+':'')+gainP.toFixed(2)+'%':'—')+'</td>';
+
+      // Bottone VENDI
+      H += '<td style="padding:9px 10px;text-align:right">'
+        +'<button data-tk="'+jsq(h.ticker)+'" class="tbl-vendi-btn" '
+        +'style="background:transparent;border:1px solid rgba(56,189,248,.4);border-radius:6px;padding:3px 9px;font-size:10px;font-weight:500;color:#38bdf8;cursor:pointer">VENDI</button>'
+        +'</td>';
+
+      H += '</tr>';
+    });
+
+    // FOOTER
+    var totGain = hlds.reduce(function(s,h){ var v=currentValueAllEUR(h),c=h.avgPrice*h.qty; return s+(v!=null?v-c:0); },0);
+    var totCost = hlds.reduce(function(s,h){ return s+h.avgPrice*h.qty; },0);
+    var totPct  = totCost>0 ? totGain/totCost*100 : 0;
+    H += '<tr style="border-top:2px solid var(--border);background:rgba(255,255,255,.02)">';
+    H += '<td colspan="3" style="padding:10px 14px;font-size:11px;color:var(--text3)">Liquidità: <strong style="color:#38bdf8">€ '+Math.round(S.cashEUR||0).toLocaleString('it-IT')+'</strong>'+(fxUSD?'  ·  EUR/USD '+fxUSD.toFixed(3):'')+'</td>';
+    H += '<td colspan="2" style="padding:10px;text-align:right;font-size:11px;color:var(--text3)">Totale investito</td>';
+    H += '<td style="padding:10px;text-align:right;font-size:14px;font-weight:900;color:var(--text);font-family:monospace">'+Math.round(totalEUR).toLocaleString('it-IT')+' €</td>';
+    H += '<td></td>';
+    H += '<td style="padding:10px;text-align:right;font-size:13px;font-weight:900;color:'+(totGain>=0?'#22d47e':'#f87171')+';font-family:monospace">'+(totGain>=0?'+':'')+Math.round(totGain).toLocaleString('it-IT')+' €</td>';
+    H += '<td style="padding:10px;text-align:right;font-size:13px;font-weight:700;color:'+(totPct>=0?'#22d47e':'#f87171')+'">'+(totPct>=0?'+':'')+totPct.toFixed(2)+'%</td>';
+    H += '<td></td></tr>';
+
+    H += '</tbody></table></div>';
+
+    pl.innerHTML = H;
+    pl.querySelectorAll('.tbl-vendi-btn').forEach(function(btn){
+      btn.addEventListener('click', function(){ openSellFromHolding(this.dataset.tk); });
+    });
+
+  } catch(err) {
+    console.error('[TABLE VIEW]', err);
+    var pl2 = document.getElementById('port-list');
+    if (pl2) pl2.innerHTML = '<div style="padding:20px;color:#f87171;font-size:12px">Errore vista tabella: '+err.message+'</div>';
   }
-
-  // Sparkline (primo holding)
-  const spark = hlds.find(h => S.sparkline?.[h.ticker]?.length > 2);
-  if (spark) {
-    const pts = S.sparkline[spark.ticker];
-    const mn=Math.min(...pts),mx=Math.max(...pts),rng=mx-mn||1;
-    const W=176,H2=48;
-    const svgPts = pts.map((v,i)=> (i/(pts.length-1)*W).toFixed(1)+','+(H2*(1-(v-mn)/rng)).toFixed(1) ).join(' ');
-    const spCol = pts[pts.length-1]>=pts[0]?'#22d47e':'#f87171';
-    H += '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 6px">Grafico</div>';
-    H += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 8px">'
-      +'<div style="font-size:10px;font-weight:700;color:var(--text2);margin-bottom:4px">'+esc(spark.displayTicker||spark.ticker)+'</div>'
-      +'<svg viewBox="0 0 '+W+' '+H2+'" style="width:100%;height:'+H2+'px">'
-      +'<polyline points="'+svgPts+'" fill="none" stroke="'+spCol+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
-      +'</svg>'
-      +'<div style="font-size:9px;color:var(--text3);text-align:center;margin-top:2px">ultima settimana</div>'
-      +'</div>';
-  }
-
-  // FX rate
-  if (hlds.some(h=>h.titleCcy==='USD') && fxUSD) {
-    H += '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 6px">Cambi</div>';
-    H += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px">';
-    H += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:var(--text3)">EUR/USD</span><span style="font-size:11px;font-weight:700;font-family:monospace;color:var(--text2)">'+fxUSD.toFixed(3)+'</span></div>';
-    H += '<div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--text3)">Esp. USD</span><span style="font-size:11px;font-weight:700;color:#fbbf24">'+(hlds.filter(h=>h.titleCcy==='USD').reduce((s,h)=>s+(currentValueAllEUR(h)||0),0)/totalEUR*100).toFixed(1)+'%</span></div>';
-    H += '</div>';
-  }
-
-  H += '</div>'; // fine sidebar
-  H += '</div>'; // fine flex wrap
-
-  pl.innerHTML = H;
-  // Event delegation per bottoni VENDI nella tabella
-  pl.querySelectorAll('.tbl-vendi-btn').forEach(function(btn){
-    btn.addEventListener('click', function(){ openSellFromHolding(this.dataset.tk); });
-  });
 }
 
 function renderPF() {
