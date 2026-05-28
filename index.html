@@ -3863,39 +3863,26 @@ async function fetchPrices() {
         };
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
+        // Prezzo trovato ma fuori range: mantieni il precedente
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
-        if (isReasonablePrice(_prevPrice, h)) {
-          S.prices[h.ticker] = _prevPrice;
-        } else {
-          const pmc = h.avgPriceBuyCcy || h.avgPrice;
-          if (pmc && pmc > 0) S.prices[h.ticker] = pmc;
-        }
+        if (isReasonablePrice(_prevPrice, h)) S.prices[h.ticker] = _prevPrice;
+        // altrimenti lascia invariato — non toccare mai con PMC
       } else {
+        // Fetch fallito: mantieni il precedente
         errors.push(h.displayTicker);
-        // Nessun prezzo trovato:
-        // 1. Ripristina il precedente se disponibile (fetch precedente)
-        // 2. Altrimenti usa il PMC come fallback minimo (mostra almeno qualcosa)
-        if (isReasonablePrice(_prevPrice, h)) {
-          S.prices[h.ticker] = _prevPrice;
-        } else {
-          const pmc = h.avgPriceBuyCcy || h.avgPrice;
-          if (pmc && pmc > 0) S.prices[h.ticker] = pmc;
-        }
+        if (isReasonablePrice(_prevPrice, h)) S.prices[h.ticker] = _prevPrice;
+        // altrimenti lascia invariato — non toccare mai con PMC
       }
     }
 
-    // GARANZIA FINALE: per ogni ticker che non ha ricevuto un prezzo valido
-    // durante questo fetch, ripristina il prezzo precedente dallo snapshot
+    // GARANZIA FINALE — solo snapshot, MAI PMC
+    // Il PMC causa guadagni apparenti a 0 e valori in valuta sbagliata per titoli USD
     hlds.forEach(h => {
       if (!isReasonablePrice(S.prices[h.ticker], h)) {
         if (isReasonablePrice(_preLoopSnapshot[h.ticker], h)) {
-          // Ripristina snapshot pre-fetch
           S.prices[h.ticker] = _preLoopSnapshot[h.ticker];
-        } else {
-          // Ultima ancora: usa PMC (prezzo medio di carico)
-          const pmc = h.avgPriceBuyCcy || h.avgPrice;
-          if (pmc && pmc > 0) S.prices[h.ticker] = pmc;
         }
+        // Se snapshot nullo: lascia null → il portafoglio mostra "—" invece di valori falsi
         if (!errors.includes(h.displayTicker || h.ticker))
           errors.push(h.displayTicker || h.ticker);
       }
@@ -4791,8 +4778,9 @@ function renderOps() {
         +'<div class="opcard-date">'+fdate(op.date)+'</div>'
         +'</div>'
         +'<div class="opcard-actions">'
-        +"<button class='opcard-btn' onclick='editOp(\"'+op.id+'\")'  title='Modifica'>✎</button>"
-        +"<button class='opcard-btn' onclick='delOp(\"'+op.id+'\")' title='Elimina' style='color:var(--red)'>×</button>"
+        +'<button class="opcard-btn op-dup-btn" data-opid="'+op.id+'" title="Duplica">⧉</button>'
+        +'<button class="opcard-btn op-edit-btn" data-opid="'+op.id+'" title="Modifica">✎</button>'
+        +'<button class="opcard-btn op-del-btn" data-opid="'+op.id+'" title="Elimina" style="color:var(--red)">×</button>'
         +'</div>'
         +'</div>';
     }).join('');
@@ -4801,6 +4789,16 @@ function renderOps() {
   }).join('');
 
   ol.innerHTML = kpiHtml + opsHtml;
+
+  // Event delegation — evita problemi di escaping nei onclick
+  ol.addEventListener('click', function handler(e) {
+    var editBtn = e.target.closest('.op-edit-btn');
+    var dupBtn  = e.target.closest('.op-dup-btn');
+    var delBtn  = e.target.closest('.op-del-btn');
+    if (editBtn) { e.stopPropagation(); editOp(editBtn.dataset.opid); }
+    if (dupBtn)  { e.stopPropagation(); dupOp(dupBtn.dataset.opid); }
+    if (delBtn)  { e.stopPropagation(); delOp(delBtn.dataset.opid); }
+  }, { once: false });
 }
 
 // ════════════════════════════════════════════════════════════════
