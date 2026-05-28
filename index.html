@@ -4345,20 +4345,52 @@ function renderPF_table() {
   const pl = document.getElementById('port-list');
   if (!pl) return;
 
+  // In vista tabella: svuota sum-area, cash-area e port-tools
+  // così non rimane il vecchio contenuto della vista card
+  const saEl = document.getElementById('sum-area');
+  const caEl = document.getElementById('cash-area');
+  const ptEl = document.getElementById('port-tools');
+  if (saEl) saEl.innerHTML = '';
+  if (caEl) caEl.innerHTML = '';
+  if (ptEl) { ptEl.style.display = 'none'; ptEl.innerHTML = ''; }
+
   // Tabella + sidebar
   let H = '<div style="display:flex;gap:0;padding:0 0 80px">';
 
   // ── Tabella ──────────────────────────────────────────────────
   H += '<div style="flex:1;min-width:0;overflow-x:auto">';
   H += '<table style="width:100%;border-collapse:collapse;font-family:monospace;min-width:540px">';
+  // Header con sort — usa pfSort() già esistente
+  const tblCols = [
+    {lbl:'Titolo',  key:'name',    align:'left'},
+    {lbl:'Qtà',     key:'qty',     align:'right'},
+    {lbl:'PMC',     key:'avgprice',align:'right'},
+    {lbl:'Prezzo',  key:'price',   align:'right'},
+    {lbl:'Valore €',key:'value',   align:'right'},
+    {lbl:'Oggi',    key:'oggi',    align:'right'},
+    {lbl:'Gain',    key:'gain',    align:'right'},
+    {lbl:'Peso',    key:'weight',  align:'right'},
+    {lbl:'',        key:'',        align:'right'},
+  ];
   H += '<thead><tr style="background:var(--bg2)">';
-  ['Titolo','Qtà','PMC','Prezzo','Valore €','Oggi','Gain','Peso',''].forEach((lbl,i) => {
-    H += '<th style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.6px;'
-      +'padding:7px '+(i===0?'14':'8')+'px;text-align:'+(i===0?'left':'right')+';border-bottom:1px solid var(--border);white-space:nowrap">'+lbl+'</th>';
+  tblCols.forEach(function(col,i){
+    var isSort = pfSortCol === col.key;
+    var arrow  = isSort ? (pfSortDir===1?' ▲':' ▼') : '';
+    var cursor = col.key ? 'cursor:pointer;' : '';
+    var color  = isSort ? 'color:var(--blue)' : 'color:var(--text3)';
+    var click  = col.key ? 'onclick="pfSort(\'' + col.key + '\')"' : '';
+    H += '<th '+click+' style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;'
+      + color+';'
+      +'padding:7px '+(i===0?'14':'8')+'px;text-align:'+col.align+';border-bottom:1px solid var(--border);white-space:nowrap;user-select:none;'+cursor+'">'
+      + col.lbl + arrow
+      +'</th>';
   });
   H += '</tr></thead><tbody>';
 
-  hlds.forEach(h => {
+  // Applica sort holdings (stessa funzione della vista card)
+  var visible = sortHoldings(hlds);
+
+  visible.forEach(h => {
     const curP   = S.prices?.[h.ticker];
     const valEUR = currentValueAllEUR(h);
     const gain   = valEUR!=null ? valEUR - h.avgPrice*h.qty : null;
