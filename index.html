@@ -1197,6 +1197,7 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
             <div style="width:6px;height:6px;border-radius:50%;background:#1fe07e;flex-shrink:0"></div>
             <span id="lupd">—</span>
           </div>
+          <button id="pf-view-toggle" onclick="togglePfView()" title="Cambia vista" style="background:none;border:0.5px solid rgba(56,189,248,.4);border-radius:8px;padding:6px 10px;cursor:pointer;color:#38bdf8;font-size:12px;font-weight:700;line-height:1;letter-spacing:.3px">≡</button>
           <button onclick="sbLogout()" title="Logout" style="background:none;border:0.5px solid rgba(255,59,59,.7);border-radius:8px;padding:6px 8px;cursor:pointer;color:#ff3b3b;font-size:14px;line-height:1">⏻</button>
           <button id="theme-btn" onclick="toggleTheme()" class="theme-toggle" style="background:none;border:0.5px solid rgba(255,255,255,.2);border-radius:8px;padding:6px 9px;cursor:pointer;color:rgba(255,255,255,.7);font-size:13px;line-height:1">🌙</button>
           <button id="btn-ref" onclick="fetchPrices()" style="background:none;border:0.5px solid rgba(255,255,255,.3);border-radius:8px;padding:6px 13px;cursor:pointer;color:#fff;font-size:14px;font-weight:700;line-height:1">⟳</button>
@@ -2413,6 +2414,17 @@ let ALL = { portfolios:[], activePortfolioId:null, settings:{ak:'',anthropicKey:
 let S = null; // active portfolio shortcut
 let busy = false;
 let opType = 'buy';
+let _pfViewMode = 'card'; // 'card' | 'table'
+
+function togglePfView() {
+  _pfViewMode = _pfViewMode === 'card' ? 'table' : 'card';
+  const btn = document.getElementById('pf-view-toggle');
+  if (btn) {
+    btn.textContent = _pfViewMode === 'table' ? '⊞' : '≡';
+    btn.style.background = _pfViewMode === 'table' ? 'rgba(56,189,248,.15)' : 'none';
+  }
+  renderPF();
+}
 let editingOpId = null;
 let expandedHoldings = {};
 let pfFilterCategory = 'Tutte';
@@ -4307,7 +4319,153 @@ function toggleHolding(ticker) {
   renderPF();
 }
 
+// ════════════════════════════════════════════════════════════════
+//  PORTFOLIO — VISTA TABELLA (desktop)
+// ════════════════════════════════════════════════════════════════
+function renderPF_table() {
+  const hlds  = calcPF();
+  const fxUSD = ALL.fxRates?.EURUSD || 1.08;
+  const totalEUR = hlds.reduce((s,h) => s + (currentValueAllEUR(h)||0), 0) + (S.cashEUR||0);
+  const totInvested = hlds.reduce((s,h) => s + h.avgPrice * h.qty, 0);
+  const totGainEUR  = hlds.reduce((s,h) => { const v=currentValueAllEUR(h); return s+(v!=null?v-h.avgPrice*h.qty:0); }, 0);
+  const todayGain   = hlds.reduce((s,h) => {
+    const dc = S.dailyChanges?.[h.ticker];
+    const v  = currentValueAllEUR(h);
+    return s + (v!=null && dc ? v*(dc/100)/(1+dc/100) : 0);
+  }, 0);
+  const todayPct = totalEUR > 0 ? (todayGain / (totalEUR - todayGain)) * 100 : 0;
+  const gainPct  = totInvested > 0 ? (totGainEUR / totInvested) * 100 : 0;
+
+  const fmtEUR = v => (v>=0?'+':'')+Math.round(v).toLocaleString('it-IT')+' €';
+  const fmtPct = v => (v>=0?'+':'')+v.toFixed(2)+'%';
+  const col    = v => v>=0 ? '#22d47e' : '#f87171';
+  const isOpen_eu = isEUMarketOpen?.() ?? false;
+  const isOpen_us = isUSMarketOpen?.() ?? false;
+
+  const pl = document.getElementById('port-list');
+  if (!pl) return;
+
+  // Tabella + sidebar
+  let H = '<div style="display:flex;gap:0;padding:0 0 80px">';
+
+  // ── Tabella ──────────────────────────────────────────────────
+  H += '<div style="flex:1;min-width:0;overflow-x:auto">';
+  H += '<table style="width:100%;border-collapse:collapse;font-family:monospace;min-width:540px">';
+  H += '<thead><tr style="background:var(--bg2)">';
+  ['Titolo','Qtà','PMC','Prezzo','Valore €','Oggi','Gain','Peso',''].forEach((lbl,i) => {
+    H += '<th style="font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.6px;'
+      +'padding:7px '+(i===0?'14':'8')+'px;text-align:'+(i===0?'left':'right')+';border-bottom:1px solid var(--border);white-space:nowrap">'+lbl+'</th>';
+  });
+  H += '</tr></thead><tbody>';
+
+  hlds.forEach(h => {
+    const curP   = S.prices?.[h.ticker];
+    const valEUR = currentValueAllEUR(h);
+    const gain   = valEUR!=null ? valEUR - h.avgPrice*h.qty : null;
+    const gainP  = gain!=null && h.avgPrice*h.qty > 0 ? gain/(h.avgPrice*h.qty)*100 : null;
+    const dc     = S.dailyChanges?.[h.ticker];
+    const peso   = totalEUR > 0 && valEUR!=null ? (valEUR/totalEUR*100).toFixed(1)+'%' : '—';
+    const isUSD  = h.titleCcy==='USD';
+    const mktOpen= isUSD ? isOpen_us : isOpen_eu;
+    const dotC   = mktOpen ? '#22d47e' : '#f59e0b';
+    const pmcStr = isUSD ? n2(h.avgPriceBuyCcy||h.avgPrice)+' $' : n2(h.avgPrice)+' €';
+    const priceStr = curP ? (isUSD ? n2(curP)+' $' : n2(curP)+' €') : '—';
+    const n3loc  = v => v!=null ? v.toLocaleString('it-IT',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+
+    H += '<tr style="border-bottom:1px solid rgba(30,41,59,.5)" onmouseover="this.style.background=\'var(--bg2)\'" onmouseout="this.style.background=\'\'">';
+    H += '<td style="padding:8px 14px;text-align:left">'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+      +'<span style="width:7px;height:7px;border-radius:50%;background:'+dotC+';flex-shrink:0;display:inline-block"></span>'
+      +'<span style="font-size:13px;font-weight:800;color:var(--text)">'+esc(h.displayTicker||h.ticker)+'</span>'
+      +(isUSD?'<span style="font-size:9px;font-weight:700;background:var(--bg3);color:var(--text3);border-radius:4px;padding:1px 5px">USD</span>':'')
+      +'</div>'
+      +'<div style="font-size:10px;color:var(--text3);margin-top:2px;margin-left:13px">'+esc(h.name||'')+'</div>'
+      +'</td>';
+    H += '<td style="padding:8px;text-align:right;font-size:12px;color:var(--text2)">'+n3loc(h.qty)+'</td>';
+    H += '<td style="padding:8px;text-align:right;font-size:11px;color:var(--text3)">'+pmcStr+'</td>';
+    H += '<td style="padding:8px;text-align:right;font-size:12px;color:var(--text2)">'+priceStr+'</td>';
+    H += '<td style="padding:8px;text-align:right;font-size:13px;font-weight:700;color:var(--text)">'+(valEUR!=null?Math.round(valEUR).toLocaleString('it-IT')+' €':'—')+'</td>';
+    H += '<td style="padding:8px;text-align:right">'+(dc!=null?'<span style="background:'+(dc>=0?'rgba(34,212,126,.1)':'rgba(248,113,113,.1)')+';color:'+(dc>=0?'#22d47e':'#f87171')+';border-radius:20px;padding:2px 7px;font-size:10px;font-weight:700">'+(dc>=0?'+':'')+dc.toFixed(2)+'%</span>':'<span style="color:var(--text3);font-size:11px">—</span>')+'</td>';
+    H += '<td style="padding:8px;text-align:right;font-size:12px;font-weight:700;color:'+(gain!=null?col(gain):'var(--text3)')+'">'+(gain!=null?fmtEUR(gain)+'<br><span style="font-size:10px;opacity:.8">'+(gainP!=null?fmtPct(gainP):'')+'</span>':'—')+'</td>';
+    H += '<td style="padding:8px;text-align:right;font-size:11px;color:var(--text3)">'+peso+'</td>';
+    H += '<td style="padding:8px;text-align:right"><button data-tk="'+jsq(h.ticker)+'" class="tbl-vendi-btn" style="background:transparent;border:1px solid rgba(56,189,248,.4);border-radius:6px;padding:2px 8px;font-size:10px;font-weight:500;color:#38bdf8;cursor:pointer">VENDI</button></td>';
+    H += '</tr>';
+  });
+
+  // Footer totali
+  H += '<tr style="border-top:2px solid var(--border)">';
+  H += '<td colspan="4" style="padding:9px 14px;font-size:10px;color:var(--text3);font-family:sans-serif">Liquidità € '+Math.round(S.cashEUR||0).toLocaleString('it-IT')
+    +(fxUSD?' &nbsp;·&nbsp; EUR/USD '+fxUSD.toFixed(3):'')+'</td>';
+  H += '<td style="padding:9px 8px;text-align:right;font-size:14px;font-weight:700;color:var(--text)">'+Math.round(totalEUR).toLocaleString('it-IT')+' €</td>';
+  H += '<td style="padding:9px 8px;text-align:right;font-size:12px;font-weight:700;color:'+col(todayGain)+'">'+fmtEUR(todayGain)+'</td>';
+  H += '<td style="padding:9px 8px;text-align:right;font-size:12px;font-weight:700;color:'+col(totGainEUR)+'">'+fmtEUR(totGainEUR)+'<br><span style="font-size:10px">'+fmtPct(gainPct)+'</span></td>';
+  H += '<td colspan="2"></td></tr>';
+  H += '</tbody></table></div>';
+
+  // ── Sidebar ──────────────────────────────────────────────────
+  H += '<div style="width:200px;flex-shrink:0;border-left:1px solid var(--border);padding:12px">';
+
+  // Andamento settimana
+  H += '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin-bottom:8px">Settimana</div>';
+  const weekHlds = hlds.filter(h => S.dailyChanges?.[h.ticker] != null).slice(0,6);
+  if (weekHlds.length) {
+    const maxAbs = Math.max(...weekHlds.map(h => Math.abs(S.dailyChanges?.[h.ticker]||0)), 0.1);
+    weekHlds.forEach(h => {
+      const dc = S.dailyChanges?.[h.ticker]||0;
+      const w  = Math.min(100, Math.abs(dc)/maxAbs*90+10);
+      H += '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">'
+        +'<span style="font-size:10px;font-weight:700;color:var(--text2);min-width:56px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(h.displayTicker||h.ticker)+'</span>'
+        +'<div style="flex:1;height:4px;background:var(--bg3);border-radius:2px">'
+        +'<div style="width:'+w+'%;height:4px;border-radius:2px;background:'+(dc>=0?'#22d47e':'#f87171')+'"></div></div>'
+        +'<span style="font-size:10px;font-weight:700;color:'+(dc>=0?'#22d47e':'#f87171')+';min-width:40px;text-align:right">'+(dc>=0?'+':'')+dc.toFixed(1)+'%</span>'
+        +'</div>';
+    });
+  } else {
+    H += '<div style="font-size:10px;color:var(--text3)">Aggiorna per vedere</div>';
+  }
+
+  // Sparkline (primo holding)
+  const spark = hlds.find(h => S.sparkline?.[h.ticker]?.length > 2);
+  if (spark) {
+    const pts = S.sparkline[spark.ticker];
+    const mn=Math.min(...pts),mx=Math.max(...pts),rng=mx-mn||1;
+    const W=176,H2=48;
+    const svgPts = pts.map((v,i)=> (i/(pts.length-1)*W).toFixed(1)+','+(H2*(1-(v-mn)/rng)).toFixed(1) ).join(' ');
+    const spCol = pts[pts.length-1]>=pts[0]?'#22d47e':'#f87171';
+    H += '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 6px">Grafico</div>';
+    H += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 8px">'
+      +'<div style="font-size:10px;font-weight:700;color:var(--text2);margin-bottom:4px">'+esc(spark.displayTicker||spark.ticker)+'</div>'
+      +'<svg viewBox="0 0 '+W+' '+H2+'" style="width:100%;height:'+H2+'px">'
+      +'<polyline points="'+svgPts+'" fill="none" stroke="'+spCol+'" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>'
+      +'</svg>'
+      +'<div style="font-size:9px;color:var(--text3);text-align:center;margin-top:2px">ultima settimana</div>'
+      +'</div>';
+  }
+
+  // FX rate
+  if (hlds.some(h=>h.titleCcy==='USD') && fxUSD) {
+    H += '<div style="font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.7px;margin:12px 0 6px">Cambi</div>';
+    H += '<div style="background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:8px 10px">';
+    H += '<div style="display:flex;justify-content:space-between;margin-bottom:4px"><span style="font-size:10px;color:var(--text3)">EUR/USD</span><span style="font-size:11px;font-weight:700;font-family:monospace;color:var(--text2)">'+fxUSD.toFixed(3)+'</span></div>';
+    H += '<div style="display:flex;justify-content:space-between"><span style="font-size:10px;color:var(--text3)">Esp. USD</span><span style="font-size:11px;font-weight:700;color:#fbbf24">'+(hlds.filter(h=>h.titleCcy==='USD').reduce((s,h)=>s+(currentValueAllEUR(h)||0),0)/totalEUR*100).toFixed(1)+'%</span></div>';
+    H += '</div>';
+  }
+
+  H += '</div>'; // fine sidebar
+  H += '</div>'; // fine flex wrap
+
+  pl.innerHTML = H;
+  // Event delegation per bottoni VENDI nella tabella
+  pl.querySelectorAll('.tbl-vendi-btn').forEach(function(btn){
+    btn.addEventListener('click', function(){ openSellFromHolding(this.dataset.tk); });
+  });
+}
+
 function renderPF() {
+  // Dispatch alla vista tabella se attiva
+  if (typeof _pfViewMode !== 'undefined' && _pfViewMode === 'table') {
+    renderPF_table(); return;
+  }
   const allHlds = calcPF();
   const cats = [...new Set(allHlds.map(h=>h.assetClass||UNCATEGORIZED))].sort();
   const filteredHlds = pfFilterCategory==='Tutte'
