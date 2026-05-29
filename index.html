@@ -2507,6 +2507,7 @@ function normalizePortfolio(pf) {
   if (!pf.dailyChanges)     pf.dailyChanges = {};
   if (!pf.dailyCloses)      pf.dailyCloses = {};
   if (!pf.sessionPrevCloses) pf.sessionPrevCloses = {};
+  if (!pf.manualPrevClose) pf.manualPrevClose = {};
   if (!pf.sessionPrevCloseMeta) pf.sessionPrevCloseMeta = {};
   if (!pf.priceHistory)     pf.priceHistory = [];
   if (!pf.tickerHistory)    pf.tickerHistory = {}; // {quoteTicker: [{t,c}]}
@@ -3751,10 +3752,10 @@ async function fetchPrices() {
     if (!S.dailyChanges) S.dailyChanges = {};
     // NON cancellare dailyChanges — mantieni i vecchi valori durante il fetch
 
-    // SNAPSHOT prezzi prima del fetch: se un ticker fallisce, ripristina il valore precedente
-    const priceSnapshot = Object.assign({}, S.prices);
-    // così la UI mostra sempre l'ultimo dato disponibile, non zero/vuoto
-    // I valori vengono aggiornati ticker per ticker man mano che arrivano
+    // PROTEZIONE PREZZI: salva i prezzi attuali — alla fine del fetch
+    // useremo SOLO prezzi nuovi validi, altrimenti manteniamo questi
+    const _safePrices = Object.assign({}, S.prices);
+    const _safeDailyChanges = Object.assign({}, S.dailyChanges||{});
 
     // Lancia fetch EUR/USD in parallelo se serve
     let _fxPromise = null, _fxResult = null;
@@ -3798,12 +3799,7 @@ async function fetchPrices() {
     console.log(`[fetch] Totale: ${Date.now()-t0}ms per ${total} titoli`);
 
     const updated=[], errors=[], rejected=[], sources={};
-    // SNAPSHOT prezzi correnti prima di elaborare i risultati
-    // Garanzia: nessun ticker finisce con prezzo nullo/zero dopo il fetch
-    const _preLoopSnapshot = Object.assign({}, S.prices);
-
     for (const { h, q: _q } of rows) { let q = _q;
-      const _prevPrice = _preLoopSnapshot[h.ticker];
 
       let price = num(q?.price);
       // Fallback: se fetch live fallisce, usa ultimo officialClose dal Gist
@@ -3878,28 +3874,33 @@ async function fetchPrices() {
         };
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
-        // Prezzo trovato ma fuori range: mantieni il precedente
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
-        if (isReasonablePrice(_prevPrice, h)) S.prices[h.ticker] = _prevPrice;
-        // altrimenti lascia invariato — non toccare mai con PMC
+        // NON tocca S.prices — verrà ripristinato dal _safePrices alla fine
       } else {
-        // Fetch fallito: mantieni il precedente
         errors.push(h.displayTicker);
-        if (isReasonablePrice(_prevPrice, h)) S.prices[h.ticker] = _prevPrice;
-        // altrimenti lascia invariato — non toccare mai con PMC
+        // NON tocca S.prices — verrà ripristinato dal _safePrices alla fine
       }
     }
 
-    // GARANZIA FINALE — solo snapshot, MAI PMC
-    // Il PMC causa guadagni apparenti a 0 e valori in valuta sbagliata per titoli USD
+    // ═══════════════════════════════════════════════════════════
+    // GARANZIA FINALE — swap atomico
+    // Per OGNI ticker: se S.prices ha un valore valido (aggiornato dal fetch),
+    // lo teniamo. Altrimenti ripristiniamo da _safePrices (pre-fetch).
+    // S.prices NON PUÒ peggiorare rispetto a prima del fetch.
+    // ═══════════════════════════════════════════════════════════
     hlds.forEach(h => {
-      if (!isReasonablePrice(S.prices[h.ticker], h)) {
-        if (isReasonablePrice(_preLoopSnapshot[h.ticker], h)) {
-          S.prices[h.ticker] = _preLoopSnapshot[h.ticker];
+      const tk = h.ticker;
+      const newP  = S.prices[tk];
+      const safeP = _safePrices[tk];
+      if (!isReasonablePrice(newP, h)) {
+        // Il fetch non ha prodotto un prezzo valido per questo ticker
+        if (isReasonablePrice(safeP, h)) {
+          S.prices[tk] = safeP; // ripristina il prezzo pre-fetch
         }
-        // Se snapshot nullo: lascia null → il portafoglio mostra "—" invece di valori falsi
-        if (!errors.includes(h.displayTicker || h.ticker))
-          errors.push(h.displayTicker || h.ticker);
+        // Ripristina anche dailyChanges se perso
+        if (!S.dailyChanges[tk] && _safeDailyChanges[tk]) {
+          S.dailyChanges[tk] = _safeDailyChanges[tk];
+        }
       }
     });
 
@@ -9755,11 +9756,15 @@ async function renderOpsChart() {
 
 function renderAll() {
   // Applica override manuali prevClose se presenti
-  if (S?.manualPrevClose) {
-    Object.entries(S.manualPrevClose).forEach(function([tk, pc]) {
-      if (pc > 0) applyManualPrevClose(tk, pc);
-    });
-  }
+  try {
+    if (S && S.manualPrevClose) {
+      var keys = Object.keys(S.manualPrevClose);
+      for (var i = 0; i < keys.length; i++) {
+        var pc = S.manualPrevClose[keys[i]];
+        if (pc > 0 && S.prices && S.prices[keys[i]]) applyManualPrevClose(keys[i], pc);
+      }
+    }
+  } catch(e) { console.warn('[manualPrevClose]', e); }
   renderSwitcher();
   renderPF();
   renderOps();
@@ -11764,6 +11769,7 @@ function getSlimData() {
       dailyChanges:   pf.dailyChanges || {},
       dailyCloses:    pf.dailyCloses || {},
       sessionPrevCloses: pf.sessionPrevCloses || {},
+      manualPrevClose: pf.manualPrevClose || {},
       // NON includiamo: tickerHistory, priceHistory, sparkDate (cache ricostruibile)
     })),
     activePortfolioId: ALL.activePortfolioId,
