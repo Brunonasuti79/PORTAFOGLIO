@@ -6981,6 +6981,9 @@ function showPage(pg) {
     renderWatchlist();          // render immediato con dati cache
     loadWlSparklines();         // poi carica prezzi/sparkline in background
   }
+
+  // Se il pannello Reddito è già aperto, aggiorna anche il rateo a ogni renderAll/fetch prezzi.
+  if (activePg === 'reddito') renderReddito();
 }
 
 // ════════════════════════════════════════════════════════════════
@@ -10959,6 +10962,30 @@ function calcolaRateo(isin, qty, nominaleTot) {
   };
 }
 
+// Aggiorna automaticamente il rateo quando cambia il giorno
+// Il rateo dipende da new Date(), quindi non va salvato: va solo ri-renderizzato.
+function refreshRateoViews() {
+  try {
+    renderPF();
+    const redditoPg = document.getElementById('pg-reddito');
+    if (redditoPg && redditoPg.classList.contains('active')) renderReddito();
+  } catch(e) { console.warn('[rateo refresh]', e); }
+}
+
+function startDailyRateoRefresh() {
+  if (window._rateoDailyTimer) return;
+  let lastRateoDay = new Date().toLocaleDateString('en-CA', { timeZone:'Europe/Rome' });
+  window._rateoDailyTimer = setInterval(function() {
+    try {
+      const d = new Date().toLocaleDateString('en-CA', { timeZone:'Europe/Rome' });
+      if (d !== lastRateoDay) {
+        lastRateoDay = d;
+        refreshRateoViews();
+      }
+    } catch(e) {}
+  }, 60000);
+}
+
 // Calcola reddito annuo atteso da tutto il portafoglio
 function calcolaRedditoAnnuo() {
   const hlds = calcPF();
@@ -11972,11 +11999,12 @@ async function sbInit() {
       window._appFullyStarted = true; // da qui in poi le nav sono inattese
       try { autoSyncFromGistOnStartup(); } catch(e) {}
       startAutoRefresh();
+      startDailyRateoRefresh();
       loadSparklines();
     } catch(e) {
       // NON resettare _appStarted — evita loop TOKEN_REFRESHED
       console.error('sbOnLogin error:', e);
-      try { renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines(); } catch(e2) {}
+      try { renderAll(); showPage('portfolio'); startAutoRefresh(); startDailyRateoRefresh(); loadSparklines(); } catch(e2) {}
     }
   }
 
@@ -12019,7 +12047,7 @@ async function sbInit() {
       startAutoRefresh(); loadSparklines();
     }
   } catch(e) {
-    renderAll(); showPage('portfolio'); startAutoRefresh(); loadSparklines();
+    renderAll(); showPage('portfolio'); startAutoRefresh(); startDailyRateoRefresh(); loadSparklines();
   }
 }
 
