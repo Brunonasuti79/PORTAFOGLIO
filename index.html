@@ -1553,6 +1553,16 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
   <div id="pg-settings" class="page">
     <div class="ph"><div class="ph-left"><div class="pt">IMPOSTAZIONI</div><div class="pt-sub">Configurazione</div></div></div>
 
+    <!-- FORZA CHIUSURA PRECEDENTE -->
+    <div class="ssec" id="manual-prevclose-section">
+      <div class="slbl">📌 Correggi chiusura precedente</div>
+      <div class="sdesc">Se il calcolo "Oggi" è sbagliato, imposta manualmente il prezzo di chiusura di ieri per quel titolo.</div>
+      <div id="manual-prevclose-area" style="margin-top:10px"></div>
+      <button onclick="renderManualPrevClose()" style="margin-top:8px;width:100%;padding:8px;background:var(--bg3);border:1px solid var(--border2);border-radius:8px;color:var(--text2);font-size:12px;cursor:pointer">
+        🔄 Aggiorna lista titoli
+      </button>
+    </div>
+
     <!-- Account Supabase -->
     <div class="ssec" id="sb-account-section">
       <div class="slbl">☁️ Account Cloud</div>
@@ -3839,9 +3849,14 @@ async function fetchPrices() {
               ? await ensureEUSessionPrevClose(h, q)
               : ensureSessionPrevClose(h.ticker, q, region));
         let finalPct = null, finalVal = 0;
-        if (prevSession.marketReady && prevSession.prevClose && prevSession.prevClose > 0) {
-          finalPct = (price - prevSession.prevClose) / prevSession.prevClose * 100;
-          finalVal = price - prevSession.prevClose;
+        // Override manuale ha priorità assoluta sul prevClose automatico
+        const _manualPC = S.manualPrevClose?.[h.ticker];
+        const _usePC    = (_manualPC && _manualPC > 0) ? _manualPC
+                        : (prevSession.marketReady && prevSession.prevClose > 0) ? prevSession.prevClose
+                        : null;
+        if (_usePC) {
+          finalPct = (price - _usePC) / _usePC * 100;
+          finalVal = price - _usePC;
         }
 
         S.dailyChanges[h.ticker] = {
@@ -7487,6 +7502,109 @@ function renameCurrent(val) {
   const titleEl = document.getElementById('port-title');
   if (titleEl) titleEl.textContent = S.name;
 }
+// ════════════════════════════════════════════════════════════════
+//  FORZA CHIUSURA PRECEDENTE
+// ════════════════════════════════════════════════════════════════
+function renderManualPrevClose() {
+  const area = document.getElementById('manual-prevclose-area');
+  if (!area) return;
+  const hlds = calcPF();
+  if (!hlds.length) { area.innerHTML = '<div style="color:var(--text3);font-size:12px">Nessun titolo in portafoglio.</div>'; return; }
+
+  if (!S.manualPrevClose) S.manualPrevClose = {};
+
+  let H = '';
+  hlds.forEach(h => {
+    const tk      = h.ticker;
+    const dc      = S.dailyChanges?.[tk];
+    const curP    = S.prices?.[tk];
+    const prevAuto= dc?.prevClose;
+    const prevMan = S.manualPrevClose[tk];
+    const prevShow= prevMan || prevAuto || '';
+    const ccy     = h.titleCcy === 'USD' ? '$' : '€';
+
+    H += '<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--border)">';
+    H += '<div style="min-width:80px"><div style="font-size:12px;font-weight:700;color:var(--text)">'+esc(h.displayTicker||tk)+'</div>';
+    H += '<div style="font-size:10px;color:var(--text3)">corrente: '+(curP?n2(curP)+' '+ccy:'—')+'</div></div>';
+    H += '<div style="flex:1">';
+    H += '<input type="number" step="0.001" min="0" placeholder="Chiusura ieri ('+ccy+')" '
+      +'value="'+(prevShow||'')+'" '
+      +'id="mpc-'+tk+'" '
+      +'style="width:100%;background:var(--bg3);border:1px solid var(--border2);border-radius:7px;padding:6px 8px;font-size:12px;color:var(--text);font-family:monospace" '
+      +'data-tk="'+tk+'" oninput="previewManualPrevClose(this.dataset.tk)">';;
+    if (dc?.pct != null) {
+      H += '<div style="font-size:10px;color:var(--text3);margin-top:2px">Oggi auto: '
+        +(dc.pct>=0?'+':'')+dc.pct.toFixed(2)+'% '
+        +(prevAuto?'(prev '+n2(prevAuto)+' '+ccy+')':'')+'</div>';
+    }
+    if (prevMan) {
+      H += '<div style="font-size:10px;color:#f59e0b;margin-top:1px">⚠ Override manuale attivo</div>';
+    }
+    H += '</div>';
+    H += '<button data-tk="'+tk+'" onclick="saveManualPrevClose(this.dataset.tk)" '
+      +'style="padding:6px 10px;background:var(--blue);border:none;border-radius:7px;color:#fff;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap">Applica</button>';
+    H += '<button data-tk="'+tk+'" onclick="clearManualPrevClose(this.dataset.tk)" '
+      +'style="padding:6px 8px;background:none;border:1px solid var(--border2);border-radius:7px;color:var(--text3);font-size:11px;cursor:pointer" title="Rimuovi override">✕</button>';
+    H += '</div>';
+  });
+
+  area.innerHTML = H;
+}
+
+function saveManualPrevClose(ticker) {
+  const inp = document.getElementById('mpc-'+ticker);
+  if (!inp) return;
+  const val = parseFloat(inp.value);
+  if (!val || val <= 0) { alert('Inserisci un valore valido'); return; }
+
+  if (!S.manualPrevClose) S.manualPrevClose = {};
+  S.manualPrevClose[ticker] = val;
+
+  // Ricalcola immediatamente dailyChanges per questo ticker
+  applyManualPrevClose(ticker, val);
+
+  save();
+  showToast('✅ Chiusura precedente impostata per '+ticker+': '+n2(val), 3000);
+  renderManualPrevClose();
+  renderPF();
+}
+
+function clearManualPrevClose(ticker) {
+  if (!S.manualPrevClose) return;
+  delete S.manualPrevClose[ticker];
+  // Rimuovi anche l'override dal dailyChanges
+  if (S.dailyChanges?.[ticker]) {
+    S.dailyChanges[ticker]._manualOverride = false;
+  }
+  save(); renderManualPrevClose(); renderPF();
+  showToast('Rimosso override per '+ticker, 2000);
+}
+
+function applyManualPrevClose(ticker, prevClose) {
+  const curP = S.prices?.[ticker];
+  if (!curP || !prevClose) return;
+  if (!S.dailyChanges) S.dailyChanges = {};
+  const existing = S.dailyChanges[ticker] || {};
+  S.dailyChanges[ticker] = {
+    ...existing,
+    pct:   (curP - prevClose) / prevClose * 100,
+    value: curP - prevClose,
+    prevClose,
+    _manualOverride: true,
+  };
+}
+
+function previewManualPrevClose(ticker) {
+  // Preview live mentre si digita
+  const inp = document.getElementById('mpc-'+ticker);
+  if (!inp) return;
+  const val = parseFloat(inp.value);
+  const curP = S.prices?.[ticker];
+  if (!val || val <= 0 || !curP) return;
+  const pct = (curP - val) / val * 100;
+  inp.style.borderColor = pct >= 0 ? '#22d47e' : '#f87171';
+}
+
 function syncSettingsUI() {
   const ak  = ALL.settings.ak || '';
   const ant = ALL.settings.anthropicKey || '';
@@ -9636,6 +9754,12 @@ async function renderOpsChart() {
 }
 
 function renderAll() {
+  // Applica override manuali prevClose se presenti
+  if (S?.manualPrevClose) {
+    Object.entries(S.manualPrevClose).forEach(function([tk, pc]) {
+      if (pc > 0) applyManualPrevClose(tk, pc);
+    });
+  }
   renderSwitcher();
   renderPF();
   renderOps();
