@@ -3727,6 +3727,34 @@ async function fetchPriceForHolding(h) {
 }
 
 // ════════════════════════════════════════════════════════════════
+
+// ── Protezione valori giornalieri ────────────────────────────────
+// Se un refresh prezzi trova il prezzo ma NON trova il prevClose,
+// non deve azzerare il gain giornaliero già buono. Mantiene l'ultimo
+// dailyChange valido e lo marca come stale. Questo evita il comportamento
+// "trovo un errore → metto oggi a 0".
+function hasValidDailyChange(dc) {
+  return !!dc && Number.isFinite(Number(dc.pct)) && Number.isFinite(Number(dc.value));
+}
+function buildProtectedDailyChange(ticker, nextDc, safeDc) {
+  if (hasValidDailyChange(nextDc)) return nextDc;
+  if (hasValidDailyChange(safeDc)) {
+    return {
+      ...safeDc,
+      stale: true,
+      preservedBecause: nextDc?.preserveReason || 'missing_prevclose_or_fetch_error',
+      lastTriedAt: new Date().toISOString()
+    };
+  }
+  return {
+    ...(nextDc || {}),
+    pct: null,
+    value: null,
+    stale: true,
+    preserveReason: nextDc?.preserveReason || 'no_valid_daily_change'
+  };
+}
+
 //  FETCH PRICES (main update function)
 // ════════════════════════════════════════════════════════════════
 async function fetchPrices() {
@@ -3844,7 +3872,7 @@ async function fetchPrices() {
           : (region === 'EU'
               ? await ensureEUSessionPrevClose(h, q)
               : ensureSessionPrevClose(h.ticker, q, region));
-        let finalPct = null, finalVal = 0;
+        let finalPct = null, finalVal = null;
         // Override manuale ha priorità assoluta sul prevClose automatico
         const _manualPC = S.manualPrevClose?.[h.ticker];
         const _usePC    = (_manualPC && _manualPC > 0) ? _manualPC
@@ -3855,7 +3883,7 @@ async function fetchPrices() {
           finalVal = price - _usePC;
         }
 
-        S.dailyChanges[h.ticker] = {
+        const nextDailyChange = {
           pct: finalPct, value: finalVal,
           source: q?.source||'', price,
           prePct: q?.prePct??null, postPct: q?.postPct??null,
@@ -3870,8 +3898,10 @@ async function fetchPrices() {
           prevCloseOfficialTicker: prevSession.officialTicker || null,
           fromLocal: !!prevSession.prevClose,
           marketReady: !!prevSession.marketReady,
-          region
+          region,
+          preserveReason: _usePC ? null : (prevSession.reason || 'missing_prevclose')
         };
+        S.dailyChanges[h.ticker] = buildProtectedDailyChange(h.ticker, nextDailyChange, _safeDailyChanges[h.ticker]);
         updated.push(`${h.displayTicker} (${n2(price)} €)`);
       } else if (price) {
         rejected.push(`${h.displayTicker}: prezzo anomalo ${n2(price)}`);
@@ -3897,9 +3927,14 @@ async function fetchPrices() {
         if (isReasonablePrice(safeP, h)) {
           S.prices[tk] = safeP; // ripristina il prezzo pre-fetch
         }
-        // Ripristina anche dailyChanges se perso
-        if (!S.dailyChanges[tk] && _safeDailyChanges[tk]) {
-          S.dailyChanges[tk] = _safeDailyChanges[tk];
+        // Ripristina anche dailyChanges se perso o peggiorato
+        if (_safeDailyChanges[tk] && !hasValidDailyChange(S.dailyChanges[tk]) && hasValidDailyChange(_safeDailyChanges[tk])) {
+          S.dailyChanges[tk] = {
+            ..._safeDailyChanges[tk],
+            stale: true,
+            preservedBecause: 'fetch_failed_price_restored',
+            lastTriedAt: new Date().toISOString()
+          };
         }
       }
     });
