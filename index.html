@@ -2508,6 +2508,7 @@ function normalizePortfolio(pf) {
   if (!pf.dailyCloses)      pf.dailyCloses = {};
   if (!pf.sessionPrevCloses) pf.sessionPrevCloses = {};
   if (!pf.manualPrevClose) pf.manualPrevClose = {};
+  if (!pf.lastValidCloses) pf.lastValidCloses = {};
   if (!pf.sessionPrevCloseMeta) pf.sessionPrevCloseMeta = {};
   if (!pf.priceHistory)     pf.priceHistory = [];
   if (!pf.tickerHistory)    pf.tickerHistory = {}; // {quoteTicker: [{t,c}]}
@@ -3780,9 +3781,13 @@ async function fetchPrices() {
     if (!S.dailyChanges) S.dailyChanges = {};
     // NON cancellare dailyChanges — mantieni i vecchi valori durante il fetch
 
-    // PROTEZIONE PREZZI: salva i prezzi attuali — alla fine del fetch
-    // useremo SOLO prezzi nuovi validi, altrimenti manteniamo questi
-    const _safePrices = Object.assign({}, S.prices);
+    // PROTEZIONE PREZZI: salva i prezzi attuali + lastValidCloses come fallback
+    // Se S.prices è vuoto (primo avvio), usa lastValidCloses come base
+    const _safePrices = Object.assign(
+      {},
+      S.lastValidCloses || {},  // terza ancora: prezzi dell'ultima sessione
+      S.prices                   // sovrascrive con i prezzi correnti (più recenti)
+    );
     const _safeDailyChanges = Object.assign({}, S.dailyChanges||{});
 
     // Lancia fetch EUR/USD in parallelo se serve
@@ -3873,11 +3878,14 @@ async function fetchPrices() {
               ? await ensureEUSessionPrevClose(h, q)
               : ensureSessionPrevClose(h.ticker, q, region));
         let finalPct = null, finalVal = null;
-        // Override manuale ha priorità assoluta sul prevClose automatico
-        const _manualPC = S.manualPrevClose?.[h.ticker];
-        const _usePC    = (_manualPC && _manualPC > 0) ? _manualPC
-                        : (prevSession.marketReady && prevSession.prevClose > 0) ? prevSession.prevClose
-                        : null;
+        // Priorità prevClose: 1) manuale, 2) sessione ufficiale, 3) prezzo pre-fetch
+        const _manualPC   = S.manualPrevClose?.[h.ticker];
+        const _sessionPC  = (prevSession.marketReady && prevSession.prevClose > 0) ? prevSession.prevClose : null;
+        const _preFetchPC = _safePrices[h.ticker]; // prezzo prima di questo aggiornamento
+        const _usePC      = (_manualPC && _manualPC > 0) ? _manualPC
+                          : _sessionPC ? _sessionPC
+                          : (_preFetchPC && _preFetchPC > 0) ? _preFetchPC
+                          : null;
         if (_usePC) {
           finalPct = (price - _usePC) / _usePC * 100;
           finalVal = price - _usePC;
@@ -3922,19 +3930,31 @@ async function fetchPrices() {
       const tk = h.ticker;
       const newP  = S.prices[tk];
       const safeP = _safePrices[tk];
-      if (!isReasonablePrice(newP, h)) {
-        // Il fetch non ha prodotto un prezzo valido per questo ticker
-        if (isReasonablePrice(safeP, h)) {
-          S.prices[tk] = safeP; // ripristina il prezzo pre-fetch
-        }
-        // Ripristina anche dailyChanges se perso o peggiorato
-        if (_safeDailyChanges[tk] && !hasValidDailyChange(S.dailyChanges[tk]) && hasValidDailyChange(_safeDailyChanges[tk])) {
-          S.dailyChanges[tk] = {
-            ..._safeDailyChanges[tk],
-            stale: true,
-            preservedBecause: 'fetch_failed_price_restored',
-            lastTriedAt: new Date().toISOString()
-          };
+
+      // REGOLA 1: prezzo non può mai peggiorare
+      if (!isReasonablePrice(newP, h) && isReasonablePrice(safeP, h)) {
+        S.prices[tk] = safeP;
+      }
+
+      // REGOLA 2: dailyChanges non può mai peggiorare
+      if (!hasValidDailyChange(S.dailyChanges?.[tk])) {
+        if (hasValidDailyChange(_safeDailyChanges[tk])) {
+          // Ripristina il vecchio dailyChange
+          S.dailyChanges[tk] = { ..._safeDailyChanges[tk], stale: true };
+        } else {
+          // Nessun dailyChange valido né nuovo né vecchio:
+          // se abbiamo prezzo corrente + prezzo pre-fetch, calcoliamo il delta
+          const curP = S.prices[tk];
+          const prevP = safeP;
+          if (curP > 0 && prevP > 0 && curP !== prevP) {
+            S.dailyChanges[tk] = {
+              pct: (curP - prevP) / prevP * 100,
+              value: curP - prevP,
+              prevClose: prevP,
+              source: 'calculated_from_prefetch',
+              stale: false
+            };
+          }
         }
       }
     });
@@ -3954,6 +3974,14 @@ async function fetchPrices() {
       if (idx >= 0) S.priceHistory[idx] = snap; else S.priceHistory.push(snap);
       if (S.priceHistory.length > 365) S.priceHistory = S.priceHistory.slice(-365);
     }
+    // Salva i prezzi aggiornati come "ultima chiusura valida"
+    // Serve come benchmark se il prossimo fetch fallisce
+    if (!S.lastValidCloses) S.lastValidCloses = {};
+    hlds.forEach(h => {
+      const p = S.prices[h.ticker];
+      if (p && p > 0) S.lastValidCloses[h.ticker] = p;
+    });
+
     save();
 
     const now = new Date().toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});
@@ -11832,6 +11860,7 @@ function getSlimData() {
       dailyCloses:    pf.dailyCloses || {},
       sessionPrevCloses: pf.sessionPrevCloses || {},
       manualPrevClose: pf.manualPrevClose || {},
+      lastValidCloses: pf.lastValidCloses || {},
       // NON includiamo: tickerHistory, priceHistory, sparkDate (cache ricostruibile)
     })),
     activePortfolioId: ALL.activePortfolioId,
