@@ -7318,7 +7318,8 @@ function reverseCashForOp(op) {
     if (op.titleCcy === 'USD' && op.purchCcy === 'EUR' && op.fxRate) {
       const rate = ALL.fxRates?.EURUSD || op.fxRate;
       proceeds = (op.price / rate) * op.qty - (op.commissions || 0);
-      gain = Math.max(0, ((op.price / rate) - avgPrc) * op.qty);
+      const avgEur = h?.avgPrice || (avgPrc / (op.fxRate || rate));
+      gain = Math.max(0, ((op.price / rate) - avgEur) * op.qty);
     } else {
       proceeds = op.price * op.qty - (op.commissions || 0);
       gain = Math.max(0, (op.price - avgPrc) * op.qty);
@@ -7331,7 +7332,8 @@ function reverseCashForOp(op) {
 
 // Aggiorna la liquidità dopo un'operazione (solo nuove ops, non editing)
 function updateCashForOp(op, holdingsSnap) {
-  if (!op || S.cashEUR == null) return;
+  if (!op) return;
+  if (S.cashEUR == null) S.cashEUR = 0; // inizializza se mai settata
   const isUSDpurchase = (op.titleCcy === 'USD' && op.purchCcy === 'USD');
   if (isUSDpurchase) return; // acquisto in $, non toccare la liquidità in €
 
@@ -7355,7 +7357,8 @@ function updateCashForOp(op, holdingsSnap) {
     if (op.titleCcy === 'USD' && op.purchCcy === 'EUR' && op.fxRate) {
       const rate = ALL.fxRates?.EURUSD || op.fxRate;
       proceeds = (op.price / rate) * op.qty - (op.commissions || 0);
-      const avgEur = avgPrc / op.fxRate;
+      // Usa il PMC in EUR (h.avgPrice) perché è già calcolato con il cambio d'acquisto
+      const avgEur = h?.avgPrice || (avgPrc / (op.fxRate || rate));
       gain = Math.max(0, (op.price / rate - avgEur) * op.qty);
     } else {
       proceeds = op.price * op.qty - (op.commissions || 0);
