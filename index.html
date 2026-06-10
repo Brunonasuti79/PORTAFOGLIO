@@ -801,15 +801,15 @@ input[type=number]{-moz-appearance:textfield}
 .ops-month-arrow{font-size:12px;color:var(--text3);transition:transform .2s}
 .ops-month-arrow.open{transform:rotate(180deg)}
 .ops-month-body{overflow:hidden}
-.ops-recap{margin:0 14px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;gap:12px}
-.ops-recap-legend{flex:1;min-width:0}
-.ops-recap-lrow{display:flex;align-items:center;gap:7px;padding:3px 0;font-size:11px}
+.ops-recap{margin:0 14px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;gap:14px;align-items:flex-start}
+.ops-recap-legend{width:175px;flex-shrink:0;min-width:0}
+.ops-recap-lrow{display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px}
 .ops-recap-dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
-.ops-recap-cat{color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.ops-recap-amt{color:var(--text);font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px}
+.ops-recap-cat{color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:96px}
+.ops-recap-amt{color:var(--text);font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px;flex-shrink:0}
 .ops-recap-tot{margin-top:8px;padding-top:7px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:12px}
 .ops-recap-tot b{font-weight:800;font-family:'JetBrains Mono',monospace}
-.ops-recap-chart{width:175px;flex-shrink:0;border-left:1px solid var(--border);padding-left:12px}
+.ops-recap-chart{flex:1;min-width:0;border-left:1px solid var(--border);padding-left:14px}
 .ops-recap-chart-lbl{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:4px}
 .ops-section-hdr{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:12px 14px 5px;border-bottom:1px solid var(--border)}
 .ops-kpi-bar{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 14px 4px}
@@ -4899,40 +4899,63 @@ function renderOps() {
         +'</div>';
     }).join('');
 
-    // ── GRAFICO BOLLE: x=data, dimensione=importo ──
+    // ── GRAFICO A BARRE: una barra per giorno con operazioni, altezza=importo ──
     var buyOps = mOps.filter(function(o){ return o.type==='buy'||o.type==='sell'; });
-    var bubblesHtml = '';
+    var chartHtml = '';
     if (buyOps.length) {
-      var maxAmt = Math.max.apply(null, buyOps.map(function(o){ return o.price*(o.qty||0); }));
-      var parts = mk.split(' ');
-      // giorni del mese: estrai da date operazioni
-      var days = buyOps.map(function(o){ return parseInt(o.date.slice(8,10)) || 1; });
-      var minD = 1, maxD = 31;
-      var W = 165, H = 92;
-      var baseY = H - 14;
-      bubblesHtml = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;overflow:visible">';
-      bubblesHtml += '<line x1="0" y1="'+baseY+'" x2="'+W+'" y2="'+baseY+'" stroke="var(--border)" stroke-width="1"/>';
+      // Raggruppa importi per giorno
+      var byDay = {};
       buyOps.forEach(function(o){
         var d = parseInt(o.date.slice(8,10)) || 1;
-        var x = 6 + (d-minD)/(maxD-minD) * (W-12);
         var amt = o.price*(o.qty||0);
-        var r = 4 + (amt/maxAmt) * 14; // raggio 4-18 (più grande)
-        var y = baseY - r;
-        var col = o.type==='buy' ? '#60a5fa' : '#fb923c';
-        bubblesHtml += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+col+'" fill-opacity="0.5" stroke="'+col+'" stroke-width="1.3"/>';
+        if (!byDay[d]) byDay[d] = { buy:0, sell:0, ops:[] };
+        if (o.type==='buy') byDay[d].buy += amt; else byDay[d].sell += amt;
+        byDay[d].ops.push(o);
       });
-      bubblesHtml += '<text x="0" y="'+(H-2)+'" fill="var(--text3)" font-size="8">1</text>';
-      bubblesHtml += '<text x="'+(W/2-5)+'" y="'+(H-2)+'" fill="var(--text3)" font-size="8">15</text>';
-      bubblesHtml += '<text x="'+(W-12)+'" y="'+(H-2)+'" fill="var(--text3)" font-size="8">31</text>';
-      bubblesHtml += '</svg>';
+      var dayKeys = Object.keys(byDay).map(Number).sort(function(a,b){return a-b;});
+      var maxAmt = Math.max.apply(null, dayKeys.map(function(d){ return Math.max(byDay[d].buy, byDay[d].sell); }));
+
+      var W = 340, H = 110;
+      var baseY = H - 18;
+      var topPad = 8;
+      var barW = Math.min(26, Math.max(10, (W-10) / dayKeys.length - 6));
+      var gap = dayKeys.length > 1 ? (W - barW*dayKeys.length) / (dayKeys.length) : 0;
+
+      chartHtml = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;overflow:visible" preserveAspectRatio="none">';
+      // griglia orizzontale
+      chartHtml += '<line x1="0" y1="'+baseY+'" x2="'+W+'" y2="'+baseY+'" stroke="var(--border)" stroke-width="1"/>';
+      chartHtml += '<line x1="0" y1="'+(topPad+(baseY-topPad)/2)+'" x2="'+W+'" y2="'+(topPad+(baseY-topPad)/2)+'" stroke="var(--border)" stroke-width="0.5" stroke-dasharray="2 3" opacity="0.5"/>';
+      // valore max in alto a sinistra
+      chartHtml += '<text x="2" y="'+(topPad+4)+'" fill="var(--text3)" font-size="9">'+Math.round(maxAmt).toLocaleString('it-IT')+' €</text>';
+
+      dayKeys.forEach(function(d, i){
+        var day = byDay[d];
+        var x = gap/2 + i*(barW+gap);
+        var totDay = day.buy + day.sell;
+        var h = (totDay/maxAmt) * (baseY - topPad);
+        var y = baseY - h;
+        var col = day.sell > day.buy ? '#fb923c' : '#60a5fa';
+        // tooltip nativo
+        var tip = d + ' ' + mk.split(' ')[0] + ': ';
+        var bits = [];
+        if (day.buy)  bits.push('acquisti '+n2(day.buy)+' €');
+        if (day.sell) bits.push('vendite '+n2(day.sell)+' €');
+        tip += bits.join(' · ');
+        chartHtml += '<g><title>'+tip+'</title>';
+        chartHtml += '<rect x="'+x.toFixed(1)+'" y="'+y.toFixed(1)+'" width="'+barW.toFixed(1)+'" height="'+Math.max(2,h).toFixed(1)+'" rx="3" fill="'+col+'" fill-opacity="0.85"/>';
+        // etichetta giorno
+        chartHtml += '<text x="'+(x+barW/2).toFixed(1)+'" y="'+(H-4)+'" fill="var(--text3)" font-size="9" text-anchor="middle">'+d+'</text>';
+        chartHtml += '</g>';
+      });
+      chartHtml += '</svg>';
     }
 
     var recapHtml = '<div class="ops-recap">'
       +'<div class="ops-recap-legend">'
-      + (legendHtml || '<div style="font-size:11px;color:var(--text3)">Nessun acquisto questo mese</div>')
-      + (monthInvested>0 ? '<div class="ops-recap-tot"><span style="color:var(--text3)">Totale investito</span><b>'+n2(monthInvested)+' €</b></div>' : '')
+      + (legendHtml || '<div style="font-size:11px;color:var(--text3)">Nessun acquisto</div>')
+      + (monthInvested>0 ? '<div class="ops-recap-tot"><span style="color:var(--text3)">Totale</span><b>'+n2(monthInvested)+' €</b></div>' : '')
       +'</div>'
-      + (bubblesHtml ? '<div class="ops-recap-chart"><div class="ops-recap-chart-lbl">Operazioni · importo/data</div>'+bubblesHtml+'</div>' : '')
+      + (chartHtml ? '<div class="ops-recap-chart"><div class="ops-recap-chart-lbl">Importi per giorno · passa il mouse</div>'+chartHtml+'</div>' : '')
       +'</div>';
 
     var rows = mOps.map(function(op){
