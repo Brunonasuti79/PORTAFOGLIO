@@ -30,6 +30,21 @@
   --tooltip-bg:#0d1322;    /* tooltip — sempre scuro */
   --tooltip-text:#e8eaf0;  /* testo tooltip — sempre chiaro */
 }
+/* ── Navy soft theme — dark ma meno cupo ── */
+html.navy{
+  --bg:#1a2236;--bg2:#222c44;--bg3:#2a3552;
+  --border:#2e3a56;--border2:#3a4870;
+  --text:#eef1f8;--text2:#b4c2dd;--text3:#8a9cc0;
+  --blue:#7ba7ff;--green:#34e69e;--red:#ff6b7a;
+  --green-bg:#15352a;--red-bg:#3a1a22;
+  --accent:#c8d8ff;
+  --placeholder:#4a5a7a;
+  --input-bg:#1e2840;
+  --tooltip-bg:#222c44;
+  --tooltip-text:#eef1f8;
+}
+html.navy body{background:var(--bg);color:var(--text)}
+
 /* ── Light theme ── */
 html.light{
   --bg:#f8fafc;--bg2:#ffffff;--bg3:#f1f5f9;
@@ -109,7 +124,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   background:var(--bg2);border:1px solid var(--border2);border-radius:20px;
   padding:4px 10px;cursor:pointer;flex-shrink:0;transition:all .18s;
   -webkit-tap-highlight-color:transparent}
-.pf-tab.active{background:#0a1a2e;border-color:var(--blue)}
+.pf-tab.active{background:var(--bg3);border-color:var(--blue)}
 .pf-tab-name{font-size:11px;font-weight:600;color:var(--text2);white-space:nowrap}
 .pf-tab.active .pf-tab-name{color:var(--blue)}
 .pf-tab-acts{display:flex;gap:2px}
@@ -205,7 +220,7 @@ html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
   color:var(--text2)}
 @media(max-width:400px){.pf-table .pf-col-g{display:none}}
 .gain{color:var(--green)}.loss{color:var(--red);font-weight:600}.neutral{color:var(--blue)}
-.cat-pill{display:inline-flex;align-items:center;background:#0a1a2e;
+.cat-pill{display:inline-flex;align-items:center;background:var(--bg3);
   border:1px solid #1a3060;color:var(--blue);font-size:9px;font-weight:700;
   letter-spacing:.5px;text-transform:uppercase;padding:2px 6px;border-radius:999px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
@@ -341,7 +356,7 @@ html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
 .taxrate-badge.low{background:rgba(34,212,126,.12);color:var(--green)}
 .taxrate-badge.std{background:rgba(123,167,255,.1);color:var(--blue)}
 #toast{position:fixed;bottom:72px;left:50%;transform:translateX(-50%) translateY(20px);
-  background:#0a1a2e;border:1px solid var(--blue);color:var(--accent);
+  background:var(--bg3);border:1px solid var(--blue);color:var(--accent);
   font-size:12px;padding:9px 16px;border-radius:12px;z-index:999;
   opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;max-width:90vw;
   text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.5)}
@@ -376,7 +391,7 @@ html.light .cat-pill{background:#dce8f5;border-color:#a8c0e0;color:var(--blue)}
   white-space:normal;word-break:break-word;}
 .hn{font-family:'JetBrains Mono',monospace;font-size:13.5px;color:var(--text3);margin-top:1px;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:220px}
-.cat-pill{display:inline-flex;align-items:center;background:#0a1a2e;border:1px solid #1a3060;
+.cat-pill{display:inline-flex;align-items:center;background:var(--bg3);border:1px solid var(--border2);
   color:var(--blue);font-size:9px;font-weight:700;letter-spacing:.5px;text-transform:uppercase;
   padding:2px 6px;border-radius:999px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:130px}
 
@@ -595,7 +610,7 @@ html.light .ops-group-body{border-color:var(--border)}
 .leg-name{font-weight:600;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .leg-pct,.leg-val{font-family:'JetBrains Mono',monospace;font-size:10px;
   border-radius:999px;padding:2px 6px;font-weight:700;text-align:center;white-space:nowrap}
-.leg-pct{background:#0a1a2e;border:1px solid #1a3060;color:#fff}
+.leg-pct{background:var(--bg3);border:1px solid var(--border2);color:#fff}
 .leg-val{background:rgba(123,167,255,.07);border:1px solid rgba(123,167,255,.12);color:var(--text2)}
 .leg-pct.gain{background:rgba(34,212,126,.08);border-color:rgba(34,212,126,.22);color:var(--green)}
 .leg-pct.loss{background:rgba(255,77,109,.08);border-color:rgba(255,77,109,.22);color:var(--red)}
@@ -907,7 +922,7 @@ html.light .tut-stage{background:radial-gradient(circle at 12% 12%,#dbeafe,trans
 <!-- ═══════════════════════════ LOGIN OVERLAY ═══════════════════════════ -->
 <div id="login-overlay" style="
   position:fixed;inset:0;z-index:9999;
-  background:#070b14;
+  background:var(--bg);
   display:flex;align-items:center;justify-content:center;
   font-family:'Outfit',sans-serif;
 ">
@@ -8451,13 +8466,18 @@ function confirmReset() {
 //  TEMA CHIARO / SCURO
 // ════════════════════════════════════════════════════════════════
 function applyTheme(t) {
-  document.documentElement.classList.toggle('light', t==='light');
+  const root = document.documentElement;
+  root.classList.remove('light','navy');
+  if (t==='light') root.classList.add('light');
+  else if (t==='navy') root.classList.add('navy');
+  // 'dark' = nessuna classe (tema base)
   const btn = document.getElementById('theme-btn');
-  if (btn) btn.textContent = t==='light' ? '🌞' : '🌙';
+  if (btn) btn.textContent = t==='light' ? '🌞' : t==='navy' ? '🌊' : '🌙';
 }
 function toggleTheme() {
-  const cur = ALL.settings?.theme || 'dark';
-  const nxt = cur==='dark' ? 'light' : 'dark';
+  // Ciclo: navy → light → dark → navy
+  const cur = ALL.settings?.theme || 'navy';
+  const nxt = cur==='navy' ? 'light' : cur==='light' ? 'dark' : 'navy';
   if (!ALL.settings) ALL.settings = {};
   ALL.settings.theme = nxt;
   save(); applyTheme(nxt);
@@ -12131,7 +12151,7 @@ load();
 S = ALL.portfolios?.find(p => p.id === ALL.activePortfolioId) || ALL.portfolios?.[0];
 try { localStorage.setItem(SK, JSON.stringify(ALL)); } catch(e) {}
 setupPWA();
-applyTheme(ALL.settings?.theme || 'dark');
+applyTheme(ALL.settings?.theme || 'navy');
 // Avvia Supabase — se loggato carica i dati cloud, altrimenti mostra login
 sbInit();
 
