@@ -807,8 +807,9 @@ input[type=number]{-moz-appearance:textfield}
 .opcard-badge.ced{background:rgba(245,158,11,.12);color:#fbbf24}
 .opcard-badge.div{background:rgba(34,197,94,.12);color:#4ade80}
 .opcard-main{flex:1;min-width:0}
-.opcard-ticker{font-size:13px;font-weight:700;color:var(--text)}
-.opcard-sub{font-size:10px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opcard-title{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.1px}
+.opcard-ticker{font-size:11px;color:var(--text3);margin-top:1px;font-weight:600}
+.opcard-detail{font-size:10px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .opcard-right{text-align:right;flex-shrink:0}
 .opcard-amt{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace}
 .opcard-date{font-size:10px;color:var(--text3);margin-top:1px}
@@ -2755,6 +2756,11 @@ function costBasisAllEUR(h) {
 }
 // Simbolo valuta di acquisto
 function buySym(h) { return getCaso(h) === 3 ? '$' : '€'; }
+// PMC nella valuta NATIVA del titolo (es. $ per titolo USA pagato in €)
+// h.avgPrice è SEMPRE in titleCcy (dollari per titoli USA), calcolato in calcPF
+function avgPriceNativeCcy(h) {
+  return h.avgPrice; // già nella valuta nativa del titolo
+}
 // Fetch cambio live EUR/USD
 async function fetchEURUSD() {
   const q = await fetchYahooChart('EURUSD=X');
@@ -4613,7 +4619,7 @@ function renderPF() {
     const detail = isOpen ? `<tr class="pf-detail-row">
       <td colspan="6"><div class="pf-detail-inner">
         <div><div class="pf-dl">Quantità</div><div class="pf-dv">${h.qty%1===0?h.qty:n2(h.qty)}</div></div>
-        <div><div class="pf-dl">P.M. Carico</div><div class="pf-dv">${n3(h.avgPriceBuyCcy||h.avgPrice)} ${sym}</div></div>
+        <div><div class="pf-dl">P.M. Carico</div><div class="pf-dv">${n3(h.avgPriceBuyCcy||h.avgPrice)} ${sym}${(getCaso(h)===2 && avgPriceNativeCcy(h))?`<span style="color:var(--text3);font-weight:400;font-size:11px"> · ${n3(avgPriceNativeCcy(h))} $</span>`:''}</div></div>
         <div><div class="pf-dl">Val. Attuale</div><div class="pf-dv">${hp?n2(p*h.qty)+' '+sym:'—'}</div></div>
         <div><div class="pf-dl">Val. Carico</div><div class="pf-dv">${n2((h.avgPriceBuyCcy||h.avgPrice)*h.qty)+' '+sym}</div></div>
         <div><div class="pf-dl">Commissioni</div><div class="pf-dv">${e2(totalComm)}</div></div>
@@ -4847,14 +4853,16 @@ function renderOps() {
       var badgeClass = isBuy?'buy':isSell?'sell':isCed?'ced':'div';
       var badgeIcon  = isBuy?'▲':isSell?'▼':isCed?'🏛':'%';
       var ticker = esc(op.displayTicker||op.ticker||'');
-      var name   = esc(op.name||'');
-      var subTxt = '';
+      var name   = esc(op.name||'') || ticker;
+      var ccy = op.titleCcy==='USD'?'$':'€';
+      var detailTxt = '';
       if (isBuy||isSell) {
-        var ccy = op.titleCcy==='USD'?'$':'€';
-        subTxt = op.qty + ' × ' + n3(op.price) + ' ' + ccy;
-        if (op.commissions) subTxt += ' · comm. ' + n2(op.commissions) + ' €';
+        // numero azioni × prezzo (valuta titolo) + totale operazione
+        var totOp = op.price*(op.qty||0);
+        detailTxt = (op.qty||0) + ' az. × ' + n3(op.price) + ' ' + ccy + ' = ' + n2(totOp) + ' ' + ccy;
+        if (op.commissions) detailTxt += ' · comm. ' + n2(op.commissions) + ' €';
       } else {
-        subTxt = isCed?'cedola netta · '+(op.withhold||12.5)+'%':'dividendo netto · '+(op.withhold||26)+'%';
+        detailTxt = isCed?'cedola netta · ritenuta '+(op.withhold||12.5)+'%':'dividendo netto · ritenuta '+(op.withhold||26)+'%';
       }
       var amtVal = isBuy||isSell ? (op.price*(op.qty||0)+(isBuy?1:-1)*(op.commissions||0)) : (op.net||0);
       var amtColor = (isSell||isDiv||isCed) ? '#22d47e' : '#f87171';
@@ -4864,8 +4872,9 @@ function renderOps() {
       return '<div class="opcard-new'+extraClass+'">'
         +'<div class="opcard-badge '+badgeClass+'">'+badgeIcon+'</div>'
         +'<div class="opcard-main">'
+        +'<div class="opcard-title">'+name+'</div>'
         +'<div class="opcard-ticker">'+ticker+'</div>'
-        +'<div class="opcard-sub">'+name+(name&&subTxt?' · ':'')+subTxt+'</div>'
+        +'<div class="opcard-detail">'+detailTxt+'</div>'
         +'</div>'
         +'<div class="opcard-right">'
         +'<div class="opcard-amt" style="color:'+amtColor+'">'+amtStr+'</div>'
