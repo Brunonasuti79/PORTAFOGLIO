@@ -795,7 +795,7 @@ input[type=number]{-moz-appearance:textfield}
 .ops-fpill.active.incassi{background:rgba(245,158,11,.1);color:#fbbf24;border-color:#fbbf24}
 .ops-month-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 10px;cursor:pointer;user-select:none}
 .ops-month-hdr:hover{background:var(--bg2)}
-.ops-month-title{font-size:19px;font-weight:800;color:var(--text);letter-spacing:-.3px;text-transform:capitalize}
+.ops-month-title{font-size:16px;font-weight:800;color:var(--text);letter-spacing:-.3px;text-transform:capitalize}
 .ops-month-meta{display:flex;align-items:center;gap:10px}
 .ops-month-count{font-size:11px;color:var(--text3);font-weight:600;background:var(--bg3);padding:2px 9px;border-radius:20px}
 .ops-month-arrow{font-size:12px;color:var(--text3);transition:transform .2s}
@@ -807,9 +807,9 @@ input[type=number]{-moz-appearance:textfield}
 .ops-recap-dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
 .ops-recap-cat{color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ops-recap-amt{color:var(--text);font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px}
-.ops-recap-tot{margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px}
+.ops-recap-tot{margin-top:8px;padding-top:7px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;font-size:12px;gap:12px}
 .ops-recap-tot b{font-weight:800;font-family:'JetBrains Mono',monospace}
-.ops-recap-chart{width:128px;flex-shrink:0;border-left:1px solid var(--border);padding-left:12px}
+.ops-recap-chart{width:175px;flex-shrink:0;border-left:1px solid var(--border);padding-left:12px}
 .ops-recap-chart-lbl{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:4px}
 .ops-section-hdr{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:12px 14px 5px;border-bottom:1px solid var(--border)}
 .ops-kpi-bar{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 14px 4px}
@@ -4765,11 +4765,11 @@ function toggleOpGroup(cat) {
 function renderOps() {
   var filterTxt = (document.getElementById('ops-search-inp')?.value||'').toLowerCase().trim();
   var activeFilter = window._opsFilter || 'tutti';
-  var allOps = (S.ops||[]).filter(function(op){ return op.ticker !== '__CASH__'; });
+  var allOps = (S.ops||[]);
 
   // Applica filtro tipo
   var titoli   = allOps.filter(function(o){ return o.type==='buy'||o.type==='sell'; });
-  var incassi  = allOps.filter(function(o){ return o.type==='cedola'||o.type==='dividendo'; });
+  var incassi  = allOps.filter(function(o){ return o.type==='cedola'||o.type==='dividendo'||o.type==='cash'; });
   var isCatFilter = activeFilter!=='tutti' && activeFilter!=='titoli' && activeFilter!=='incassi';
   var visOps   = activeFilter==='titoli' ? titoli
                : activeFilter==='incassi' ? incassi
@@ -4908,23 +4908,22 @@ function renderOps() {
       // giorni del mese: estrai da date operazioni
       var days = buyOps.map(function(o){ return parseInt(o.date.slice(8,10)) || 1; });
       var minD = 1, maxD = 31;
-      var W = 116, H = 56;
+      var W = 165, H = 92;
+      var baseY = H - 14;
       bubblesHtml = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;overflow:visible">';
-      // asse base
-      bubblesHtml += '<line x1="0" y1="'+(H-10)+'" x2="'+W+'" y2="'+(H-10)+'" stroke="var(--border)" stroke-width="1"/>';
+      bubblesHtml += '<line x1="0" y1="'+baseY+'" x2="'+W+'" y2="'+baseY+'" stroke="var(--border)" stroke-width="1"/>';
       buyOps.forEach(function(o){
         var d = parseInt(o.date.slice(8,10)) || 1;
-        var x = (d-minD)/(maxD-minD) * W;
+        var x = 6 + (d-minD)/(maxD-minD) * (W-12);
         var amt = o.price*(o.qty||0);
-        var r = 3 + (amt/maxAmt) * 9; // raggio 3-12
-        var y = H - 10 - r;
+        var r = 4 + (amt/maxAmt) * 14; // raggio 4-18 (più grande)
+        var y = baseY - r;
         var col = o.type==='buy' ? '#60a5fa' : '#fb923c';
-        bubblesHtml += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+col+'" fill-opacity="0.55" stroke="'+col+'" stroke-width="1"/>';
+        bubblesHtml += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+col+'" fill-opacity="0.5" stroke="'+col+'" stroke-width="1.3"/>';
       });
-      // etichette 1 / 15 / 31
-      bubblesHtml += '<text x="0" y="'+H+'" fill="var(--text3)" font-size="7">1</text>';
-      bubblesHtml += '<text x="'+(W/2-4)+'" y="'+H+'" fill="var(--text3)" font-size="7">15</text>';
-      bubblesHtml += '<text x="'+(W-10)+'" y="'+H+'" fill="var(--text3)" font-size="7">31</text>';
+      bubblesHtml += '<text x="0" y="'+(H-2)+'" fill="var(--text3)" font-size="8">1</text>';
+      bubblesHtml += '<text x="'+(W/2-5)+'" y="'+(H-2)+'" fill="var(--text3)" font-size="8">15</text>';
+      bubblesHtml += '<text x="'+(W-12)+'" y="'+(H-2)+'" fill="var(--text3)" font-size="8">31</text>';
       bubblesHtml += '</svg>';
     }
 
@@ -4939,31 +4938,46 @@ function renderOps() {
     var rows = mOps.map(function(op){
       var isCed = op.type==='cedola', isDiv = op.type==='dividendo';
       var isBuy = op.type==='buy', isSell = op.type==='sell';
-      var extraClass = isCed?' incasso-ced':isDiv?' incasso-div':'';
-      var badgeClass = isBuy?'buy':isSell?'sell':isCed?'ced':'div';
-      var badgeIcon  = isBuy?'▲':isSell?'▼':isCed?'🏛':'%';
+      var isCash = op.type==='cash';
+      var cashAmt = op.cashAmount != null ? op.cashAmount : (op.totalCost||0);
+      var isDeposit = isCash && cashAmt >= 0;
+      var isWithdraw = isCash && cashAmt < 0;
+      var extraClass = isCed?' incasso-ced':isDiv?' incasso-div':isCash?' incasso-div':'';
+      var badgeClass = isBuy?'buy':isSell?'sell':isCed?'ced':isCash?(isDeposit?'div':'sell'):'div';
+      var badgeIcon  = isBuy?'▲':isSell?'▼':isCed?'🏛':isCash?(isDeposit?'＋':'－'):'%';
       var ticker = esc(op.displayTicker||op.ticker||'');
       var name   = esc(op.name||'') || ticker;
       var ccy = op.titleCcy==='USD'?'$':'€';
       var detailTxt = '';
       if (isBuy||isSell) {
-        // numero azioni × prezzo (valuta titolo) + totale operazione
         var totOp = op.price*(op.qty||0);
         detailTxt = (op.qty||0) + ' az. × ' + n3(op.price) + ' ' + ccy + ' = ' + n2(totOp) + ' ' + ccy;
         if (op.commissions) detailTxt += ' · comm. ' + n2(op.commissions) + ' €';
+      } else if (isCash) {
+        detailTxt = isDeposit ? 'Deposito liquidità' : 'Prelievo liquidità';
+        name = esc(op.name||'') || (isDeposit?'Deposito':'Prelievo');
       } else {
         detailTxt = isCed?'cedola netta · ritenuta '+(op.withhold||12.5)+'%':'dividendo netto · ritenuta '+(op.withhold||26)+'%';
       }
-      var amtVal = isBuy||isSell ? (op.price*(op.qty||0)+(isBuy?1:-1)*(op.commissions||0)) : (op.net||0);
-      var amtColor = (isSell||isDiv||isCed) ? '#22d47e' : '#f87171';
-      var amtSign  = (isSell||isDiv||isCed) ? '+' : '−';
+      var amtVal, amtColor, amtSign;
+      if (isCash) {
+        amtVal = Math.abs(cashAmt);
+        amtColor = isDeposit ? '#22d47e' : '#f87171';
+        amtSign  = isDeposit ? '+' : '−';
+      } else {
+        amtVal = isBuy||isSell ? (op.price*(op.qty||0)+(isBuy?1:-1)*(op.commissions||0)) : (op.net||0);
+        amtColor = (isSell||isDiv||isCed) ? '#22d47e' : '#f87171';
+        amtSign  = (isSell||isDiv||isCed) ? '+' : '−';
+      }
       var amtStr   = amtSign + n2(Math.abs(amtVal)) + ' €';
+      // Ticker CASH non mostrato
+      if (isCash) ticker = '';
 
       return '<div class="opcard-new'+extraClass+'">'
         +'<div class="opcard-badge '+badgeClass+'">'+badgeIcon+'</div>'
         +'<div class="opcard-main">'
         +'<div class="opcard-title">'+name+'</div>'
-        +'<div class="opcard-ticker">'+ticker+'</div>'
+        +(ticker?'<div class="opcard-ticker">'+ticker+'</div>':'')
         +'<div class="opcard-detail">'+detailTxt+'</div>'
         +'</div>'
         +'<div class="opcard-right">'
@@ -7172,7 +7186,7 @@ function showPage(pg) {
   }
 
   // Render pagina
-  if (pg==='operations') renderOps();
+  if (pg==='operations') { window._opsMonthOpen = {}; renderOps(); }
   if (pg==='charts')    renderCharts();
   if (pg==='rebalance') renderRebalance();
   if (pg==='proj')      renderProjection();
@@ -9222,7 +9236,7 @@ function saveCashDeposit() {
     ticker: '__CASH__', displayTicker: 'CASH',
     quoteTicker: '__CASH__', market: '',
     name: note, assetClass: 'Liquidità',
-    type: amount >= 0 ? 'buy' : 'sell', qty: 1, price: Math.abs(amount),
+    type: 'cash', cashAmount: amount, qty: 1, price: Math.abs(amount),
     avgPrice: Math.abs(amount), avgPriceBuyCcy: Math.abs(amount),
     commission: 0, totalCost: amount,
     buyCcy: 'EUR', titleCcy: 'EUR',
