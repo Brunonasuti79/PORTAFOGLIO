@@ -793,28 +793,46 @@ input[type=number]{-moz-appearance:textfield}
 .ops-fpill{padding:4px 12px;border-radius:20px;border:1px solid var(--border2);font-size:10px;font-weight:700;cursor:pointer;background:transparent;color:var(--text3);letter-spacing:.4px}
 .ops-fpill.active{background:var(--bg2);color:var(--text);border-color:var(--blue)}
 .ops-fpill.active.incassi{background:rgba(245,158,11,.1);color:#fbbf24;border-color:#fbbf24}
+.ops-month-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 14px 10px;cursor:pointer;user-select:none}
+.ops-month-hdr:hover{background:var(--bg2)}
+.ops-month-title{font-size:19px;font-weight:800;color:var(--text);letter-spacing:-.3px;text-transform:capitalize}
+.ops-month-meta{display:flex;align-items:center;gap:10px}
+.ops-month-count{font-size:11px;color:var(--text3);font-weight:600;background:var(--bg3);padding:2px 9px;border-radius:20px}
+.ops-month-arrow{font-size:12px;color:var(--text3);transition:transform .2s}
+.ops-month-arrow.open{transform:rotate(180deg)}
+.ops-month-body{overflow:hidden}
+.ops-recap{margin:0 14px 10px;background:var(--bg2);border:1px solid var(--border);border-radius:12px;padding:12px;display:flex;gap:12px}
+.ops-recap-legend{flex:1;min-width:0}
+.ops-recap-lrow{display:flex;align-items:center;gap:7px;padding:3px 0;font-size:11px}
+.ops-recap-dot{width:8px;height:8px;border-radius:3px;flex-shrink:0}
+.ops-recap-cat{color:var(--text2);flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ops-recap-amt{color:var(--text);font-weight:700;font-family:'JetBrains Mono',monospace;font-size:11px}
+.ops-recap-tot{margin-top:6px;padding-top:6px;border-top:1px solid var(--border);display:flex;justify-content:space-between;font-size:12px}
+.ops-recap-tot b{font-weight:800;font-family:'JetBrains Mono',monospace}
+.ops-recap-chart{width:128px;flex-shrink:0;border-left:1px solid var(--border);padding-left:12px}
+.ops-recap-chart-lbl{font-size:8px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;font-weight:700;margin-bottom:4px}
 .ops-section-hdr{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:12px 14px 5px;border-bottom:1px solid var(--border)}
 .ops-kpi-bar{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:8px 14px 4px}
 .ops-kpi{background:var(--bg2);border:1px solid var(--border);border-radius:8px;padding:7px 10px}
 .ops-kpi-lbl{font-size:9px;color:var(--text3);font-weight:700;text-transform:uppercase;letter-spacing:.6px;margin-bottom:2px}
 .ops-kpi-val{font-size:15px;font-weight:900;font-family:'JetBrains Mono',monospace}
-.opcard-new{background:var(--bg2);border:1px solid var(--border);border-radius:10px;margin:4px 14px;padding:10px 12px;display:flex;align-items:center;gap:10px}
+.opcard-new{background:var(--bg2);border:1px solid var(--border);border-radius:9px;margin:3px 14px;padding:6px 11px;display:flex;align-items:center;gap:9px}
 .opcard-new.incasso-ced{border-left:2px solid #fbbf24}
 .opcard-new.incasso-div{border-left:2px solid #4ade80}
-.opcard-badge{width:30px;height:30px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;font-weight:700}
+.opcard-badge{width:24px;height:24px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:11px;flex-shrink:0;font-weight:700}
 .opcard-badge.buy{background:rgba(59,130,246,.15);color:#60a5fa}
 .opcard-badge.sell{background:rgba(251,146,60,.15);color:#fb923c}
 .opcard-badge.ced{background:rgba(245,158,11,.12);color:#fbbf24}
 .opcard-badge.div{background:rgba(34,197,94,.12);color:#4ade80}
 .opcard-main{flex:1;min-width:0}
-.opcard-title{font-size:14px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.1px}
-.opcard-ticker{font-size:11px;color:var(--text3);margin-top:1px;font-weight:600}
-.opcard-detail{font-size:10px;color:var(--text3);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.opcard-title{font-size:12px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;letter-spacing:-.1px}
+.opcard-ticker{font-size:9px;color:var(--text3);font-weight:600;display:inline}
+.opcard-detail{font-size:9px;color:var(--text3);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .opcard-right{text-align:right;flex-shrink:0}
-.opcard-amt{font-size:13px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.opcard-amt{font-size:12px;font-weight:700;font-family:'JetBrains Mono',monospace}
 .opcard-date{font-size:10px;color:var(--text3);margin-top:1px}
 .opcard-actions{display:flex;gap:4px;margin-left:4px}
-.opcard-btn{background:none;border:1px solid var(--border2);border-radius:6px;color:var(--text3);font-size:12px;cursor:pointer;width:26px;height:26px;display:flex;align-items:center;justify-content:center}
+.opcard-btn{background:none;border:1px solid var(--border2);border-radius:5px;color:var(--text3);font-size:11px;cursor:pointer;width:22px;height:22px;display:flex;align-items:center;justify-content:center}
 .btp-preview{background:rgba(245,158,11,.07);border:1px solid rgba(245,158,11,.2);border-radius:8px;padding:8px 10px;margin:8px 0;font-size:11px;color:var(--text2);line-height:1.8}
 .btp-preview-row{display:flex;justify-content:space-between}
 .section-divider{font-size:9px;font-weight:700;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;padding:6px 0 4px;border-top:1px solid var(--border);margin-top:8px}
@@ -4844,8 +4862,80 @@ function renderOps() {
 
   var monthOrder = Object.keys(byMonth);
 
+  // Colori per categoria (legenda recap)
+  var catColors = {
+    'ETF Azionario':'#60a5fa','Azioni singole':'#34e69e','BTP / Titoli di Stato':'#fbbf24',
+    'ETF Monetario / Fondo Monetario':'#a78bfa','ETF Obbligazionario':'#22d3ee',
+    'Oro / Commodities':'#f59e0b','Senza categoria':'#94a3b8'
+  };
+  function catColor(c){ return catColors[c] || '#94a3b8'; }
+
+  // Stato apertura mesi — tutti chiusi di default
+  if (!window._opsMonthOpen) window._opsMonthOpen = {};
+
   var opsHtml = monthOrder.map(function(mk){
     var mOps = byMonth[mk];
+    var isMonthOpen = !!window._opsMonthOpen[mk];
+
+    // ── RECAP: totali per categoria (solo acquisti/vendite titoli) ──
+    var catTotals = {};
+    var monthInvested = 0;
+    mOps.forEach(function(op){
+      if (op.type==='buy') {
+        var cat = op.assetClass || 'Senza categoria';
+        var amt = op.price*(op.qty||0);
+        catTotals[cat] = (catTotals[cat]||0) + amt;
+        monthInvested += amt;
+      }
+    });
+    var catEntries = Object.keys(catTotals).map(function(c){ return {cat:c, amt:catTotals[c]}; })
+                           .sort(function(a,b){ return b.amt - a.amt; });
+
+    var legendHtml = catEntries.map(function(e){
+      return '<div class="ops-recap-lrow">'
+        +'<span class="ops-recap-dot" style="background:'+catColor(e.cat)+'"></span>'
+        +'<span class="ops-recap-cat">'+esc(e.cat)+'</span>'
+        +'<span class="ops-recap-amt">'+n2(e.amt)+' €</span>'
+        +'</div>';
+    }).join('');
+
+    // ── GRAFICO BOLLE: x=data, dimensione=importo ──
+    var buyOps = mOps.filter(function(o){ return o.type==='buy'||o.type==='sell'; });
+    var bubblesHtml = '';
+    if (buyOps.length) {
+      var maxAmt = Math.max.apply(null, buyOps.map(function(o){ return o.price*(o.qty||0); }));
+      var parts = mk.split(' ');
+      // giorni del mese: estrai da date operazioni
+      var days = buyOps.map(function(o){ return parseInt(o.date.slice(8,10)) || 1; });
+      var minD = 1, maxD = 31;
+      var W = 116, H = 56;
+      bubblesHtml = '<svg viewBox="0 0 '+W+' '+H+'" style="width:100%;height:'+H+'px;overflow:visible">';
+      // asse base
+      bubblesHtml += '<line x1="0" y1="'+(H-10)+'" x2="'+W+'" y2="'+(H-10)+'" stroke="var(--border)" stroke-width="1"/>';
+      buyOps.forEach(function(o){
+        var d = parseInt(o.date.slice(8,10)) || 1;
+        var x = (d-minD)/(maxD-minD) * W;
+        var amt = o.price*(o.qty||0);
+        var r = 3 + (amt/maxAmt) * 9; // raggio 3-12
+        var y = H - 10 - r;
+        var col = o.type==='buy' ? '#60a5fa' : '#fb923c';
+        bubblesHtml += '<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+r.toFixed(1)+'" fill="'+col+'" fill-opacity="0.55" stroke="'+col+'" stroke-width="1"/>';
+      });
+      // etichette 1 / 15 / 31
+      bubblesHtml += '<text x="0" y="'+H+'" fill="var(--text3)" font-size="7">1</text>';
+      bubblesHtml += '<text x="'+(W/2-4)+'" y="'+H+'" fill="var(--text3)" font-size="7">15</text>';
+      bubblesHtml += '<text x="'+(W-10)+'" y="'+H+'" fill="var(--text3)" font-size="7">31</text>';
+      bubblesHtml += '</svg>';
+    }
+
+    var recapHtml = '<div class="ops-recap">'
+      +'<div class="ops-recap-legend">'
+      + (legendHtml || '<div style="font-size:11px;color:var(--text3)">Nessun acquisto questo mese</div>')
+      + (monthInvested>0 ? '<div class="ops-recap-tot"><span style="color:var(--text3)">Totale investito</span><b>'+n2(monthInvested)+' €</b></div>' : '')
+      +'</div>'
+      + (bubblesHtml ? '<div class="ops-recap-chart"><div class="ops-recap-chart-lbl">Operazioni · importo/data</div>'+bubblesHtml+'</div>' : '')
+      +'</div>';
+
     var rows = mOps.map(function(op){
       var isCed = op.type==='cedola', isDiv = op.type==='dividendo';
       var isBuy = op.type==='buy', isSell = op.type==='sell';
@@ -4888,20 +4978,52 @@ function renderOps() {
         +'</div>';
     }).join('');
 
-    return '<div class="ops-section-hdr">'+mk+'</div>' + rows;
+    var arrowCls = isMonthOpen ? 'ops-month-arrow open' : 'ops-month-arrow';
+    var bodyStyle = isMonthOpen ? '' : 'display:none';
+    return '<div class="ops-month-hdr" data-month="'+esc(mk)+'">'
+      +'<div class="ops-month-title">'+mk+'</div>'
+      +'<div class="ops-month-meta">'
+      +'<span class="ops-month-count">'+mOps.length+' op.</span>'
+      +'<span class="'+arrowCls+'">▼</span>'
+      +'</div>'
+      +'</div>'
+      +'<div class="ops-month-body" style="'+bodyStyle+'">'
+      + recapHtml + rows
+      +'</div>';
   }).join('');
 
   ol.innerHTML = kpiHtml + opsHtml;
 
-  // Event delegation — evita problemi di escaping nei onclick
-  ol.addEventListener('click', function handler(e) {
-    var editBtn = e.target.closest('.op-edit-btn');
-    var dupBtn  = e.target.closest('.op-dup-btn');
-    var delBtn  = e.target.closest('.op-del-btn');
-    if (editBtn) { e.stopPropagation(); editOp(editBtn.dataset.opid); }
-    if (dupBtn)  { e.stopPropagation(); dupOp(dupBtn.dataset.opid); }
-    if (delBtn)  { e.stopPropagation(); delOp(delBtn.dataset.opid); }
-  }, { once: false });
+  // Event delegation — registrato UNA SOLA VOLTA (evita listener duplicati)
+  if (!ol._opsHandlerSet) {
+    ol._opsHandlerSet = true;
+    ol.addEventListener('click', function(e) {
+      // Toggle apertura mese
+      var monthHdr = e.target.closest('.ops-month-hdr');
+      if (monthHdr) {
+        var mk = monthHdr.dataset.month;
+        if (!window._opsMonthOpen) window._opsMonthOpen = {};
+        window._opsMonthOpen[mk] = !window._opsMonthOpen[mk];
+        var body = monthHdr.nextElementSibling;
+        var arrow = monthHdr.querySelector('.ops-month-arrow');
+        if (window._opsMonthOpen[mk]) {
+          body.style.display = '';
+          if (arrow) arrow.classList.add('open');
+        } else {
+          body.style.display = 'none';
+          if (arrow) arrow.classList.remove('open');
+        }
+        return;
+      }
+      // Bottoni operazione
+      var editBtn = e.target.closest('.op-edit-btn');
+      var dupBtn  = e.target.closest('.op-dup-btn');
+      var delBtn  = e.target.closest('.op-del-btn');
+      if (editBtn) { e.stopPropagation(); editOp(editBtn.dataset.opid); }
+      if (dupBtn)  { e.stopPropagation(); dupOp(dupBtn.dataset.opid); }
+      if (delBtn)  { e.stopPropagation(); delOp(delBtn.dataset.opid); }
+    });
+  }
 }
 
 // ════════════════════════════════════════════════════════════════
